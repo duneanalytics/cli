@@ -100,7 +100,7 @@ func runWait(cmd *cobra.Command, req models.ExecuteRequest) error {
 		return fmt.Errorf("%s", msg)
 	}
 
-	return displayResults(cmd, resp)
+	return output.DisplayResults(cmd, resp)
 }
 
 func parseParams(raw []string) (map[string]any, error) {
@@ -121,40 +121,3 @@ func parseParams(raw []string) (map[string]any, error) {
 	return params, nil
 }
 
-func displayResults(cmd *cobra.Command, resp *models.ResultsResponse) error {
-	w := cmd.OutOrStdout()
-
-	if output.FormatFromCmd(cmd) == output.FormatJSON {
-		return output.PrintJSON(w, resp)
-	}
-
-	limit, _ := cmd.Flags().GetInt("limit")
-	columns := resp.Result.Metadata.ColumnNames
-	sourceRows := resp.Result.Rows
-	totalRows := len(sourceRows)
-
-	if limit > 0 && limit < totalRows {
-		sourceRows = sourceRows[:limit]
-	}
-	rows := resultRowsToStrings(sourceRows, columns)
-
-	output.PrintTable(w, columns, rows)
-	if limit > 0 && limit < totalRows {
-		fmt.Fprintf(w, "\nShowing %d of %d rows\n", limit, totalRows)
-	} else {
-		fmt.Fprintf(w, "\n%d rows\n", totalRows)
-	}
-	return nil
-}
-
-func resultRowsToStrings(rows []map[string]any, columns []string) [][]string {
-	out := make([][]string, len(rows))
-	for i, row := range rows {
-		cells := make([]string, len(columns))
-		for j, col := range columns {
-			cells[j] = fmt.Sprintf("%v", row[col])
-		}
-		out[i] = cells
-	}
-	return out
-}

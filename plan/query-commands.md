@@ -442,7 +442,7 @@ Reuses: SDK's `RunQuery`, `Execution.WaitGetResults`, `QueryExecute`, `ResultsRe
 
 ## Step 9: `dune execution results`
 
-- [ ] Done
+- [x] Done
 
 New `execution` parent command (`cmd/execution/execution.go`) + `results` subcommand (`cmd/execution/results.go`).
 

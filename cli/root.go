@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/charmbracelet/fang"
+	"github.com/duneanalytics/cli/cmd/execution"
 	"github.com/duneanalytics/cli/cmd/query"
 	"github.com/duneanalytics/cli/cmdutil"
 	"github.com/duneanalytics/duneapi-client-go/config"
@@ -43,6 +44,7 @@ var rootCmd = &cobra.Command{
 func init() {
 	rootCmd.PersistentFlags().StringVar(&apiKeyFlag, "api-key", "", "Dune API key (overrides DUNE_API_KEY env var)")
 	rootCmd.AddCommand(query.NewQueryCmd())
+	rootCmd.AddCommand(execution.NewExecutionCmd())
 }
 
 // Execute runs the root command via Fang.
