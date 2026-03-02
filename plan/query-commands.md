@@ -1,16 +1,23 @@
-# Dune CLI — `dune query` Implementation Plan
+# Dune CLI — Implementation Plan
 
 ## Commands
 
+### `dune query` — query management + execution triggers
+
 | Command | Maps to MCP tool | SDK method |
 |---------|-----------------|------------|
-| `create` | `createDuneQuery` | `CreateQuery` (new — added to SDK in Step 2) |
-| `get` | `getDuneQuery` | `GetQuery` (new — added to SDK in Step 2) |
-| `update` | `updateDuneQuery` | `UpdateQuery` (new — added to SDK in Step 2) |
-| `archive` | `updateDuneQuery` (is_archived) | `ArchiveQuery` (new — added to SDK in Step 2) |
-| `run` | `executeQueryById` + `getExecutionResults` | `RunQuery` + `Execution.WaitGetResults` |
-| `results` | `getExecutionResults` | `QueryResultsV2` |
-| `run-sql` | (ad-hoc SQL) + `getExecutionResults` | `RunSQL` + `Execution.WaitGetResults` |
+| `query create` | `createDuneQuery` | `CreateQuery` (new — added to SDK in Step 2) |
+| `query get` | `getDuneQuery` | `GetQuery` (new — added to SDK in Step 2) |
+| `query update` | `updateDuneQuery` | `UpdateQuery` (new — added to SDK in Step 2) |
+| `query archive` | `updateDuneQuery` (is_archived) | `ArchiveQuery` (new — added to SDK in Step 2) |
+| `query run` | `executeQueryById` + `getExecutionResults` | `RunQuery` + `Execution.WaitGetResults` |
+| `query run-sql` | (ad-hoc SQL) + `getExecutionResults` | `RunSQL` + `Execution.WaitGetResults` |
+
+### `dune execution` — operations on executions (by execution ID)
+
+| Command | Maps to MCP tool | SDK method |
+|---------|-----------------|------------|
+| `execution results` | `getExecutionResults` | `QueryResultsV2` |
 
 All commands use **only** the SDK's `dune.DuneClient` interface. No separate HTTP client in the CLI.
 
@@ -395,7 +402,7 @@ API reference: POST `/api/v1/query/{queryId}/archive` — dedicated endpoint, no
 
 ## Step 8: `dune query run`
 
-- [ ] Done
+- [x] Done
 
 `cmd/query/run.go` — positional arg: query ID. Flags: `--param key=value` (repeatable), `--performance medium|large`, `--limit`, `--no-wait`, `-o`.
 
@@ -433,11 +440,13 @@ Reuses: SDK's `RunQuery`, `Execution.WaitGetResults`, `QueryExecute`, `ResultsRe
 
 ---
 
-## Step 9: `dune query results`
+## Step 9: `dune execution results`
 
 - [ ] Done
 
-`cmd/query/results.go` — positional arg: execution ID (string). Flags: `--limit`, `--offset`, `-o`.
+New `execution` parent command (`cmd/execution/execution.go`) + `results` subcommand (`cmd/execution/results.go`).
+
+Positional arg: execution ID (string). Flags: `--limit`, `--offset`, `-o`.
 
 One-shot fetch via `client.QueryResultsV2(executionID, models.ResultOptions{Page: &models.ResultPageOption{Offset, Limit}})` — no polling. If still running: print status, exit 0. If complete: display results. If failed: print error, exit 1.
 
@@ -445,9 +454,11 @@ API reference: GET `/api/v1/execution/{execution_id}/results` — query params: 
 
 Reuses: SDK's `QueryResultsV2`, `models.ResultOptions`, `models.ResultPageOption`, `models.ResultsResponse`.
 
+Reuses from `cmd/query/run.go`: `displayResults` and `resultRowsToStrings` — these must be moved to a shared location (e.g., `output/` package or `cmdutil/`) since they'll now be called from a different package.
+
 **Acceptance criteria:**
-- Completed execution displays results
-- `--limit` and `--offset` work
+- `dune execution results <execution-id>` displays results
+- `--limit` and `--offset` work (passed to `ResultPageOption`)
 - Running execution prints status, exits 0
 - Failed execution prints error, exits 1
 - `-o json` works
@@ -502,17 +513,21 @@ cli/                                    # CLI repo
     main.go                             # Entry point (exists)
     query/
       query.go                          # Query parent command (exists)
+      helpers.go                        # Shared helpers (parseQueryID)
       create.go                         # Step 4
       get.go                            # Step 5
       update.go                         # Step 6
       archive.go                        # Step 7
       run.go                            # Step 8
-      results.go                        # Step 9
       run_sql.go                        # Step 10
+    execution/
+      execution.go                      # Step 9: Execution parent command
+      results.go                        # Step 9: Results subcommand
   cmdutil/
     client.go                           # SetClient, ClientFromCmd (context helpers)
   output/
     output.go                           # Shared output formatting (text, JSON)
+    results.go                          # Step 9: Shared result display (moved from cmd/query/run.go)
   go.mod                                # Has replace directive → ../duneapi-client-go
   plan/
     query-commands.md                   # This plan
@@ -534,8 +549,9 @@ duneapi-client-go/                      # SDK repo (separate)
 Step 1 (scaffolding + SDK integration + replace directive)
   ├── Step 2 (add query CRUD to SDK — separate repo)
   │     └── Steps 4-7 (CRUD commands — need Step 2)
-  ├── Steps 8-9 (execution commands — need Step 1, SDK already has methods)
-  └── Step 10 (run-sql — need Step 1, SDK already has RunSQL)
+  ├── Step 8 (query run — need Step 1, SDK already has methods)
+  ├── Step 9 (execution results — need Step 1, new execution namespace)
+  └── Step 10 (query run-sql — need Step 1, SDK already has RunSQL)
 ```
 
 Output formatting (`output/`) is created inline with the first command that needs it.
