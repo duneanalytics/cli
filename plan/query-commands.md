@@ -81,16 +81,16 @@ One client, created from `*config.Env` in `PersistentPreRunE`. No wrapper struct
 
 - [x] Done
 
-Add `github.com/spf13/cobra`, `github.com/charmbracelet/fang`, and `github.com/duneanalytics/duneapi-client-go` deps. Create root command (`internal/cli/root.go`) with persistent `--api-key` flag (overrides `DUNE_API_KEY` env). Create `query` parent command (`cmd/query/query.go`). Use `fang.Execute(context.Background(), rootCmd)`.
+Add `github.com/spf13/cobra`, `github.com/charmbracelet/fang`, and `github.com/duneanalytics/duneapi-client-go` deps. Create root command (`cli/root.go`) with persistent `--api-key` flag (overrides `DUNE_API_KEY` env). Create `query` parent command (`cmd/query/query.go`). Use `fang.Execute(context.Background(), rootCmd)`.
 
 **SDK integration:**
 - Delete local `config/` package — use SDK's `config` package instead (identical API: `FromEnvVars()`, `FromAPIKey()`, `Env{APIKey, Host}`)
 - Delete local `models/error.go` — use SDK error patterns
 - In `PersistentPreRunE`: build `*config.Env` from SDK, create `dune.NewDuneClient(env)`, store in context
 - Add `replace` directive to `go.mod` pointing to `../duneapi-client-go`
-- Provide `ClientFromCmd(cmd) dune.DuneClient` helper
+- Provide `cmdutil.ClientFromCmd(cmd) dune.DuneClient` helper
 
-File structure: `cmd/main.go`, `internal/cli/root.go`, `cmd/query/query.go`.
+File structure: `cmd/main.go`, `cli/root.go`, `cmdutil/client.go`, `cmd/query/query.go`.
 
 Reuses: `config.Env`, `config.FromEnvVars()`, `config.FromAPIKey()`, `dune.NewDuneClient(env)`.
 
@@ -293,15 +293,15 @@ archiveQueryURLTemplate = "%s/api/v1/query/%d/archive"  // POST
 
 ## Step 3: Output Formatting
 
-- [x] Deferred — create `internal/output/` inline when the first command needs it (Step 4).
+- [x] Deferred — create `output/` inline when the first command needs it (Step 4).
 
 ---
 
 ## Step 4: `dune query create`
 
-- [ ] Done
+- [x] Done
 
-`cmd/query/create.go` — flags: `--name` (required), `--sql` (required), `--description`, `--private`, `-o`. Gets client via `cli.ClientFromCmd(cmd)`, calls `client.CreateQuery(models.CreateQueryRequest{...})`.
+`cmd/query/create.go` — flags: `--name` (required), `--sql` (required), `--description`, `--private`, `-o`. Gets client via `cmdutil.ClientFromCmd(cmd)`, calls `client.CreateQuery(models.CreateQueryRequest{...})`.
 
 API reference: POST `/api/v1/query` — name (max 600 chars), query_sql (max 500k chars), description (max 1k chars), is_private, parameters, tags → `{"query_id": int}`.
 
@@ -407,7 +407,7 @@ API reference: POST `/api/v1/query/{queryId}/archive` — dedicated endpoint, no
 
 API reference: POST `/api/v1/query/{query_id}/execute` — body: `{"query_parameters": {...}, "performance": "medium"|"large"}`. Response: `{"execution_id": string, "state": string}`.
 
-No `internal/poll.go` needed — the SDK's `Execution.WaitGetResults()` replaces all custom polling logic.
+No `poll.go` needed — the SDK's `Execution.WaitGetResults()` replaces all custom polling logic.
 
 Reuses: SDK's `RunQuery`, `Execution.WaitGetResults`, `QueryExecute`, `ResultsResponse`.
 
@@ -496,6 +496,8 @@ Reuses: SDK's `RunSQL`, `Execution.WaitGetResults`, `ResultsResponse`.
 
 ```
 cli/                                    # CLI repo
+  cli/
+    root.go                             # Step 1: root command, Execute()
   cmd/
     main.go                             # Entry point (exists)
     query/
@@ -507,18 +509,13 @@ cli/                                    # CLI repo
       run.go                            # Step 8
       results.go                        # Step 9
       run_sql.go                        # Step 10
-  internal/
-    cli/
-      root.go                           # Step 1: DuneClient init, context helpers
-    output/
-      output.go                         # Created inline with first command that needs it
+  cmdutil/
+    client.go                           # SetClient, ClientFromCmd (context helpers)
+  output/
+    output.go                           # Shared output formatting (text, JSON, CSV)
   go.mod                                # Has replace directive → ../duneapi-client-go
   plan/
     query-commands.md                   # This plan
-
-  DELETED (Step 1):
-    config/config.go                    # Replaced by SDK's config package
-    models/error.go                     # Replaced by SDK error patterns
 
 duneapi-client-go/                      # SDK repo (separate)
   models/
@@ -541,5 +538,5 @@ Step 1 (scaffolding + SDK integration + replace directive)
   └── Step 10 (run-sql — need Step 1, SDK already has RunSQL)
 ```
 
-Output formatting (`internal/output/`) is created inline with the first command that needs it.
+Output formatting (`output/`) is created inline with the first command that needs it.
 Steps 4-7 depend on Step 2. Steps 8-10 only need Step 1 (SDK already has execution methods).

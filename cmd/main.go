@@ -1,6 +1,6 @@
 package main
 
-import "github.com/duneanalytics/cli/internal/cli"
+import "github.com/duneanalytics/cli/cli"
 
 func main() {
 	cli.Execute()
