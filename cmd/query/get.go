@@ -2,7 +2,6 @@ package query
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/duneanalytics/cli/cmdutil"
@@ -24,9 +23,9 @@ func newGetCmd() *cobra.Command {
 }
 
 func runGet(cmd *cobra.Command, args []string) error {
-	queryID, err := strconv.Atoi(args[0])
+	queryID, err := parseQueryID(args[0])
 	if err != nil {
-		return fmt.Errorf("invalid query ID %q: must be an integer", args[0])
+		return err
 	}
 
 	client := cmdutil.ClientFromCmd(cmd)

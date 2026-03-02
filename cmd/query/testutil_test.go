@@ -3,6 +3,7 @@ package query_test
 import (
 	"bytes"
 	"context"
+	"time"
 
 	"github.com/duneanalytics/cli/cmd/query"
 	"github.com/duneanalytics/cli/cmdutil"
@@ -11,6 +12,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// mockExecution implements dune.Execution for testing.
+type mockExecution struct {
+	dune.Execution
+	id               string
+	waitGetResultsFn func(time.Duration, int) (*models.ResultsResponse, error)
+}
+
+func (m *mockExecution) WaitGetResults(poll time.Duration, maxRetries int) (*models.ResultsResponse, error) {
+	return m.waitGetResultsFn(poll, maxRetries)
+}
+
+func (m *mockExecution) GetID() string { return m.id }
+
 // mockClient embeds the interface so unimplemented methods panic.
 type mockClient struct {
 	dune.DuneClient
@@ -18,6 +32,8 @@ type mockClient struct {
 	getQueryFn     func(int) (*models.GetQueryResponse, error)
 	updateQueryFn  func(int, models.UpdateQueryRequest) (*models.UpdateQueryResponse, error)
 	archiveQueryFn func(int) (*models.UpdateQueryResponse, error)
+	runQueryFn     func(models.ExecuteRequest) (dune.Execution, error)
+	queryExecuteFn func(models.ExecuteRequest) (*models.ExecuteResponse, error)
 }
 
 func (m *mockClient) CreateQuery(req models.CreateQueryRequest) (*models.CreateQueryResponse, error) {
@@ -34,6 +50,14 @@ func (m *mockClient) UpdateQuery(queryID int, req models.UpdateQueryRequest) (*m
 
 func (m *mockClient) ArchiveQuery(queryID int) (*models.UpdateQueryResponse, error) {
 	return m.archiveQueryFn(queryID)
+}
+
+func (m *mockClient) RunQuery(req models.ExecuteRequest) (dune.Execution, error) {
+	return m.runQueryFn(req)
+}
+
+func (m *mockClient) QueryExecute(req models.ExecuteRequest) (*models.ExecuteResponse, error) {
+	return m.queryExecuteFn(req)
 }
 
 // newTestRoot builds a root → query command tree with the mock injected.

@@ -1,7 +1,6 @@
 package output
 
 import (
-	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,12 +12,11 @@ import (
 const (
 	FormatText = "text"
 	FormatJSON = "json"
-	FormatCSV  = "csv"
 )
 
 // AddFormatFlag registers the -o/--output flag on cmd with the given default.
 func AddFormatFlag(cmd *cobra.Command, defaultFormat string) {
-	cmd.Flags().StringP("output", "o", defaultFormat, `output format: "text", "json", or "csv"`)
+	cmd.Flags().StringP("output", "o", defaultFormat, `output format: "text" or "json"`)
 }
 
 // FormatFromCmd reads the output flag value from cmd.
@@ -57,17 +55,3 @@ func PrintTable(w io.Writer, columns []string, rows [][]string) {
 	tw.Flush()
 }
 
-// PrintCSV writes columns and rows as CSV to w.
-func PrintCSV(w io.Writer, columns []string, rows [][]string) error {
-	cw := csv.NewWriter(w)
-	if err := cw.Write(columns); err != nil {
-		return err
-	}
-	for _, row := range rows {
-		if err := cw.Write(row); err != nil {
-			return err
-		}
-	}
-	cw.Flush()
-	return cw.Error()
-}

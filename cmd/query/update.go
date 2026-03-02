@@ -2,7 +2,6 @@ package query
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/duneanalytics/cli/cmdutil"
 	"github.com/duneanalytics/cli/output"
@@ -29,9 +28,9 @@ func newUpdateCmd() *cobra.Command {
 }
 
 func runUpdate(cmd *cobra.Command, args []string) error {
-	queryID, err := strconv.Atoi(args[0])
+	queryID, err := parseQueryID(args[0])
 	if err != nil {
-		return fmt.Errorf("invalid query ID %q: must be an integer", args[0])
+		return err
 	}
 
 	var req models.UpdateQueryRequest

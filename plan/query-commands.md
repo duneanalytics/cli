@@ -411,7 +411,7 @@ No `poll.go` needed — the SDK's `Execution.WaitGetResults()` replaces all cust
 
 Reuses: SDK's `RunQuery`, `Execution.WaitGetResults`, `QueryExecute`, `ResultsResponse`.
 
-**Output:** `--no-wait`: `Execution ID: 01JG...` / table: rows + footer with row count / json: full result object / csv: standard CSV.
+**Output:** `--no-wait`: `Execution ID: 01JG...` / table: rows + footer with row count / json: full result object.
 
 **Acceptance criteria:**
 - Executes and prints results as table
@@ -421,7 +421,7 @@ Reuses: SDK's `RunQuery`, `Execution.WaitGetResults`, `QueryExecute`, `ResultsRe
 - `--no-wait` prints execution ID only
 - Failed execution prints error, exits 1
 - Progress shown on stderr during polling (SDK handles this)
-- `-o json` and `-o csv` work
+- `-o json` works
 
 **Tests:**
 - Param parsing ("key=value" → map)
@@ -429,7 +429,7 @@ Reuses: SDK's `RunQuery`, `Execution.WaitGetResults`, `QueryExecute`, `ResultsRe
 - No-wait mode returns execution ID
 - Successful execution renders table (mock DuneClient interface)
 - Failed execution prints error, exits 1
-- JSON and CSV output formats
+- JSON output format
 
 ---
 
@@ -450,7 +450,7 @@ Reuses: SDK's `QueryResultsV2`, `models.ResultOptions`, `models.ResultPageOption
 - `--limit` and `--offset` work
 - Running execution prints status, exits 0
 - Failed execution prints error, exits 1
-- `-o json` and `-o csv` work
+- `-o json` works
 
 **Tests:**
 - Completed execution renders results (mock DuneClient)
@@ -512,7 +512,7 @@ cli/                                    # CLI repo
   cmdutil/
     client.go                           # SetClient, ClientFromCmd (context helpers)
   output/
-    output.go                           # Shared output formatting (text, JSON, CSV)
+    output.go                           # Shared output formatting (text, JSON)
   go.mod                                # Has replace directive → ../duneapi-client-go
   plan/
     query-commands.md                   # This plan

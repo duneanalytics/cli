@@ -29,16 +29,6 @@ func TestPrintTable(t *testing.T) {
 	assert.Contains(t, out, "beta")
 }
 
-func TestPrintCSV(t *testing.T) {
-	var buf bytes.Buffer
-	err := PrintCSV(&buf, []string{"id", "name"}, [][]string{
-		{"1", "alpha"},
-		{"2", "beta"},
-	})
-	require.NoError(t, err)
-	assert.Equal(t, "id,name\n1,alpha\n2,beta\n", buf.String())
-}
-
 func TestAddFormatFlag_DefaultValue(t *testing.T) {
 	cmd := &cobra.Command{}
 	AddFormatFlag(cmd, "json")
@@ -48,6 +38,6 @@ func TestAddFormatFlag_DefaultValue(t *testing.T) {
 func TestFormatFromCmd(t *testing.T) {
 	cmd := &cobra.Command{}
 	AddFormatFlag(cmd, "text")
-	_ = cmd.Flags().Set("output", "csv")
-	assert.Equal(t, "csv", FormatFromCmd(cmd))
+	_ = cmd.Flags().Set("output", "json")
+	assert.Equal(t, "json", FormatFromCmd(cmd))
 }

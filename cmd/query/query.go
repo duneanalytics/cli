@@ -12,5 +12,6 @@ func NewQueryCmd() *cobra.Command {
 	cmd.AddCommand(newGetCmd())
 	cmd.AddCommand(newUpdateCmd())
 	cmd.AddCommand(newArchiveCmd())
+	cmd.AddCommand(newRunCmd())
 	return cmd
 }
