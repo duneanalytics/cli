@@ -18,11 +18,15 @@
 - `github.com/charmbracelet/fang` — styled help pages, man pages, theming (wraps Cobra)
 - Entry point: `fang.Execute(context.Background(), rootCmd)` instead of raw `rootCmd.Execute()`
 
+## Guiding principle: Prefer SDK structs
+
+Always prefer reusing existing structs and types from `duneapi-client-go` over creating new ones. Only define new types in the CLI when the SDK does not already provide them (e.g. query CRUD request/response types). Before adding a new struct to `api/models.go`, check whether a suitable type already exists in the SDK's `models/` package.
+
 ## Key dependency: duneapi-client-go
 
 Provides: auth (`X-DUNE-API-KEY` header), config (`DUNE_API_KEY`/`DUNE_API_HOST` env vars), HTTP utils, execution (`QueryExecute`, `SQLExecute`, `QueryStatus`), results (`QueryResultsV2` with pagination), models (`ExecuteResponse`, `ResultsResponse`, `StatusResponse`).
 
-**Gap**: No query CRUD endpoints (create/get/update). The CLI needs an internal `api/` package for these.
+**Gap**: No query CRUD endpoints (create/get/update). The CLI needs an internal `api/` package for these — but only for types not already in the SDK.
 
 ---
 
@@ -62,11 +66,11 @@ Create `api/query.go` with:
 - `GetQuery(queryID) → (*QueryResponse, error)` — GET `/api/v1/query/{id}`
 - `UpdateQuery(queryID, req) → error` — PATCH `/api/v1/query/{id}`
 
-Create `api/models.go` with request/response types. `UpdateQueryRequest` uses pointer fields so only provided fields are serialized (`*string`, `*bool` with `omitempty`).
+Create `api/models.go` with request/response types **only for types not already in duneapi-client-go**. Before defining a new struct, check the SDK's `models/` package for an existing match. `UpdateQueryRequest` uses pointer fields so only provided fields are serialized (`*string`, `*bool` with `omitempty`).
 
 MCP reference: `createDuneQuery` (POST, name+query_sql+description+is_private+parameters → query_id), `getDuneQuery` (GET → full query object), `updateDuneQuery` (PATCH, only changed fields).
 
-Reuses: `config.Env` for host+key, HTTP header pattern from `dune/http.go`, error model from `models/error.go`.
+Reuses: `config.Env` for host+key, HTTP header pattern from `dune/http.go`, error model from `models/error.go`. Reuse any existing SDK structs (e.g. `ExecuteResponse`, `ResultsResponse`, `StatusResponse`, error types) wherever applicable.
 
 **Acceptance criteria:**
 - CreateQuery sends correct POST body, returns query_id
