@@ -2,15 +2,17 @@
 
 ## Commands
 
-| Command | Maps to MCP tool | Reuses duneapi-client-go |
-|---------|-----------------|--------------------------|
-| `create` | `createDuneQuery` | No (needs new API calls) |
-| `get` | `getDuneQuery` | No (needs new API calls) |
-| `update` | `updateDuneQuery` | No (needs new API calls) |
-| `archive` | `updateDuneQuery` (is_archived) | No (needs new API calls) |
-| `run` | `executeQueryById` + `getExecutionResults` | Yes: `QueryExecute`, `QueryResultsV2` |
-| `results` | `getExecutionResults` | Yes: `QueryResultsV2` |
-| `run-sql` | (ad-hoc SQL) + `getExecutionResults` | Yes: `SQLExecute`, `QueryResultsV2` |
+| Command | Maps to MCP tool | SDK method |
+|---------|-----------------|------------|
+| `create` | `createDuneQuery` | `CreateQuery` (new — added to SDK in Step 2) |
+| `get` | `getDuneQuery` | `GetQuery` (new — added to SDK in Step 2) |
+| `update` | `updateDuneQuery` | `UpdateQuery` (new — added to SDK in Step 2) |
+| `archive` | `updateDuneQuery` (is_archived) | `ArchiveQuery` (new — added to SDK in Step 2) |
+| `run` | `executeQueryById` + `getExecutionResults` | `RunQuery` + `Execution.WaitGetResults` |
+| `results` | `getExecutionResults` | `QueryResultsV2` |
+| `run-sql` | (ad-hoc SQL) + `getExecutionResults` | `RunSQL` + `Execution.WaitGetResults` |
+
+All commands use **only** the SDK's `dune.DuneClient` interface. No separate HTTP client in the CLI.
 
 ## Framework: Cobra + Charmbracelet Fang
 
@@ -18,72 +20,274 @@
 - `github.com/charmbracelet/fang` — styled help pages, man pages, theming (wraps Cobra)
 - Entry point: `fang.Execute(context.Background(), rootCmd)` instead of raw `rootCmd.Execute()`
 
-## Guiding principle: Prefer SDK structs
+## Guiding principle: Everything goes through the SDK
 
-Always prefer reusing existing structs and types from `duneapi-client-go` over creating new ones. Only define new types in the CLI when the SDK does not already provide them (e.g. query CRUD request/response types). Before adding a new struct to `api/models.go`, check whether a suitable type already exists in the SDK's `models/` package.
+All Dune API interactions go through `github.com/duneanalytics/duneapi-client-go`. Missing functionality is added to the SDK itself — the CLI has **no custom HTTP calls**.
+
+The SDK already provides: auth, config, HTTP utils, execution (`RunQuery`, `RunSQL`, `QueryExecute`, `SQLExecute`), results (`QueryResultsV2` with pagination), polling (`Execution.WaitGetResults`), models.
+
+Always reuse existing structs from the SDK's `models/` package.
 
 ## Key dependency: duneapi-client-go
 
-Provides: auth (`X-DUNE-API-KEY` header), config (`DUNE_API_KEY`/`DUNE_API_HOST` env vars), HTTP utils, execution (`QueryExecute`, `SQLExecute`, `QueryStatus`), results (`QueryResultsV2` with pagination), models (`ExecuteResponse`, `ResultsResponse`, `StatusResponse`).
+**Local development**: The CLI's `go.mod` uses a `replace` directive to point to the local SDK checkout while changes are in development:
 
-**Gap**: No query CRUD endpoints (create/get/update). The CLI needs an internal `api/` package for these — but only for types not already in the SDK.
+```
+replace github.com/duneanalytics/duneapi-client-go => ../duneapi-client-go
+```
+
+This allows `import "github.com/duneanalytics/duneapi-client-go/dune"` as normal — Go resolves from the local filesystem. Remove the `replace` line once the SDK changes are merged.
+
+**Existing SDK methods used by the CLI (signatures updated in Step 2):**
+
+| Method | Signature (after Step 2) | Used by |
+|--------|--------------------------|---------|
+| `RunQuery` | `(queryID int, params map[string]any, performance string) (Execution, error)` | `run` (wait mode) |
+| `QueryExecute` | `(queryID int, params map[string]any, performance string) (*ExecuteResponse, error)` | `run` (no-wait mode) |
+| `RunSQL` | `(sql string, performance string, params map[string]any) (Execution, error)` | `run-sql` |
+| `SQLExecute` | `(sql string, performance string, params map[string]any) (*ExecuteResponse, error)` | (available) |
+| `Execution.WaitGetResults` | `(pollInterval time.Duration, maxRetries int) (*ResultsResponse, error)` | `run`, `run-sql` |
+| `QueryResultsV2` | `(executionID string, options ResultOptions) (*ResultsResponse, error)` | `results` |
+| `QueryStatus` | `(executionID string) (*StatusResponse, error)` | (optional) |
+
+**New SDK methods added in Step 2:**
+
+| Method | Signature | Used by |
+|--------|-----------|---------|
+| `CreateQuery` | `(req CreateQueryRequest) (*CreateQueryResponse, error)` | `create` |
+| `GetQuery` | `(queryID int) (*GetQueryResponse, error)` | `get` |
+| `UpdateQuery` | `(queryID int, req UpdateQueryRequest) (*UpdateQueryResponse, error)` | `update` |
+| `ArchiveQuery` | `(queryID int) (*UpdateQueryResponse, error)` | `archive` |
+
+**Existing SDK models fixed in Step 2:**
+
+| Model | Field added | Why |
+|-------|-------------|-----|
+| `ExecuteRequest` | `Performance string` | API accepts `performance` in execute body; needed for `--performance` flag |
+| `ExecuteSQLRequest` | `QueryParameters map[string]any` | API accepts params in SQL execute body; needed for `--param` flag |
+
+## Architecture: Single SDK client in context
+
+```go
+// Stored in Cobra command context, accessed via ClientFromCmd(cmd)
+dune.DuneClient
+```
+
+One client, created from `*config.Env` in `PersistentPreRunE`. No wrapper structs needed.
 
 ---
 
-## Step 1: Project Scaffolding + Cobra + Fang
+## Step 1: Project Scaffolding + SDK Integration
 
-- [ ] Done
+- [x] Done
 
-Add `github.com/spf13/cobra`, `github.com/charmbracelet/fang`, and `github.com/duneanalytics/duneapi-client-go` deps. Create root command (`cmd/root.go`) with persistent `--api-key` flag (overrides `DUNE_API_KEY` env). Create `query` parent command (`cmd/query/query.go`). Refactor `cmd/main.go` to use `fang.Execute(context.Background(), rootCmd)`.
+Add `github.com/spf13/cobra`, `github.com/charmbracelet/fang`, and `github.com/duneanalytics/duneapi-client-go` deps. Create root command (`internal/cli/root.go`) with persistent `--api-key` flag (overrides `DUNE_API_KEY` env). Create `query` parent command (`cmd/query/query.go`). Use `fang.Execute(context.Background(), rootCmd)`.
 
-File structure: `cmd/main.go`, `cmd/root.go`, `cmd/query/query.go`.
+**SDK integration:**
+- Delete local `config/` package — use SDK's `config` package instead (identical API: `FromEnvVars()`, `FromAPIKey()`, `Env{APIKey, Host}`)
+- Delete local `models/error.go` — use SDK error patterns
+- In `PersistentPreRunE`: build `*config.Env` from SDK, create `dune.NewDuneClient(env)`, store in context
+- Add `replace` directive to `go.mod` pointing to `../duneapi-client-go`
+- Provide `ClientFromCmd(cmd) dune.DuneClient` helper
 
-MCP reference: None — infrastructure step.
+File structure: `cmd/main.go`, `internal/cli/root.go`, `cmd/query/query.go`.
 
-Reuses: `config.Env`, `config.FromEnvVars()`, `dune.NewClient(env)`.
+Reuses: `config.Env`, `config.FromEnvVars()`, `config.FromAPIKey()`, `dune.NewDuneClient(env)`.
 
 **Acceptance criteria:**
 - `dune --help` lists `query` as subcommand with Fang-styled help
 - `dune query --help` lists available subcommands
 - Missing API key prints error to stderr, exits 1
 - `make build` produces binary
+- No local `config/` or `models/` packages remain
+- `go vet ./...` passes
 
 **Tests:**
 - Root command initializes without error
 - Missing API key returns error
+- `ClientFromCmd` returns non-nil DuneClient when API key is set
 - Query command registered as subcommand
 
 ---
 
-## Step 2: Query API Client (CRUD)
+## Step 2: Add Query CRUD to SDK
 
 - [ ] Done
 
-Create `api/client.go` — thin HTTP client reusing duneapi-client-go's config/auth. Generic `doRequest(method, path, body)` helper, sets `X-DUNE-API-KEY` header.
+**This step modifies the SDK repo** at `/Users/ivpusic/github/dune/duneapi-client-go`, not the CLI.
 
-Create `api/query.go` with:
-- `CreateQuery(req) → (query_id, error)` — POST `/api/v1/query`
-- `GetQuery(queryID) → (*QueryResponse, error)` — GET `/api/v1/query/{id}`
-- `UpdateQuery(queryID, req) → error` — PATCH `/api/v1/query/{id}`
+Add query CRUD endpoints to the `DuneClient` interface and fix incomplete execution models. Verified against API server source (`duneapi/models/querycrud.go`) and docs (`docs.dune.com/api-reference/queries`).
 
-Create `api/models.go` with request/response types **only for types not already in duneapi-client-go**. Before defining a new struct, check the SDK's `models/` package for an existing match. `UpdateQueryRequest` uses pointer fields so only provided fields are serialized (`*string`, `*bool` with `omitempty`).
+### Updated file: `models/execute.go` — fix incomplete models
 
-MCP reference: `createDuneQuery` (POST, name+query_sql+description+is_private+parameters → query_id), `getDuneQuery` (GET → full query object), `updateDuneQuery` (PATCH, only changed fields).
+```go
+type ExecuteRequest struct {
+    QueryParameters map[string]any `json:"query_parameters,omitempty"`
+    Performance     string         `json:"performance,omitempty"` // NEW — "medium" or "large"
+}
 
-Reuses: `config.Env` for host+key, HTTP header pattern from `dune/http.go`, error model from `models/error.go`. Reuse any existing SDK structs (e.g. `ExecuteResponse`, `ResultsResponse`, `StatusResponse`, error types) wherever applicable.
+type ExecuteSQLRequest struct {
+    SQL             string         `json:"sql"`
+    Performance     string         `json:"performance,omitempty"`
+    QueryParameters map[string]any `json:"query_parameters,omitempty"` // NEW — parameterized SQL
+}
+```
+
+Also update `SQLExecute` and `RunSQL` signatures to accept `queryParameters`:
+
+```go
+// Current: SQLExecute(sql string, performance string)
+// Updated: SQLExecute(sql string, performance string, queryParameters map[string]any)
+// Current: RunSQL(sql string, performance string)
+// Updated: RunSQL(sql string, performance string, queryParameters map[string]any)
+```
+
+And update `QueryExecute` to pass `Performance` through:
+
+```go
+// The existing QueryExecute already takes queryParameters map[string]any.
+// Just need to populate ExecuteRequest.Performance from the request.
+// Add performance parameter to signature:
+// Current: QueryExecute(queryID int, queryParameters map[string]any)
+// Updated: QueryExecute(queryID int, queryParameters map[string]any, performance string)
+// Similarly for RunQuery:
+// Current: RunQuery(queryID int, queryParameters map[string]any)
+// Updated: RunQuery(queryID int, queryParameters map[string]any, performance string)
+```
+
+### New file: `models/query.go`
+
+Types match the Dune API spec (reference: `duneapi/models/querycrud.go`, docs: `docs.dune.com/api-reference/queries`).
+
+```go
+// QueryParameter represents a parameterized query variable.
+// Supported types: "text", "number", "datetime", "enum".
+type QueryParameter struct {
+    Key         string   `json:"key"`
+    Type        string   `json:"type"`
+    Value       string   `json:"value"`
+    EnumOptions []string `json:"enumOptions,omitempty"`
+}
+
+// POST /api/v1/query
+type CreateQueryRequest struct {
+    Name        string           `json:"name"`
+    QuerySQL    string           `json:"query_sql"`
+    Description string           `json:"description,omitempty"`
+    IsPrivate   bool             `json:"is_private,omitempty"`
+    Parameters  []QueryParameter `json:"parameters,omitempty"`
+    Tags        []string         `json:"tags,omitempty"`
+}
+
+type CreateQueryResponse struct {
+    QueryID int `json:"query_id"`
+}
+
+// GET /api/v1/query/{queryId}
+type GetQueryResponse struct {
+    QueryID     int              `json:"query_id"`
+    Name        string           `json:"name"`
+    Description string           `json:"description"`
+    Tags        []string         `json:"tags"`
+    Version     int              `json:"version"`
+    Parameters  []QueryParameter `json:"parameters"`
+    QueryEngine string           `json:"query_engine"`
+    QuerySQL    string           `json:"query_sql"`
+    IsPrivate   bool             `json:"is_private"`
+    IsArchived  bool             `json:"is_archived"`
+    IsUnsaved   bool             `json:"is_unsaved"`
+    Owner       string           `json:"owner"`
+}
+
+// PATCH /api/v1/query/{queryId}
+// Pointer fields with omitempty — only non-nil fields are serialized.
+type UpdateQueryRequest struct {
+    Name        *string           `json:"name,omitempty"`
+    Description *string           `json:"description,omitempty"`
+    QuerySQL    *string           `json:"query_sql,omitempty"`
+    Tags        *[]string         `json:"tags,omitempty"`
+    Parameters  *[]QueryParameter `json:"parameters,omitempty"`
+    IsPrivate   *bool             `json:"is_private,omitempty"`
+    IsArchived  *bool             `json:"is_archived,omitempty"`
+}
+
+type UpdateQueryResponse struct {
+    QueryID int `json:"query_id"`
+}
+```
+
+### New file: `dune/query.go`
+
+```go
+// POST /api/v1/query
+func (c *duneClient) CreateQuery(req models.CreateQueryRequest) (*models.CreateQueryResponse, error)
+
+// GET /api/v1/query/{queryId}
+func (c *duneClient) GetQuery(queryID int) (*models.GetQueryResponse, error)
+
+// PATCH /api/v1/query/{queryId}
+func (c *duneClient) UpdateQuery(queryID int, req models.UpdateQueryRequest) (*models.UpdateQueryResponse, error)
+
+// POST /api/v1/query/{queryId}/archive
+func (c *duneClient) ArchiveQuery(queryID int) (*models.UpdateQueryResponse, error)
+```
+
+Uses existing `httpRequest()` and `decodeBody()` helpers from `dune/http.go`. Follows the same pattern as `QueryExecute` / `SQLExecute`.
+
+### Updated file: `dune/dune.go`
+
+Add to `DuneClient` interface:
+
+```go
+// Query CRUD
+CreateQuery(req models.CreateQueryRequest) (*models.CreateQueryResponse, error)
+GetQuery(queryID int) (*models.GetQueryResponse, error)
+UpdateQuery(queryID int, req models.UpdateQueryRequest) (*models.UpdateQueryResponse, error)
+ArchiveQuery(queryID int) (*models.UpdateQueryResponse, error)
+```
+
+Update existing method signatures:
+
+```go
+// Updated signatures (add performance/params where missing):
+QueryExecute(queryID int, queryParameters map[string]any, performance string) (*models.ExecuteResponse, error)
+RunQuery(queryID int, queryParameters map[string]any, performance string) (Execution, error)
+RunQueryGetRows(queryID int, queryParameters map[string]any, performance string) ([]map[string]any, error)
+SQLExecute(sql string, performance string, queryParameters map[string]any) (*models.ExecuteResponse, error)
+RunSQL(sql string, performance string, queryParameters map[string]any) (Execution, error)
+```
+
+Add URL templates:
+
+```go
+createQueryURLTemplate  = "%s/api/v1/query"
+queryURLTemplate        = "%s/api/v1/query/%d"          // GET + PATCH
+archiveQueryURLTemplate = "%s/api/v1/query/%d/archive"  // POST
+```
 
 **Acceptance criteria:**
-- CreateQuery sends correct POST body, returns query_id
-- GetQuery sends GET to correct path, parses full response
-- UpdateQuery sends PATCH with only non-nil fields
-- All methods set `X-DUNE-API-KEY` header
-- API errors (4xx/5xx) returned as structured errors
+- `CreateQuery` POSTs to `/api/v1/query` with JSON body containing name, query_sql, description, is_private, parameters, tags
+- `GetQuery` GETs `/api/v1/query/{id}`, parses full response including version, query_engine, is_unsaved, owner
+- `UpdateQuery` PATCHes `/api/v1/query/{id}` with only non-nil fields in body
+- `ArchiveQuery` POSTs to `/api/v1/query/{id}/archive` with empty body
+- `ExecuteRequest` now includes `Performance` field in JSON body
+- `ExecuteSQLRequest` now includes `QueryParameters` field in JSON body
+- `QueryExecute` / `RunQuery` accept and pass `performance` parameter
+- `SQLExecute` / `RunSQL` accept and pass `queryParameters` parameter
+- All methods use existing `httpRequest` helper (sets `X-DUNE-API-KEY` header)
+- Non-2xx responses follow existing SDK error pattern (`ErrorReqUnsuccessful`)
+- Existing SDK tests still pass (`go test ./...`)
 
-**Tests (httptest):**
-- CreateQuery: verify request body and parse response
-- GetQuery: verify URL path and parse response
-- UpdateQuery: verify PATCH body omits nil fields
-- Error responses (400, 401, 404, 500) return structured error
+**Tests (new file `dune/query_test.go`, using httptest):**
+- CreateQuery: verify POST method, path `/api/v1/query`, request body fields; parse `query_id` response
+- GetQuery: verify GET method, path `/api/v1/query/123`; parse all response fields
+- UpdateQuery: verify PATCH method, path `/api/v1/query/123`; body omits nil fields, includes non-nil fields
+- ArchiveQuery: verify POST method, path `/api/v1/query/123/archive`; parse `query_id` response
+- Error responses (400, 401, 404) return `ErrorReqUnsuccessful`
+
+**Tests (update existing execution tests):**
+- `QueryExecute` with performance: verify `performance` field in request body
+- `SQLExecute` with queryParameters: verify `query_parameters` field in request body
 
 ---
 
@@ -99,8 +303,6 @@ Create `output/` package. `AddOutputFlag(cmd, default)` adds `-o/--output` flag.
 - `PrintCSV(w, columns, rows)` — stdlib `encoding/csv`
 
 All write to `io.Writer` (no direct stdout coupling).
-
-MCP reference: mirrors output shapes — `getExecutionResults` → table/csv, `getDuneQuery` → text/json, `createDuneQuery` → text/json.
 
 **Acceptance criteria:**
 - PrintJSON outputs valid indented JSON
@@ -120,9 +322,9 @@ MCP reference: mirrors output shapes — `getExecutionResults` → table/csv, `g
 
 - [ ] Done
 
-`cmd/query/create.go` — flags: `--name` (required), `--sql` (required), `--description`, `--private`, `-o`. Calls `api.CreateQuery()`. CLI sets `is_temp: false` (unlike MCP which defaults temp).
+`cmd/query/create.go` — flags: `--name` (required), `--sql` (required), `--description`, `--private`, `-o`. Gets client via `cli.ClientFromCmd(cmd)`, calls `client.CreateQuery(models.CreateQueryRequest{...})`.
 
-MCP reference: `createDuneQuery` — name (max 600 chars), query (max 500k chars), description (max 1k chars), is_private, parameters → query_id.
+API reference: POST `/api/v1/query` — name (max 600 chars), query_sql (max 500k chars), description (max 1k chars), is_private, parameters, tags → `{"query_id": int}`.
 
 **Output:** text: `Created query 4125432` / json: `{"query_id": 4125432}`
 
@@ -135,7 +337,7 @@ MCP reference: `createDuneQuery` — name (max 600 chars), query (max 500k chars
 
 **Tests:**
 - Required flags validation
-- Successful create prints ID (mock API)
+- Successful create prints ID (mock DuneClient)
 - Private flag passed correctly
 - JSON output format
 
@@ -145,9 +347,9 @@ MCP reference: `createDuneQuery` — name (max 600 chars), query (max 500k chars
 
 - [ ] Done
 
-`cmd/query/get.go` — positional arg: query ID (required, integer). Flag: `-o`. Calls `api.GetQuery()`.
+`cmd/query/get.go` — positional arg: query ID (required, integer). Flag: `-o`. Calls `client.GetQuery(queryID)`.
 
-MCP reference: `getDuneQuery` — query_id → query_id, name, query_sql, description, is_private, is_archived, tags, owner, parameters.
+API reference: GET `/api/v1/query/{queryId}` → query_id, name, description, query_sql, owner, is_private, is_archived, is_unsaved, version, query_engine, tags, parameters.
 
 **Output:** text: key-value with SQL block / json: full response.
 
@@ -158,7 +360,7 @@ MCP reference: `getDuneQuery` — query_id → query_id, name, query_sql, descri
 - `-o json` outputs full response
 
 **Tests:**
-- Valid ID renders text output (mock API)
+- Valid ID renders text output (mock DuneClient)
 - JSON output matches response
 - Missing argument errors
 - Non-integer argument errors
@@ -170,9 +372,9 @@ MCP reference: `getDuneQuery` — query_id → query_id, name, query_sql, descri
 
 - [ ] Done
 
-`cmd/query/update.go` — positional arg: query ID. Flags: `--name`, `--sql`, `--description`, `--private` — all optional but at least one required. Only sends provided fields (pointer/omitempty pattern).
+`cmd/query/update.go` — positional arg: query ID. Flags: `--name`, `--sql`, `--description`, `--private`, `--tags` — all optional but at least one required. Only sends provided fields (pointer/omitempty pattern). Calls `client.UpdateQuery(queryID, models.UpdateQueryRequest{...})`.
 
-MCP reference: `updateDuneQuery` — PATCH with queryId + optional fields. Optimistic locking.
+API reference: PATCH `/api/v1/query/{queryId}` — name, query_sql, description, parameters, tags, is_private, is_archived (all optional) → `{"query_id": int}`.
 
 **Output:** text: `Updated query 4125432` / json: `{"query_id": 4125432}`
 
@@ -194,19 +396,19 @@ MCP reference: `updateDuneQuery` — PATCH with queryId + optional fields. Optim
 
 - [ ] Done
 
-`cmd/query/archive.go` — positional arg: query ID. Calls `api.UpdateQuery(id, {IsArchived: true})`.
+`cmd/query/archive.go` — positional arg: query ID. Calls `client.ArchiveQuery(queryID)`.
 
-MCP reference: `updateDuneQuery` with is_archived=true.
+API reference: POST `/api/v1/query/{queryId}/archive` — dedicated endpoint, no request body → `{"query_id": int}`.
 
 **Output:** `Archived query 4125432`
 
 **Acceptance criteria:**
-- Sends PATCH with `is_archived: true`
+- Sends POST to `/api/v1/query/{id}/archive`
 - Missing ID errors
 - API errors handled
 
 **Tests:**
-- Correct PATCH body
+- Correct HTTP method and path (mock DuneClient)
 - Missing argument errors
 - 404 handled
 
@@ -218,31 +420,35 @@ MCP reference: `updateDuneQuery` with is_archived=true.
 
 `cmd/query/run.go` — positional arg: query ID. Flags: `--param key=value` (repeatable), `--performance medium|large`, `--limit`, `--no-wait`, `-o`.
 
-Calls `QueryExecute(queryID, params)`. If `--no-wait`: print execution ID, exit. Otherwise: poll `QueryResultsV2(executionID, options)` every 2s. Print progress to stderr. On complete: display results. On fail: print error with line/column hint, exit 1.
+**SDK-first approach — no custom polling logic:**
 
-Extract polling + display into shared helper (`internal/poll.go`) — reused by `run-sql`.
+- `--no-wait` mode: calls `client.QueryExecute(queryID, params, performance)`, prints execution ID, exits
+- Wait mode (default): calls `client.RunQuery(queryID, params, performance)` → `exec.WaitGetResults(pollInterval, maxRetries)` — SDK handles all polling internally
+- `--performance` flag: passed directly to SDK methods (Step 2 adds `Performance` field to `ExecuteRequest`)
 
-MCP reference: `executeQueryById` (query_id, performance, query_parameters → execution_id, state) + `getExecutionResults` (executionId, limit, offset, timeout → state, resultMetadata, data rows. Error states: FAILED with errorMessage/errorMetadata, CANCELLED, EXPIRED).
+API reference: POST `/api/v1/query/{query_id}/execute` — body: `{"query_parameters": {...}, "performance": "medium"|"large"}`. Response: `{"execution_id": string, "state": string}`.
 
-Reuses: `QueryExecute`, `QueryResultsV2`, `ResultOptions`, `IsExecutionFinished`, execution polling pattern.
+No `internal/poll.go` needed — the SDK's `Execution.WaitGetResults()` replaces all custom polling logic.
 
-**Output:** `--no-wait`: `Execution ID: 01JG...` / table: rows + footer with row count and credits / json: full result object / csv: standard CSV.
+Reuses: SDK's `RunQuery`, `Execution.WaitGetResults`, `QueryExecute`, `ResultsResponse`.
+
+**Output:** `--no-wait`: `Execution ID: 01JG...` / table: rows + footer with row count / json: full result object / csv: standard CSV.
 
 **Acceptance criteria:**
 - Executes and prints results as table
-- `--param` flags parsed and passed
-- `--performance large` passed to API
-- `--limit` limits rows
+- `--param` flags parsed and passed as `map[string]any`
+- `--performance large` passed to SDK's `QueryExecute`/`RunQuery`
+- `--limit` limits displayed rows
 - `--no-wait` prints execution ID only
 - Failed execution prints error, exits 1
-- Progress shown on stderr during polling
+- Progress shown on stderr during polling (SDK handles this)
 - `-o json` and `-o csv` work
-- Credits shown in table footer
 
 **Tests:**
 - Param parsing ("key=value" → map)
+- Performance flag passed to SDK methods
 - No-wait mode returns execution ID
-- Successful execution renders table (mock API)
+- Successful execution renders table (mock DuneClient interface)
 - Failed execution prints error, exits 1
 - JSON and CSV output formats
 
@@ -254,11 +460,11 @@ Reuses: `QueryExecute`, `QueryResultsV2`, `ResultOptions`, `IsExecutionFinished`
 
 `cmd/query/results.go` — positional arg: execution ID (string). Flags: `--limit`, `--offset`, `-o`.
 
-One-shot fetch via `QueryResultsV2(executionID, options)` — no polling. If still running: print status, exit 0. If complete: display results. If failed: print error, exit 1.
+One-shot fetch via `client.QueryResultsV2(executionID, models.ResultOptions{Page: &models.ResultPageOption{Offset, Limit}})` — no polling. If still running: print status, exit 0. If complete: display results. If failed: print error, exit 1.
 
-MCP reference: `getExecutionResults` — executionId, limit (1-100), offset → state, resultMetadata, data rows.
+API reference: GET `/api/v1/execution/{execution_id}/results` — query params: limit, offset → state, result metadata, data rows. States: `QUERY_STATE_COMPLETED`, `QUERY_STATE_PENDING`, `QUERY_STATE_EXECUTING`, `QUERY_STATE_FAILED`, `QUERY_STATE_CANCELLED`, `QUERY_STATE_EXPIRED`.
 
-Reuses: `QueryResultsV2`, `ResultOptions{Page: &ResultPageOption{Offset, Limit}}`.
+Reuses: SDK's `QueryResultsV2`, `models.ResultOptions`, `models.ResultPageOption`, `models.ResultsResponse`.
 
 **Acceptance criteria:**
 - Completed execution displays results
@@ -268,7 +474,7 @@ Reuses: `QueryResultsV2`, `ResultOptions{Page: &ResultPageOption{Offset, Limit}}
 - `-o json` and `-o csv` work
 
 **Tests:**
-- Completed execution renders results (mock API)
+- Completed execution renders results (mock DuneClient)
 - Running execution prints status
 - Failed execution prints error
 - Offset and limit passed correctly
@@ -280,25 +486,81 @@ Reuses: `QueryResultsV2`, `ResultOptions{Page: &ResultPageOption{Offset, Limit}}
 
 - [ ] Done
 
-`cmd/query/run_sql.go` — flags: `--sql` (required), `--name` (optional), `--performance`, `--limit`, `--param key=value`, `-o`.
+`cmd/query/run_sql.go` — flags: `--sql` (required), `--performance medium|large`, `--limit`, `--param key=value`, `-o`.
 
-Calls `SQLExecute(sql, performance)` → polls results using shared helper from step 8.
+Calls `client.RunSQL(sql, performance, params)` which returns an `Execution` interface, then `exec.WaitGetResults(pollInterval, maxRetries)`. Fully SDK-driven — the SDK accepts `performance` and `queryParameters` (Step 2 fixes `ExecuteSQLRequest` to include both).
 
-MCP reference: combines `createDuneQuery` (temp) + `executeQueryById` + `getExecutionResults`. But since duneapi-client-go has `SQLExecute` hitting `/api/v1/sql/execute`, we skip the create step.
+API reference: POST `/api/v1/sql/execute` — body: `{"sql": string, "performance": string, "query_parameters": {...}}` → `{"execution_id": string, "state": string}`.
 
-Reuses: `SQLExecute(sql, performance)` → `*ExecuteResponse`, shared polling helper, `QueryResultsV2`.
+Reuses: SDK's `RunSQL`, `Execution.WaitGetResults`, `ResultsResponse`.
 
 **Acceptance criteria:**
 - `dune query run-sql --sql "SELECT 1"` executes and prints results
-- `--performance large` passed to API
-- `--limit` limits rows
+- `--performance large` passed to SDK's `RunSQL`
+- `--param key=value` passed as `queryParameters` to SDK's `RunSQL`
+- `--limit` limits displayed rows
 - Missing `--sql` errors
 - SQL syntax error prints error with hint
 - Progress shown on stderr
 
 **Tests:**
-- Successful execution and display (mock API)
+- Successful execution and display (mock DuneClient)
 - Missing --sql flag errors
-- Performance flag passed
+- Performance flag passed to `RunSQL`
+- Param flags passed as queryParameters to `RunSQL`
 - SQL error prints details
-- Uses shared polling logic (no duplication with run)
+- Uses SDK Execution for polling (same pattern as `run`)
+
+---
+
+## File Structure
+
+```
+cli/                                    # CLI repo
+  cmd/
+    main.go                             # Entry point (exists)
+    query/
+      query.go                          # Query parent command (exists)
+      create.go                         # Step 4
+      get.go                            # Step 5
+      update.go                         # Step 6
+      archive.go                        # Step 7
+      run.go                            # Step 8
+      results.go                        # Step 9
+      run_sql.go                        # Step 10
+  internal/
+    cli/
+      root.go                           # Step 1: DuneClient init, context helpers
+  output/
+    output.go                           # Step 3: formatting
+  go.mod                                # Has replace directive → ../duneapi-client-go
+  plan/
+    query-commands.md                   # This plan
+
+  DELETED (Step 1):
+    config/config.go                    # Replaced by SDK's config package
+    models/error.go                     # Replaced by SDK error patterns
+
+duneapi-client-go/                      # SDK repo (separate)
+  models/
+    query.go                            # Step 2: new — query CRUD types
+    execute.go                          # Step 2: updated — add Performance to ExecuteRequest,
+                                        #   QueryParameters to ExecuteSQLRequest
+  dune/
+    dune.go                             # Step 2: updated — 4 new methods + updated signatures
+    query.go                            # Step 2: new — CreateQuery, GetQuery, UpdateQuery, ArchiveQuery
+    query_test.go                       # Step 2: new — tests
+```
+
+## Dependency Graph
+
+```
+Step 1 (scaffolding + SDK integration + replace directive)
+  ├── Step 2 (add query CRUD to SDK — separate repo)
+  └── Step 3 (output formatting)
+        ├── Steps 4-7 (CRUD commands — need Step 2 + Step 3)
+        ├── Steps 8-9 (execution commands — need Step 1 + Step 3, SDK already has methods)
+        └── Step 10 (run-sql — need Step 1 + Step 3, SDK already has RunSQL)
+```
+
+Steps 2 and 3 can be done in parallel. Steps 4-7 depend on Step 2. Steps 8-10 only need Steps 1+3 (SDK already has execution methods).
