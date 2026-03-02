@@ -117,6 +117,45 @@ Reuses: `config.Env`, `config.FromEnvVars()`, `config.FromAPIKey()`, `dune.NewDu
 
 ---
 
+## Step 1b: `dune auth` — persistent API key config
+
+- [x] Done
+
+Adds `dune auth` command and persistent config file at `~/.config/dune/config.yaml`.
+
+### API key priority (all commands)
+
+1. `--api-key` flag
+2. `DUNE_API_KEY` env var
+3. `~/.config/dune/config.yaml`
+4. Error: `"missing API key: set DUNE_API_KEY, pass --api-key, or run dune auth"`
+
+### New package: `authconfig/`
+
+- `Config` struct with `APIKey` field (YAML: `api_key`)
+- `Dir()` → `$HOME/.config/dune`
+- `Path()` → `Dir() + /config.yaml`
+- `Load()` → reads/parses; returns `nil, nil` if file missing
+- `Save()` → creates dir (0700) + file (0600)
+- `LoadAPIKey()` → convenience; returns `""` on any error
+- `SetDirFunc`/`ResetDirFunc` for test isolation
+
+### New command: `cmd/auth/auth.go`
+
+```
+dune auth [--api-key KEY]
+```
+
+Reads key from: flag → env var → interactive prompt. Saves to config file.
+
+### Changes to `cli/root.go`
+
+- `PersistentPreRunE` skips client setup for `auth` command
+- Falls back to `authconfig.LoadAPIKey()` when flag and env var are both missing
+- Error message updated to mention `dune auth`
+
+---
+
 ## Step 2: Add Query CRUD to SDK
 
 - [ ] Done
@@ -511,6 +550,9 @@ cli/                                    # CLI repo
     root.go                             # Step 1: root command, Execute()
   cmd/
     main.go                             # Entry point (exists)
+    auth/
+      auth.go                           # `dune auth` command
+      auth_test.go                      # Auth command tests
     query/
       query.go                          # Query parent command (exists)
       helpers.go                        # Shared helpers (parseQueryID)
@@ -523,6 +565,9 @@ cli/                                    # CLI repo
     execution/
       execution.go                      # Step 9: Execution parent command
       results.go                        # Step 9: Results subcommand
+  authconfig/
+    authconfig.go                       # Config struct, Dir, Path, Load, Save, LoadAPIKey
+    authconfig_test.go                  # Tests for save/load/missing/malformed
   cmdutil/
     client.go                           # SetClient, ClientFromCmd (context helpers)
   output/

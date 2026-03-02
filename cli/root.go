@@ -4,8 +4,11 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/charmbracelet/fang"
+	"github.com/duneanalytics/cli/authconfig"
+	"github.com/duneanalytics/cli/cmd/auth"
 	"github.com/duneanalytics/cli/cmd/execution"
 	"github.com/duneanalytics/cli/cmd/query"
 	"github.com/duneanalytics/cli/cmdutil"
@@ -22,6 +25,10 @@ var rootCmd = &cobra.Command{
 	Long: "A command-line interface for interacting with the Dune Analytics API.\n" +
 		"Manage queries, execute them, and retrieve results.",
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+		if cmd.Annotations["skipAuth"] == "true" {
+			return nil
+		}
+
 		var env *config.Env
 
 		switch {
@@ -31,7 +38,19 @@ var rootCmd = &cobra.Command{
 			var err error
 			env, err = config.FromEnvVars()
 			if err != nil {
-				return fmt.Errorf("missing API key: set DUNE_API_KEY or pass --api-key")
+				cfg, cfgErr := authconfig.Load()
+				if cfgErr != nil {
+					return fmt.Errorf("reading auth config: %w", cfgErr)
+				}
+				if cfg != nil {
+					key := strings.TrimSpace(cfg.APIKey)
+					if key == "" {
+						return fmt.Errorf("empty API key in config: run dune auth --api-key <key>")
+					}
+					env = config.FromAPIKey(key)
+				} else {
+					return fmt.Errorf("missing API key: set DUNE_API_KEY, pass --api-key, or run dune auth")
+				}
 			}
 		}
 
@@ -43,6 +62,7 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(&apiKeyFlag, "api-key", "", "Dune API key (overrides DUNE_API_KEY env var)")
+	rootCmd.AddCommand(auth.NewAuthCmd())
 	rootCmd.AddCommand(query.NewQueryCmd())
 	rootCmd.AddCommand(execution.NewExecutionCmd())
 }
