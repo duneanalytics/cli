@@ -9,5 +9,6 @@ func NewQueryCmd() *cobra.Command {
 		Short: "Manage Dune queries",
 	}
 	cmd.AddCommand(newCreateCmd())
+	cmd.AddCommand(newGetCmd())
 	return cmd
 }

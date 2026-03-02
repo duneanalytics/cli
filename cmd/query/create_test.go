@@ -1,48 +1,14 @@
 package query_test
 
 import (
-	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"testing"
 
-	"github.com/duneanalytics/cli/cmd/query"
-	"github.com/duneanalytics/cli/cmdutil"
-	"github.com/duneanalytics/duneapi-client-go/dune"
 	"github.com/duneanalytics/duneapi-client-go/models"
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-// mockClient embeds the interface so unimplemented methods panic.
-type mockClient struct {
-	dune.DuneClient
-	createQueryFn func(models.CreateQueryRequest) (*models.CreateQueryResponse, error)
-}
-
-func (m *mockClient) CreateQuery(req models.CreateQueryRequest) (*models.CreateQueryResponse, error) {
-	return m.createQueryFn(req)
-}
-
-// newTestRoot builds a root → query → create command tree with the mock injected.
-func newTestRoot(mock dune.DuneClient) (*cobra.Command, *bytes.Buffer) {
-	root := &cobra.Command{
-		Use: "dune",
-		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
-			cmdutil.SetClient(cmd, mock)
-		},
-	}
-	root.SetContext(context.Background())
-
-	root.AddCommand(query.NewQueryCmd())
-
-	var buf bytes.Buffer
-	root.SetOut(&buf)
-
-	return root, &buf
-}
 
 func TestCreateSuccess(t *testing.T) {
 	mock := &mockClient{
