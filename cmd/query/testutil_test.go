@@ -14,9 +14,10 @@ import (
 // mockClient embeds the interface so unimplemented methods panic.
 type mockClient struct {
 	dune.DuneClient
-	createQueryFn func(models.CreateQueryRequest) (*models.CreateQueryResponse, error)
-	getQueryFn    func(int) (*models.GetQueryResponse, error)
-	updateQueryFn func(int, models.UpdateQueryRequest) (*models.UpdateQueryResponse, error)
+	createQueryFn  func(models.CreateQueryRequest) (*models.CreateQueryResponse, error)
+	getQueryFn     func(int) (*models.GetQueryResponse, error)
+	updateQueryFn  func(int, models.UpdateQueryRequest) (*models.UpdateQueryResponse, error)
+	archiveQueryFn func(int) (*models.UpdateQueryResponse, error)
 }
 
 func (m *mockClient) CreateQuery(req models.CreateQueryRequest) (*models.CreateQueryResponse, error) {
@@ -29,6 +30,10 @@ func (m *mockClient) GetQuery(queryID int) (*models.GetQueryResponse, error) {
 
 func (m *mockClient) UpdateQuery(queryID int, req models.UpdateQueryRequest) (*models.UpdateQueryResponse, error) {
 	return m.updateQueryFn(queryID, req)
+}
+
+func (m *mockClient) ArchiveQuery(queryID int) (*models.UpdateQueryResponse, error) {
+	return m.archiveQueryFn(queryID)
 }
 
 // newTestRoot builds a root → query command tree with the mock injected.
