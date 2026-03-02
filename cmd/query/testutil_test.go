@@ -34,6 +34,8 @@ type mockClient struct {
 	archiveQueryFn func(int) (*models.UpdateQueryResponse, error)
 	runQueryFn     func(models.ExecuteRequest) (dune.Execution, error)
 	queryExecuteFn func(models.ExecuteRequest) (*models.ExecuteResponse, error)
+	runSQLFn       func(models.ExecuteSQLRequest) (dune.Execution, error)
+	sqlExecuteFn   func(models.ExecuteSQLRequest) (*models.ExecuteResponse, error)
 }
 
 func (m *mockClient) CreateQuery(req models.CreateQueryRequest) (*models.CreateQueryResponse, error) {
@@ -58,6 +60,14 @@ func (m *mockClient) RunQuery(req models.ExecuteRequest) (dune.Execution, error)
 
 func (m *mockClient) QueryExecute(req models.ExecuteRequest) (*models.ExecuteResponse, error) {
 	return m.queryExecuteFn(req)
+}
+
+func (m *mockClient) RunSQL(req models.ExecuteSQLRequest) (dune.Execution, error) {
+	return m.runSQLFn(req)
+}
+
+func (m *mockClient) SQLExecute(req models.ExecuteSQLRequest) (*models.ExecuteResponse, error) {
+	return m.sqlExecuteFn(req)
 }
 
 // newTestRoot builds a root → query command tree with the mock injected.

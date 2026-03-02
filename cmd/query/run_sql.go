@@ -1,23 +1,22 @@
 package query
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/duneanalytics/cli/cmdutil"
 	"github.com/duneanalytics/cli/output"
 	"github.com/duneanalytics/duneapi-client-go/models"
 	"github.com/spf13/cobra"
 )
 
-func newRunCmd() *cobra.Command {
+func newRunSQLCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "run <query-id>",
-		Short: "Execute a saved query and display results",
-		Args:  cobra.ExactArgs(1),
-		RunE:  runRun,
+		Use:   "run-sql",
+		Short: "Execute raw SQL and display results",
+		Args:  cobra.NoArgs,
+		RunE:  runRunSQL,
 	}
 
+	cmd.Flags().String("sql", "", "SQL query to execute (required)")
+	_ = cmd.MarkFlagRequired("sql")
 	cmd.Flags().StringArray("param", nil, "query parameter in key=value format (repeatable)")
 	cmd.Flags().String("performance", "medium", `performance tier: "medium" or "large"`)
 	cmd.Flags().Int("limit", 0, "maximum number of rows to display (0 = all)")
@@ -27,11 +26,8 @@ func newRunCmd() *cobra.Command {
 	return cmd
 }
 
-func runRun(cmd *cobra.Command, args []string) error {
-	queryID, err := parseQueryID(args[0])
-	if err != nil {
-		return err
-	}
+func runRunSQL(cmd *cobra.Command, _ []string) error {
+	sql, _ := cmd.Flags().GetString("sql")
 
 	paramFlags, _ := cmd.Flags().GetStringArray("param")
 	params, err := parseParams(paramFlags)
@@ -44,8 +40,8 @@ func runRun(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	req := models.ExecuteRequest{
-		QueryID:     queryID,
+	req := models.ExecuteSQLRequest{
+		SQL:         sql,
 		Performance: performance,
 	}
 	if len(params) > 0 {
@@ -54,15 +50,15 @@ func runRun(cmd *cobra.Command, args []string) error {
 
 	noWait, _ := cmd.Flags().GetBool("no-wait")
 	if noWait {
-		return runNoWait(cmd, req)
+		return runSQLNoWait(cmd, req)
 	}
-	return runWait(cmd, req)
+	return runSQLWait(cmd, req)
 }
 
-func runNoWait(cmd *cobra.Command, req models.ExecuteRequest) error {
+func runSQLNoWait(cmd *cobra.Command, req models.ExecuteSQLRequest) error {
 	client := cmdutil.ClientFromCmd(cmd)
 
-	resp, err := client.QueryExecute(req)
+	resp, err := client.SQLExecute(req)
 	if err != nil {
 		return err
 	}
@@ -70,32 +66,13 @@ func runNoWait(cmd *cobra.Command, req models.ExecuteRequest) error {
 	return displayExecuteResponse(cmd, resp)
 }
 
-func runWait(cmd *cobra.Command, req models.ExecuteRequest) error {
+func runSQLWait(cmd *cobra.Command, req models.ExecuteSQLRequest) error {
 	client := cmdutil.ClientFromCmd(cmd)
 
-	exec, err := client.RunQuery(req)
+	exec, err := client.RunSQL(req)
 	if err != nil {
 		return err
 	}
 
 	return waitAndDisplay(cmd, exec)
 }
-
-func parseParams(raw []string) (map[string]any, error) {
-	if len(raw) == 0 {
-		return nil, nil
-	}
-	params := make(map[string]any, len(raw))
-	for _, s := range raw {
-		key, value, ok := strings.Cut(s, "=")
-		if !ok {
-			return nil, fmt.Errorf("invalid parameter %q: expected key=value format", s)
-		}
-		if key == "" {
-			return nil, fmt.Errorf("invalid parameter %q: key cannot be empty", s)
-		}
-		params[key] = value
-	}
-	return params, nil
-}
-
