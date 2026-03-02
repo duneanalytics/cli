@@ -293,28 +293,7 @@ archiveQueryURLTemplate = "%s/api/v1/query/%d/archive"  // POST
 
 ## Step 3: Output Formatting
 
-- [ ] Done
-
-Create `output/` package. `AddOutputFlag(cmd, default)` adds `-o/--output` flag.
-
-- `PrintJSON(w, v)` — indented JSON
-- `PrintKeyValue(w, pairs)` — aligned `Key: Value` for single objects
-- `PrintTable(w, columns, rows)` — column-aligned text table
-- `PrintCSV(w, columns, rows)` — stdlib `encoding/csv`
-
-All write to `io.Writer` (no direct stdout coupling).
-
-**Acceptance criteria:**
-- PrintJSON outputs valid indented JSON
-- PrintKeyValue renders aligned pairs
-- PrintTable renders aligned columns with header
-- PrintCSV outputs valid CSV with header
-
-**Tests:**
-- JSON: marshal struct, verify valid output
-- Text: key-value alignment
-- Table: columns and rows aligned, handles empty
-- CSV: valid output, handles commas/quotes in values
+- [x] Deferred — create `internal/output/` inline when the first command needs it (Step 4).
 
 ---
 
@@ -531,8 +510,8 @@ cli/                                    # CLI repo
   internal/
     cli/
       root.go                           # Step 1: DuneClient init, context helpers
-  output/
-    output.go                           # Step 3: formatting
+    output/
+      output.go                         # Created inline with first command that needs it
   go.mod                                # Has replace directive → ../duneapi-client-go
   plan/
     query-commands.md                   # This plan
@@ -557,10 +536,10 @@ duneapi-client-go/                      # SDK repo (separate)
 ```
 Step 1 (scaffolding + SDK integration + replace directive)
   ├── Step 2 (add query CRUD to SDK — separate repo)
-  └── Step 3 (output formatting)
-        ├── Steps 4-7 (CRUD commands — need Step 2 + Step 3)
-        ├── Steps 8-9 (execution commands — need Step 1 + Step 3, SDK already has methods)
-        └── Step 10 (run-sql — need Step 1 + Step 3, SDK already has RunSQL)
+  │     └── Steps 4-7 (CRUD commands — need Step 2)
+  ├── Steps 8-9 (execution commands — need Step 1, SDK already has methods)
+  └── Step 10 (run-sql — need Step 1, SDK already has RunSQL)
 ```
 
-Steps 2 and 3 can be done in parallel. Steps 4-7 depend on Step 2. Steps 8-10 only need Steps 1+3 (SDK already has execution methods).
+Output formatting (`internal/output/`) is created inline with the first command that needs it.
+Steps 4-7 depend on Step 2. Steps 8-10 only need Step 1 (SDK already has execution methods).
