@@ -5,6 +5,7 @@
 # Environment variables:
 #   INSTALL_DIR  — installation directory (default: /usr/local/bin)
 #   VERSION      — specific version to install (default: latest)
+#   GITHUB_TOKEN — GitHub token for private repo access
 
 set -e
 
@@ -105,12 +106,17 @@ resolve_version() {
         return
     fi
 
+    auth_header=""
+    if [ -n "$GITHUB_TOKEN" ]; then
+        auth_header="Authorization: token $GITHUB_TOKEN"
+    fi
+
     if has curl; then
-        curl -sSfL -H "Accept: application/json" \
+        curl -sSfL -H "Accept: application/json" ${auth_header:+-H "$auth_header"} \
             "https://api.github.com/repos/${REPO}/releases/latest" \
             | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p'
     elif has wget; then
-        wget -qO- --header="Accept: application/json" \
+        wget -qO- --header="Accept: application/json" ${auth_header:+--header="$auth_header"} \
             "https://api.github.com/repos/${REPO}/releases/latest" \
             | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p'
     else
@@ -122,12 +128,54 @@ download() {
     url="$1"
     dest="$2"
 
-    if has curl; then
-        curl -sSfL -o "$dest" "$url"
-    elif has wget; then
-        wget -qO "$dest" "$url"
+    if [ -n "$GITHUB_TOKEN" ]; then
+        # Private repos require downloading via the API asset endpoint.
+        # The direct github.com/.../releases/download/... URL returns 404.
+        asset_name=$(basename "$url")
+        release_url="https://api.github.com/repos/${REPO}/releases/tags/${version}"
+
+        if has curl; then
+            asset_api_url=$(curl -sSfL \
+                -H "Authorization: token $GITHUB_TOKEN" \
+                "$release_url" \
+                | grep -B3 "\"name\": \"${asset_name}\"" \
+                | sed -n 's/.*"url": "\(https:\/\/api\.github\.com\/repos\/.*\/releases\/assets\/[0-9]*\)".*/\1/p')
+
+            if [ -n "$asset_api_url" ]; then
+                curl -sSfL \
+                    -H "Authorization: token $GITHUB_TOKEN" \
+                    -H "Accept: application/octet-stream" \
+                    -o "$dest" \
+                    "$asset_api_url"
+            else
+                curl -sSfL -o "$dest" "$url"
+            fi
+        elif has wget; then
+            asset_api_url=$(wget -qO- \
+                --header="Authorization: token $GITHUB_TOKEN" \
+                "$release_url" \
+                | grep -B3 "\"name\": \"${asset_name}\"" \
+                | sed -n 's/.*"url": "\(https:\/\/api\.github\.com\/repos\/.*\/releases\/assets\/[0-9]*\)".*/\1/p')
+
+            if [ -n "$asset_api_url" ]; then
+                wget -qO "$dest" \
+                    --header="Authorization: token $GITHUB_TOKEN" \
+                    --header="Accept: application/octet-stream" \
+                    "$asset_api_url"
+            else
+                wget -qO "$dest" "$url"
+            fi
+        else
+            err "need curl or wget to download files"
+        fi
     else
-        err "need curl or wget to download files"
+        if has curl; then
+            curl -sSfL -o "$dest" "$url"
+        elif has wget; then
+            wget -qO "$dest" "$url"
+        else
+            err "need curl or wget to download files"
+        fi
     fi
 }
 
