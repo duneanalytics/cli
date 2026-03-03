@@ -30,6 +30,13 @@ func runResults(cmd *cobra.Command, args []string) error {
 	limit, _ := cmd.Flags().GetInt("limit")
 	offset, _ := cmd.Flags().GetInt("offset")
 
+	if limit < 0 {
+		return fmt.Errorf("limit must be non-negative, got %d", limit)
+	}
+	if offset < 0 {
+		return fmt.Errorf("offset must be non-negative, got %d", offset)
+	}
+
 	opts := models.ResultOptions{}
 	if limit > 0 || offset > 0 {
 		opts.Page = &models.ResultPageOption{
