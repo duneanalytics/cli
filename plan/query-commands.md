@@ -1,16 +1,23 @@
-# Dune CLI — `dune query` Implementation Plan
+# Dune CLI — Implementation Plan
 
 ## Commands
 
+### `dune query` — query management + execution triggers
+
 | Command | Maps to MCP tool | SDK method |
 |---------|-----------------|------------|
-| `create` | `createDuneQuery` | `CreateQuery` (new — added to SDK in Step 2) |
-| `get` | `getDuneQuery` | `GetQuery` (new — added to SDK in Step 2) |
-| `update` | `updateDuneQuery` | `UpdateQuery` (new — added to SDK in Step 2) |
-| `archive` | `updateDuneQuery` (is_archived) | `ArchiveQuery` (new — added to SDK in Step 2) |
-| `run` | `executeQueryById` + `getExecutionResults` | `RunQuery` + `Execution.WaitGetResults` |
-| `results` | `getExecutionResults` | `QueryResultsV2` |
-| `run-sql` | (ad-hoc SQL) + `getExecutionResults` | `RunSQL` + `Execution.WaitGetResults` |
+| `query create` | `createDuneQuery` | `CreateQuery` (new — added to SDK in Step 2) |
+| `query get` | `getDuneQuery` | `GetQuery` (new — added to SDK in Step 2) |
+| `query update` | `updateDuneQuery` | `UpdateQuery` (new — added to SDK in Step 2) |
+| `query archive` | `updateDuneQuery` (is_archived) | `ArchiveQuery` (new — added to SDK in Step 2) |
+| `query run` | `executeQueryById` + `getExecutionResults` | `RunQuery` + `Execution.WaitGetResults` |
+| `query run-sql` | (ad-hoc SQL) + `getExecutionResults` | `RunSQL` + `Execution.WaitGetResults` |
+
+### `dune execution` — operations on executions (by execution ID)
+
+| Command | Maps to MCP tool | SDK method |
+|---------|-----------------|------------|
+| `execution results` | `getExecutionResults` | `QueryResultsV2` |
 
 All commands use **only** the SDK's `dune.DuneClient` interface. No separate HTTP client in the CLI.
 
@@ -81,16 +88,16 @@ One client, created from `*config.Env` in `PersistentPreRunE`. No wrapper struct
 
 - [x] Done
 
-Add `github.com/spf13/cobra`, `github.com/charmbracelet/fang`, and `github.com/duneanalytics/duneapi-client-go` deps. Create root command (`internal/cli/root.go`) with persistent `--api-key` flag (overrides `DUNE_API_KEY` env). Create `query` parent command (`cmd/query/query.go`). Use `fang.Execute(context.Background(), rootCmd)`.
+Add `github.com/spf13/cobra`, `github.com/charmbracelet/fang`, and `github.com/duneanalytics/duneapi-client-go` deps. Create root command (`cli/root.go`) with persistent `--api-key` flag (overrides `DUNE_API_KEY` env). Create `query` parent command (`cmd/query/query.go`). Use `fang.Execute(context.Background(), rootCmd)`.
 
 **SDK integration:**
 - Delete local `config/` package — use SDK's `config` package instead (identical API: `FromEnvVars()`, `FromAPIKey()`, `Env{APIKey, Host}`)
 - Delete local `models/error.go` — use SDK error patterns
 - In `PersistentPreRunE`: build `*config.Env` from SDK, create `dune.NewDuneClient(env)`, store in context
 - Add `replace` directive to `go.mod` pointing to `../duneapi-client-go`
-- Provide `ClientFromCmd(cmd) dune.DuneClient` helper
+- Provide `cmdutil.ClientFromCmd(cmd) dune.DuneClient` helper
 
-File structure: `cmd/main.go`, `internal/cli/root.go`, `cmd/query/query.go`.
+File structure: `cmd/main.go`, `cli/root.go`, `cmdutil/client.go`, `cmd/query/query.go`.
 
 Reuses: `config.Env`, `config.FromEnvVars()`, `config.FromAPIKey()`, `dune.NewDuneClient(env)`.
 
@@ -107,6 +114,45 @@ Reuses: `config.Env`, `config.FromEnvVars()`, `config.FromAPIKey()`, `dune.NewDu
 - Missing API key returns error
 - `ClientFromCmd` returns non-nil DuneClient when API key is set
 - Query command registered as subcommand
+
+---
+
+## Step 1b: `dune auth` — persistent API key config
+
+- [x] Done
+
+Adds `dune auth` command and persistent config file at `~/.config/dune/config.yaml`.
+
+### API key priority (all commands)
+
+1. `--api-key` flag
+2. `DUNE_API_KEY` env var
+3. `~/.config/dune/config.yaml`
+4. Error: `"missing API key: set DUNE_API_KEY, pass --api-key, or run dune auth"`
+
+### New package: `authconfig/`
+
+- `Config` struct with `APIKey` field (YAML: `api_key`)
+- `Dir()` → `$HOME/.config/dune`
+- `Path()` → `Dir() + /config.yaml`
+- `Load()` → reads/parses; returns `nil, nil` if file missing
+- `Save()` → creates dir (0700) + file (0600)
+- `LoadAPIKey()` → convenience; returns `""` on any error
+- `SetDirFunc`/`ResetDirFunc` for test isolation
+
+### New command: `cmd/auth/auth.go`
+
+```
+dune auth [--api-key KEY]
+```
+
+Reads key from: flag → env var → interactive prompt. Saves to config file.
+
+### Changes to `cli/root.go`
+
+- `PersistentPreRunE` skips client setup for `auth` command
+- Falls back to `authconfig.LoadAPIKey()` when flag and env var are both missing
+- Error message updated to mention `dune auth`
 
 ---
 
@@ -293,15 +339,15 @@ archiveQueryURLTemplate = "%s/api/v1/query/%d/archive"  // POST
 
 ## Step 3: Output Formatting
 
-- [x] Deferred — create `internal/output/` inline when the first command needs it (Step 4).
+- [x] Deferred — create `output/` inline when the first command needs it (Step 4).
 
 ---
 
 ## Step 4: `dune query create`
 
-- [ ] Done
+- [x] Done
 
-`cmd/query/create.go` — flags: `--name` (required), `--sql` (required), `--description`, `--private`, `-o`. Gets client via `cli.ClientFromCmd(cmd)`, calls `client.CreateQuery(models.CreateQueryRequest{...})`.
+`cmd/query/create.go` — flags: `--name` (required), `--sql` (required), `--description`, `--private`, `-o`. Gets client via `cmdutil.ClientFromCmd(cmd)`, calls `client.CreateQuery(models.CreateQueryRequest{...})`.
 
 API reference: POST `/api/v1/query` — name (max 600 chars), query_sql (max 500k chars), description (max 1k chars), is_private, parameters, tags → `{"query_id": int}`.
 
@@ -395,7 +441,7 @@ API reference: POST `/api/v1/query/{queryId}/archive` — dedicated endpoint, no
 
 ## Step 8: `dune query run`
 
-- [ ] Done
+- [x] Done
 
 `cmd/query/run.go` — positional arg: query ID. Flags: `--param key=value` (repeatable), `--performance medium|large`, `--limit`, `--no-wait`, `-o`.
 
@@ -407,11 +453,11 @@ API reference: POST `/api/v1/query/{queryId}/archive` — dedicated endpoint, no
 
 API reference: POST `/api/v1/query/{query_id}/execute` — body: `{"query_parameters": {...}, "performance": "medium"|"large"}`. Response: `{"execution_id": string, "state": string}`.
 
-No `internal/poll.go` needed — the SDK's `Execution.WaitGetResults()` replaces all custom polling logic.
+No `poll.go` needed — the SDK's `Execution.WaitGetResults()` replaces all custom polling logic.
 
 Reuses: SDK's `RunQuery`, `Execution.WaitGetResults`, `QueryExecute`, `ResultsResponse`.
 
-**Output:** `--no-wait`: `Execution ID: 01JG...` / table: rows + footer with row count / json: full result object / csv: standard CSV.
+**Output:** `--no-wait`: `Execution ID: 01JG...` / table: rows + footer with row count / json: full result object.
 
 **Acceptance criteria:**
 - Executes and prints results as table
@@ -421,7 +467,7 @@ Reuses: SDK's `RunQuery`, `Execution.WaitGetResults`, `QueryExecute`, `ResultsRe
 - `--no-wait` prints execution ID only
 - Failed execution prints error, exits 1
 - Progress shown on stderr during polling (SDK handles this)
-- `-o json` and `-o csv` work
+- `-o json` works
 
 **Tests:**
 - Param parsing ("key=value" → map)
@@ -429,15 +475,17 @@ Reuses: SDK's `RunQuery`, `Execution.WaitGetResults`, `QueryExecute`, `ResultsRe
 - No-wait mode returns execution ID
 - Successful execution renders table (mock DuneClient interface)
 - Failed execution prints error, exits 1
-- JSON and CSV output formats
+- JSON output format
 
 ---
 
-## Step 9: `dune query results`
+## Step 9: `dune execution results`
 
-- [ ] Done
+- [x] Done
 
-`cmd/query/results.go` — positional arg: execution ID (string). Flags: `--limit`, `--offset`, `-o`.
+New `execution` parent command (`cmd/execution/execution.go`) + `results` subcommand (`cmd/execution/results.go`).
+
+Positional arg: execution ID (string). Flags: `--limit`, `--offset`, `-o`.
 
 One-shot fetch via `client.QueryResultsV2(executionID, models.ResultOptions{Page: &models.ResultPageOption{Offset, Limit}})` — no polling. If still running: print status, exit 0. If complete: display results. If failed: print error, exit 1.
 
@@ -445,12 +493,14 @@ API reference: GET `/api/v1/execution/{execution_id}/results` — query params: 
 
 Reuses: SDK's `QueryResultsV2`, `models.ResultOptions`, `models.ResultPageOption`, `models.ResultsResponse`.
 
+Reuses from `cmd/query/run.go`: `displayResults` and `resultRowsToStrings` — these must be moved to a shared location (e.g., `output/` package or `cmdutil/`) since they'll now be called from a different package.
+
 **Acceptance criteria:**
-- Completed execution displays results
-- `--limit` and `--offset` work
+- `dune execution results <execution-id>` displays results
+- `--limit` and `--offset` work (passed to `ResultPageOption`)
 - Running execution prints status, exits 0
 - Failed execution prints error, exits 1
-- `-o json` and `-o csv` work
+- `-o json` works
 
 **Tests:**
 - Completed execution renders results (mock DuneClient)
@@ -496,29 +546,36 @@ Reuses: SDK's `RunSQL`, `Execution.WaitGetResults`, `ResultsResponse`.
 
 ```
 cli/                                    # CLI repo
+  cli/
+    root.go                             # Step 1: root command, Execute()
   cmd/
     main.go                             # Entry point (exists)
+    auth/
+      auth.go                           # `dune auth` command
+      auth_test.go                      # Auth command tests
     query/
       query.go                          # Query parent command (exists)
+      helpers.go                        # Shared helpers (parseQueryID)
       create.go                         # Step 4
       get.go                            # Step 5
       update.go                         # Step 6
       archive.go                        # Step 7
       run.go                            # Step 8
-      results.go                        # Step 9
       run_sql.go                        # Step 10
-  internal/
-    cli/
-      root.go                           # Step 1: DuneClient init, context helpers
-    output/
-      output.go                         # Created inline with first command that needs it
+    execution/
+      execution.go                      # Step 9: Execution parent command
+      results.go                        # Step 9: Results subcommand
+  authconfig/
+    authconfig.go                       # Config struct, Dir, Path, Load, Save, LoadAPIKey
+    authconfig_test.go                  # Tests for save/load/missing/malformed
+  cmdutil/
+    client.go                           # SetClient, ClientFromCmd (context helpers)
+  output/
+    output.go                           # Shared output formatting (text, JSON)
+    results.go                          # Step 9: Shared result display (moved from cmd/query/run.go)
   go.mod                                # Has replace directive → ../duneapi-client-go
   plan/
     query-commands.md                   # This plan
-
-  DELETED (Step 1):
-    config/config.go                    # Replaced by SDK's config package
-    models/error.go                     # Replaced by SDK error patterns
 
 duneapi-client-go/                      # SDK repo (separate)
   models/
@@ -537,9 +594,10 @@ duneapi-client-go/                      # SDK repo (separate)
 Step 1 (scaffolding + SDK integration + replace directive)
   ├── Step 2 (add query CRUD to SDK — separate repo)
   │     └── Steps 4-7 (CRUD commands — need Step 2)
-  ├── Steps 8-9 (execution commands — need Step 1, SDK already has methods)
-  └── Step 10 (run-sql — need Step 1, SDK already has RunSQL)
+  ├── Step 8 (query run — need Step 1, SDK already has methods)
+  ├── Step 9 (execution results — need Step 1, new execution namespace)
+  └── Step 10 (query run-sql — need Step 1, SDK already has RunSQL)
 ```
 
-Output formatting (`internal/output/`) is created inline with the first command that needs it.
+Output formatting (`output/`) is created inline with the first command that needs it.
 Steps 4-7 depend on Step 2. Steps 8-10 only need Step 1 (SDK already has execution methods).

@@ -1,0 +1,177 @@
+#!/bin/sh
+# Dune CLI installer
+# Usage: curl -sSfL https://get.dune.com/cli | bash
+#
+# Environment variables:
+#   INSTALL_DIR  — installation directory (default: /usr/local/bin)
+#   VERSION      — specific version to install (default: latest)
+
+set -e
+
+REPO="duneanalytics/cli"
+BINARY="dune"
+PROJECT="dune-cli"
+
+main() {
+    need_cmd uname
+    need_cmd mktemp
+    need_cmd chmod
+    need_cmd rm
+
+    os=$(detect_os)
+    arch=$(detect_arch)
+    version=$(resolve_version)
+
+    if [ -z "$version" ]; then
+        err "could not determine latest version"
+    fi
+
+    # Strip leading 'v' for archive name
+    version_num="${version#v}"
+
+    install_dir="${INSTALL_DIR:-/usr/local/bin}"
+
+    case "$os" in
+        windows) ext="zip" ;;
+        *)       ext="tar.gz" ;;
+    esac
+
+    archive="${PROJECT}_${version_num}_${os}_${arch}.${ext}"
+    url="https://github.com/${REPO}/releases/download/${version}/${archive}"
+    checksum_url="https://github.com/${REPO}/releases/download/${version}/checksums.txt"
+
+    tmp=$(mktemp -d)
+    trap 'rm -rf "$tmp"' EXIT
+
+    log "Downloading ${BINARY} ${version} for ${os}/${arch}..."
+    download "$url" "$tmp/$archive"
+    download "$checksum_url" "$tmp/checksums.txt"
+
+    log "Verifying checksum..."
+    verify_checksum "$tmp/$archive" "$tmp/checksums.txt" "$archive"
+
+    log "Extracting..."
+    case "$ext" in
+        tar.gz) tar -xzf "$tmp/$archive" -C "$tmp" ;;
+        zip)    need_cmd unzip; unzip -q "$tmp/$archive" -d "$tmp" ;;
+    esac
+
+    binary_name="$BINARY"
+    if [ "$os" = "windows" ]; then
+        binary_name="${BINARY}.exe"
+    fi
+
+    if [ ! -f "$tmp/$binary_name" ]; then
+        err "binary '$binary_name' not found in archive"
+    fi
+
+    chmod +x "$tmp/$binary_name"
+
+    if [ -w "$install_dir" ]; then
+        mv "$tmp/$binary_name" "$install_dir/$binary_name"
+    else
+        log "Installing to ${install_dir} (requires sudo)..."
+        sudo mv "$tmp/$binary_name" "$install_dir/$binary_name"
+    fi
+
+    log "Installed ${BINARY} ${version} to ${install_dir}/${binary_name}"
+}
+
+detect_os() {
+    os=$(uname -s | tr '[:upper:]' '[:lower:]')
+    case "$os" in
+        linux*)   echo "linux" ;;
+        darwin*)  echo "darwin" ;;
+        mingw*|msys*|cygwin*) echo "windows" ;;
+        *)        err "unsupported OS: $os" ;;
+    esac
+}
+
+detect_arch() {
+    arch=$(uname -m)
+    case "$arch" in
+        x86_64|amd64)   echo "amd64" ;;
+        aarch64|arm64)  echo "arm64" ;;
+        *)              err "unsupported architecture: $arch" ;;
+    esac
+}
+
+resolve_version() {
+    if [ -n "$VERSION" ]; then
+        case "$VERSION" in
+            v*) echo "$VERSION" ;;
+            *)  echo "v$VERSION" ;;
+        esac
+        return
+    fi
+
+    if has curl; then
+        curl -sSfL -H "Accept: application/json" \
+            "https://api.github.com/repos/${REPO}/releases/latest" \
+            | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p'
+    elif has wget; then
+        wget -qO- --header="Accept: application/json" \
+            "https://api.github.com/repos/${REPO}/releases/latest" \
+            | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p'
+    else
+        err "need curl or wget to determine latest version"
+    fi
+}
+
+download() {
+    url="$1"
+    dest="$2"
+
+    if has curl; then
+        curl -sSfL -o "$dest" "$url"
+    elif has wget; then
+        wget -qO "$dest" "$url"
+    else
+        err "need curl or wget to download files"
+    fi
+}
+
+verify_checksum() {
+    file="$1"
+    checksum_file="$2"
+    archive_name="$3"
+
+    expected=$(awk -v name="$archive_name" '$2 == name || $2 == "*"name { print $1; exit }' "$checksum_file")
+    if [ -z "$expected" ]; then
+        err "checksum not found for $archive_name"
+    fi
+
+    if has sha256sum; then
+        actual=$(sha256sum "$file" | awk '{print $1}')
+    elif has shasum; then
+        actual=$(shasum -a 256 "$file" | awk '{print $1}')
+    else
+        log "WARNING: could not verify checksum (no sha256sum or shasum found)"
+        return 0
+    fi
+
+    if [ "$expected" != "$actual" ]; then
+        err "checksum mismatch: expected $expected, got $actual"
+    fi
+}
+
+has() {
+    command -v "$1" > /dev/null 2>&1
+}
+
+need_cmd() {
+    if ! has "$1"; then
+        err "required command not found: $1"
+    fi
+}
+
+log() {
+    echo "  $*" >&2
+}
+
+err() {
+    log "error: $*"
+    exit 1
+}
+
+main "$@"
