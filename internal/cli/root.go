@@ -7,11 +7,12 @@ import (
 
 	"github.com/charmbracelet/fang"
 	"github.com/duneanalytics/cli/cmd/query"
-	"github.com/duneanalytics/cli/config"
+	"github.com/duneanalytics/duneapi-client-go/config"
+	"github.com/duneanalytics/duneapi-client-go/dune"
 	"github.com/spf13/cobra"
 )
 
-type envKey struct{}
+type clientKey struct{}
 
 var apiKeyFlag string
 
@@ -34,7 +35,8 @@ var rootCmd = &cobra.Command{
 			}
 		}
 
-		cmd.SetContext(context.WithValue(cmd.Context(), envKey{}, env))
+		client := dune.NewDuneClient(env)
+		cmd.SetContext(context.WithValue(cmd.Context(), clientKey{}, dune.DuneClient(client)))
 		return nil
 	},
 }
@@ -44,9 +46,9 @@ func init() {
 	rootCmd.AddCommand(query.NewQueryCmd())
 }
 
-// EnvFromCmd extracts the *config.Env stored in the command's context.
-func EnvFromCmd(cmd *cobra.Command) *config.Env {
-	return cmd.Context().Value(envKey{}).(*config.Env)
+// ClientFromCmd extracts the DuneClient stored in the command's context.
+func ClientFromCmd(cmd *cobra.Command) dune.DuneClient {
+	return cmd.Context().Value(clientKey{}).(dune.DuneClient)
 }
 
 // Execute runs the root command via Fang.
