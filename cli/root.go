@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/fang"
 	"github.com/duneanalytics/cli/authconfig"
 	"github.com/duneanalytics/cli/cmd/auth"
+	"github.com/duneanalytics/cli/cmd/dataset"
 	"github.com/duneanalytics/cli/cmd/execution"
 	"github.com/duneanalytics/cli/cmd/query"
 	"github.com/duneanalytics/cli/cmdutil"
@@ -63,6 +64,7 @@ var rootCmd = &cobra.Command{
 func init() {
 	rootCmd.PersistentFlags().StringVar(&apiKeyFlag, "api-key", "", "Dune API key (overrides DUNE_API_KEY env var)")
 	rootCmd.AddCommand(auth.NewAuthCmd())
+	rootCmd.AddCommand(dataset.NewDatasetCmd())
 	rootCmd.AddCommand(query.NewQueryCmd())
 	rootCmd.AddCommand(execution.NewExecutionCmd())
 }
