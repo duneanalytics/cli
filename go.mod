@@ -4,7 +4,7 @@ go 1.25.6
 
 require (
 	github.com/charmbracelet/fang v0.4.4
-	github.com/duneanalytics/duneapi-client-go v0.4.0
+	github.com/duneanalytics/duneapi-client-go v0.4.1
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	gopkg.in/yaml.v3 v3.0.1
@@ -39,5 +39,3 @@ require (
 	golang.org/x/sys v0.37.0 // indirect
 	golang.org/x/text v0.24.0 // indirect
 )
-
-replace github.com/duneanalytics/duneapi-client-go => ../../duneapi-client-go
