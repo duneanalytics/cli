@@ -13,9 +13,10 @@ const defaultMCPEndpoint = "https://docs.dune.com/mcp"
 
 func newSearchCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "search",
-		Short: "Search the Dune documentation",
-		RunE:  runSearch,
+		Use:         "search",
+		Short:       "Search the Dune documentation",
+		Annotations: map[string]string{"skipAuth": "true"},
+		RunE:        runSearch,
 	}
 
 	cmd.Flags().String("query", "", "search query text (required)")
