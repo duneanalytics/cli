@@ -47,6 +47,14 @@ Search the Dune dataset catalog.
 
 Categories: `canonical`, `decoded`, `spell`, `community`
 
+### `dune docs`
+
+Search and browse Dune documentation. No authentication required.
+
+| Command | Description |
+|---------|-------------|
+| `docs search --query <text> [--api-reference-only] [--code-only]` | Search the Dune documentation |
+
 ### `dune usage`
 
 Show credit and resource usage for your account.
