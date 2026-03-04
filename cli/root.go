@@ -11,6 +11,7 @@ import (
 	"github.com/duneanalytics/cli/cmd/auth"
 	"github.com/duneanalytics/cli/cmd/execution"
 	"github.com/duneanalytics/cli/cmd/query"
+	"github.com/duneanalytics/cli/cmd/usage"
 	"github.com/duneanalytics/cli/cmdutil"
 	"github.com/duneanalytics/duneapi-client-go/config"
 	"github.com/duneanalytics/duneapi-client-go/dune"
@@ -65,6 +66,7 @@ func init() {
 	rootCmd.AddCommand(auth.NewAuthCmd())
 	rootCmd.AddCommand(query.NewQueryCmd())
 	rootCmd.AddCommand(execution.NewExecutionCmd())
+	rootCmd.AddCommand(usage.NewUsageCmd())
 }
 
 // Execute runs the root command via Fang.
