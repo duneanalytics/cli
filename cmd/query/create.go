@@ -20,6 +20,7 @@ func newCreateCmd() *cobra.Command {
 	cmd.Flags().String("sql", "", "query SQL (required)")
 	cmd.Flags().String("description", "", "query description")
 	cmd.Flags().Bool("private", false, "make the query private")
+	cmd.Flags().Bool("temp", false, "create a temporary (unsaved) query")
 	_ = cmd.MarkFlagRequired("name")
 	_ = cmd.MarkFlagRequired("sql")
 	output.AddFormatFlag(cmd, "text")
@@ -34,12 +35,14 @@ func runCreate(cmd *cobra.Command, _ []string) error {
 	sql, _ := cmd.Flags().GetString("sql")
 	description, _ := cmd.Flags().GetString("description")
 	private, _ := cmd.Flags().GetBool("private")
+	temp, _ := cmd.Flags().GetBool("temp")
 
 	resp, err := client.CreateQuery(models.CreateQueryRequest{
 		Name:        name,
 		QuerySQL:    sql,
 		Description: description,
 		IsPrivate:   private,
+		IsTemp:      temp,
 	})
 	if err != nil {
 		return err
