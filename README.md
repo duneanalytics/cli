@@ -22,7 +22,7 @@ Manage and execute Dune queries.
 
 | Command | Description |
 |---------|-------------|
-| `query create --name <name> --sql <sql> [--description] [--private]` | Create a new saved query |
+| `query create --name <name> --sql <sql> [--description] [--private] [--temp]` | Create a new saved query |
 | `query get <query-id>` | Get a saved query's details and SQL |
 | `query update <query-id> [--name] [--sql] [--description] [--private] [--tags]` | Update an existing query |
 | `query archive <query-id>` | Archive a saved query |

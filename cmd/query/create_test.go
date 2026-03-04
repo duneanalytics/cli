@@ -54,6 +54,19 @@ func TestCreatePrivateFlag(t *testing.T) {
 	require.NoError(t, root.Execute())
 }
 
+func TestCreateTempFlag(t *testing.T) {
+	mock := &mockClient{
+		createQueryFn: func(req models.CreateQueryRequest) (*models.CreateQueryResponse, error) {
+			assert.True(t, req.IsTemp)
+			return &models.CreateQueryResponse{QueryID: 1}, nil
+		},
+	}
+
+	root, _ := newTestRoot(mock)
+	root.SetArgs([]string{"query", "create", "--name", "T", "--sql", "S", "--temp"})
+	require.NoError(t, root.Execute())
+}
+
 func TestCreateDescriptionFlag(t *testing.T) {
 	mock := &mockClient{
 		createQueryFn: func(req models.CreateQueryRequest) (*models.CreateQueryResponse, error) {

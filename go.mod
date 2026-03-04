@@ -4,7 +4,7 @@ go 1.25.6
 
 require (
 	github.com/charmbracelet/fang v0.4.4
-	github.com/duneanalytics/duneapi-client-go v0.4.1
+	github.com/duneanalytics/duneapi-client-go v0.4.2
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	gopkg.in/yaml.v3 v3.0.1
