@@ -22,6 +22,7 @@ func newRunCmd() *cobra.Command {
 	cmd.Flags().String("performance", "medium", `performance tier: "medium" or "large"`)
 	cmd.Flags().Int("limit", 0, "maximum number of rows to display (0 = all)")
 	cmd.Flags().Bool("no-wait", false, "submit execution and exit without waiting for results")
+	cmd.Flags().Int("timeout", 300, "maximum seconds to wait for completion")
 	output.AddFormatFlag(cmd, "text")
 
 	return cmd
@@ -56,7 +57,9 @@ func runRun(cmd *cobra.Command, args []string) error {
 	if noWait {
 		return runNoWait(cmd, req)
 	}
-	return runWait(cmd, req)
+
+	timeout, _ := cmd.Flags().GetInt("timeout")
+	return runWait(cmd, req, timeout)
 }
 
 func runNoWait(cmd *cobra.Command, req models.ExecuteRequest) error {
@@ -70,7 +73,7 @@ func runNoWait(cmd *cobra.Command, req models.ExecuteRequest) error {
 	return displayExecuteResponse(cmd, resp)
 }
 
-func runWait(cmd *cobra.Command, req models.ExecuteRequest) error {
+func runWait(cmd *cobra.Command, req models.ExecuteRequest, timeout int) error {
 	client := cmdutil.ClientFromCmd(cmd)
 
 	exec, err := client.RunQuery(req)
@@ -78,7 +81,7 @@ func runWait(cmd *cobra.Command, req models.ExecuteRequest) error {
 		return err
 	}
 
-	return waitAndDisplay(cmd, exec)
+	return waitAndDisplay(cmd, exec, timeout)
 }
 
 func parseParams(raw []string) (map[string]any, error) {

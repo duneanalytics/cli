@@ -2,12 +2,17 @@ package execution
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/duneanalytics/cli/cmdutil"
 	"github.com/duneanalytics/cli/output"
+	"github.com/duneanalytics/duneapi-client-go/dune"
 	"github.com/duneanalytics/duneapi-client-go/models"
 	"github.com/spf13/cobra"
 )
+
+// PollInterval controls the polling interval when waiting for execution results.
+var PollInterval = 2 * time.Second
 
 func newResultsCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -19,6 +24,8 @@ func newResultsCmd() *cobra.Command {
 
 	cmd.Flags().Int("limit", 0, "maximum number of rows to return (0 = all)")
 	cmd.Flags().Int("offset", 0, "number of rows to skip")
+	cmd.Flags().Bool("no-wait", false, "fetch current state without waiting for completion")
+	cmd.Flags().Int("timeout", 300, "maximum seconds to wait for completion")
 	output.AddFormatFlag(cmd, "text")
 
 	return cmd
@@ -29,6 +36,7 @@ func runResults(cmd *cobra.Command, args []string) error {
 
 	limit, _ := cmd.Flags().GetInt("limit")
 	offset, _ := cmd.Flags().GetInt("offset")
+	noWait, _ := cmd.Flags().GetBool("no-wait")
 
 	if limit < 0 {
 		return fmt.Errorf("limit must be non-negative, got %d", limit)
@@ -46,11 +54,58 @@ func runResults(cmd *cobra.Command, args []string) error {
 	}
 
 	client := cmdutil.ClientFromCmd(cmd)
-	resp, err := client.QueryResultsV2(executionID, opts)
-	if err != nil {
-		return err
+
+	if noWait {
+		resp, err := client.QueryResultsV2(executionID, opts)
+		if err != nil {
+			return err
+		}
+		return handleResultsResponse(cmd, executionID, resp)
 	}
 
+	timeout, _ := cmd.Flags().GetInt("timeout")
+	intervalSec := int(PollInterval.Seconds())
+	maxRetries := timeout
+	if intervalSec > 0 {
+		maxRetries = timeout / intervalSec
+	}
+	if maxRetries < 1 {
+		maxRetries = 1
+	}
+
+	return waitForResults(cmd, client, executionID, opts, PollInterval, maxRetries)
+}
+
+func waitForResults(
+	cmd *cobra.Command,
+	client dune.DuneClient,
+	executionID string,
+	opts models.ResultOptions,
+	interval time.Duration,
+	maxRetries int,
+) error {
+	for i := 0; i < maxRetries; i++ {
+		resp, err := client.QueryResultsV2(executionID, opts)
+		if err != nil {
+			return err
+		}
+
+		switch resp.State {
+		case "QUERY_STATE_PENDING", "QUERY_STATE_EXECUTING":
+			// still running, wait and retry
+		default:
+			return handleResultsResponse(cmd, executionID, resp)
+		}
+
+		if i < maxRetries-1 {
+			time.Sleep(interval)
+		}
+	}
+
+	return fmt.Errorf("timed out waiting for execution %s to complete", executionID)
+}
+
+func handleResultsResponse(cmd *cobra.Command, executionID string, resp *models.ResultsResponse) error {
 	switch resp.State {
 	case "QUERY_STATE_COMPLETED":
 		return output.DisplayResults(cmd, resp)

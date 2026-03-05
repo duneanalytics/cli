@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/duneanalytics/cli/cmd/execution"
 	"github.com/duneanalytics/duneapi-client-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -67,7 +68,7 @@ func TestResultsJSONOutput(t *testing.T) {
 	assert.Equal(t, "QUERY_STATE_COMPLETED", got.State)
 }
 
-func TestResultsPending(t *testing.T) {
+func TestResultsPendingNoWait(t *testing.T) {
 	mock := &mockClient{
 		queryResultsV2Fn: func(_ string, _ models.ResultOptions) (*models.ResultsResponse, error) {
 			return &models.ResultsResponse{
@@ -77,7 +78,7 @@ func TestResultsPending(t *testing.T) {
 	}
 
 	root, buf := newTestRoot(mock)
-	root.SetArgs([]string{"execution", "results", "01ABC"})
+	root.SetArgs([]string{"execution", "results", "--no-wait", "01ABC"})
 	require.NoError(t, root.Execute())
 
 	out := buf.String()
@@ -85,7 +86,7 @@ func TestResultsPending(t *testing.T) {
 	assert.Contains(t, out, "State:        QUERY_STATE_PENDING")
 }
 
-func TestResultsExecuting(t *testing.T) {
+func TestResultsExecutingNoWait(t *testing.T) {
 	mock := &mockClient{
 		queryResultsV2Fn: func(_ string, _ models.ResultOptions) (*models.ResultsResponse, error) {
 			return &models.ResultsResponse{
@@ -95,7 +96,7 @@ func TestResultsExecuting(t *testing.T) {
 	}
 
 	root, buf := newTestRoot(mock)
-	root.SetArgs([]string{"execution", "results", "01ABC"})
+	root.SetArgs([]string{"execution", "results", "--no-wait", "01ABC"})
 	require.NoError(t, root.Execute())
 
 	out := buf.String()
@@ -178,4 +179,115 @@ func TestResultsMissingArgument(t *testing.T) {
 	err := root.Execute()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "accepts 1 arg(s)")
+}
+
+func TestResultsWaitPollsUntilComplete(t *testing.T) {
+	execution.PollInterval = 0
+	t.Cleanup(func() {
+		execution.PollInterval = 2 * time.Second
+	})
+
+	callCount := 0
+	mock := &mockClient{
+		queryResultsV2Fn: func(_ string, _ models.ResultOptions) (*models.ResultsResponse, error) {
+			callCount++
+			if callCount < 3 {
+				return &models.ResultsResponse{
+					State: "QUERY_STATE_EXECUTING",
+				}, nil
+			}
+			return testResultsResponse, nil
+		},
+	}
+
+	root, buf := newTestRoot(mock)
+	root.SetArgs([]string{"execution", "results", "--timeout", "10", "01ABC"})
+	require.NoError(t, root.Execute())
+
+	assert.Equal(t, 3, callCount)
+	out := buf.String()
+	assert.Contains(t, out, "block_number")
+	assert.Contains(t, out, "2 rows")
+}
+
+func TestResultsWaitPollsUntilFailed(t *testing.T) {
+	execution.PollInterval = 0
+	t.Cleanup(func() {
+		execution.PollInterval = 2 * time.Second
+	})
+
+	callCount := 0
+	mock := &mockClient{
+		queryResultsV2Fn: func(_ string, _ models.ResultOptions) (*models.ResultsResponse, error) {
+			callCount++
+			if callCount < 2 {
+				return &models.ResultsResponse{
+					State: "QUERY_STATE_PENDING",
+				}, nil
+			}
+			return &models.ResultsResponse{
+				State: "QUERY_STATE_FAILED",
+				Error: &models.ExecutionError{
+					Message: "out of memory",
+				},
+			}, nil
+		},
+	}
+
+	root, _ := newTestRoot(mock)
+	root.SetArgs([]string{"execution", "results", "--timeout", "10", "01ABC"})
+	err := root.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "out of memory")
+	assert.Equal(t, 2, callCount)
+}
+
+func TestResultsWaitTimeout(t *testing.T) {
+	execution.PollInterval = 0
+	t.Cleanup(func() {
+		execution.PollInterval = 2 * time.Second
+	})
+
+	callCount := 0
+	mock := &mockClient{
+		queryResultsV2Fn: func(_ string, _ models.ResultOptions) (*models.ResultsResponse, error) {
+			callCount++
+			return &models.ResultsResponse{
+				State: "QUERY_STATE_EXECUTING",
+			}, nil
+		},
+	}
+
+	root, _ := newTestRoot(mock)
+	root.SetArgs([]string{"execution", "results", "--timeout", "1", "01ABC"})
+	err := root.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "timed out waiting for execution")
+
+}
+
+func TestResultsWaitAPIError(t *testing.T) {
+	execution.PollInterval = 0
+	t.Cleanup(func() {
+		execution.PollInterval = 2 * time.Second
+	})
+
+	callCount := 0
+	mock := &mockClient{
+		queryResultsV2Fn: func(_ string, _ models.ResultOptions) (*models.ResultsResponse, error) {
+			callCount++
+			if callCount < 2 {
+				return &models.ResultsResponse{
+					State: "QUERY_STATE_PENDING",
+				}, nil
+			}
+			return nil, errors.New("api: rate limited")
+		},
+	}
+
+	root, _ := newTestRoot(mock)
+	root.SetArgs([]string{"execution", "results", "--timeout", "10", "01ABC"})
+	err := root.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "api: rate limited")
 }
