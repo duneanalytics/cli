@@ -12,16 +12,20 @@ import (
 func newUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update <query-id>",
-		Short: "Update an existing saved query",
+		Short: "Update an existing Dune query's SQL, title, description, privacy, or tags",
+		Long: "Modify a query you own or have edit access to via team membership.\n" +
+			"Only supply the flags you want to change; unchanged fields are preserved.\n\n" +
+			"The update uses optimistic locking — if someone else edited the query\n" +
+			"concurrently, you'll get a conflict error.",
 		Args:  cobra.ExactArgs(1),
 		RunE:  runUpdate,
 	}
 
-	cmd.Flags().String("name", "", "query name")
-	cmd.Flags().String("sql", "", "query SQL")
-	cmd.Flags().String("description", "", "query description")
-	cmd.Flags().Bool("private", false, "make the query private")
-	cmd.Flags().StringSlice("tags", nil, "query tags (comma-separated)")
+	cmd.Flags().String("name", "", "new title for the query, max 600 characters")
+	cmd.Flags().String("sql", "", "new SQL content in DuneSQL dialect, max 500,000 characters")
+	cmd.Flags().String("description", "", "new description for the query, max 1,000 characters")
+	cmd.Flags().Bool("private", false, "set to true to make the query private, false to make public")
+	cmd.Flags().StringSlice("tags", nil, "new set of tags for the query (comma-separated); replaces all existing tags")
 	output.AddFormatFlag(cmd, "text")
 
 	return cmd

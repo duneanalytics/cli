@@ -13,21 +13,26 @@ import (
 func newSearchCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "search",
-		Short: "Search for datasets across the Dune catalog",
+		Short: "Search for tables and datasets across the Dune catalog",
+		Long: "Natural-language table discovery across the Dune catalog. Use this command\n" +
+			"to find concrete table names for use in SQL queries.\n\n" +
+			"Filter by category (canonical for chain primitives, decoded for ABI-level\n" +
+			"events/calls, spell for curated datasets, community for user-contributed),\n" +
+			"by blockchain, schema, dataset type, or ownership scope.",
 		RunE:  runSearch,
 	}
 
-	cmd.Flags().String("query", "", "search query text")
-	cmd.Flags().StringArray("categories", nil, "filter by category (canonical, decoded, spell, community)")
-	cmd.Flags().StringArray("blockchains", nil, "filter by blockchain")
-	cmd.Flags().StringArray("dataset-types", nil, "filter by dataset type")
-	cmd.Flags().StringArray("schemas", nil, "filter by schema")
-	cmd.Flags().String("owner-scope", "", "ownership filter (all, me, team)")
-	cmd.Flags().Bool("include-private", false, "include private datasets")
-	cmd.Flags().Bool("include-schema", false, "include column schema in results")
-	cmd.Flags().Bool("include-metadata", false, "include metadata in results")
-	cmd.Flags().Int32("limit", 20, "maximum number of results")
-	cmd.Flags().Int32("offset", 0, "pagination offset")
+	cmd.Flags().String("query", "", "natural-language search intent or entity hints (e.g. 'uniswap v3 swaps'); use '*' to browse without keyword bias")
+	cmd.Flags().StringArray("categories", nil, "filter by table family: canonical (chain primitives), decoded (ABI-level events/calls), spell (curated datasets), community (user-contributed)")
+	cmd.Flags().StringArray("blockchains", nil, "chain scope to reduce ambiguity and improve ranking (e.g. ethereum, solana)")
+	cmd.Flags().StringArray("dataset-types", nil, "fine-grained dataset type filter: dune_table, decoded_table, spell, uploaded_table, transformation_table, transformation_view")
+	cmd.Flags().StringArray("schemas", nil, "schema/namespace constraint for high precision (e.g. dex, uniswap_v3_ethereum)")
+	cmd.Flags().String("owner-scope", "", "ownership filter: all, me, or team; does NOT automatically include private datasets")
+	cmd.Flags().Bool("include-private", false, "widen results to include private datasets visible to the authenticated user/team alongside public ones")
+	cmd.Flags().Bool("include-schema", false, "include column-level schema (name, type, nullable) for every result; useful when preparing SQL")
+	cmd.Flags().Bool("include-metadata", false, "include category-specific metadata (page_rank_score, description, abi_type, contract_name, project_name, etc.)")
+	cmd.Flags().Int32("limit", 20, "number of results per page; use 5-15 for quick checks, 20-50 for deeper exploration")
+	cmd.Flags().Int32("offset", 0, "pagination offset; use previous response pagination info for next page")
 	output.AddFormatFlag(cmd, "text")
 
 	return cmd

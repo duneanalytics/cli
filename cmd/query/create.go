@@ -12,15 +12,20 @@ import (
 func newCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
-		Short: "Create a new saved query",
+		Short: "Create a new Dune query and return the query ID",
+		Long: "Create a new SQL query on Dune. Returns the query ID on success.\n\n" +
+			"The query is written in DuneSQL dialect. If the query targets tables with\n" +
+			"known partition columns, include a WHERE filter on those columns\n" +
+			"(e.g. WHERE block_date >= CURRENT_DATE - INTERVAL '7' DAY) to enable\n" +
+			"partition pruning and reduce query cost.",
 		RunE:  runCreate,
 	}
 
-	cmd.Flags().String("name", "", "query name (required)")
-	cmd.Flags().String("sql", "", "query SQL (required)")
-	cmd.Flags().String("description", "", "query description")
-	cmd.Flags().Bool("private", false, "make the query private")
-	cmd.Flags().Bool("temp", false, "create a temporary (unsaved) query")
+	cmd.Flags().String("name", "", "human-readable query title, max 600 characters (required)")
+	cmd.Flags().String("sql", "", "the SQL query text in DuneSQL dialect, max 500,000 characters (required)")
+	cmd.Flags().String("description", "", "short description of what the query does, max 1,000 characters")
+	cmd.Flags().Bool("private", false, "make the query private; may be forced by team privacy settings")
+	cmd.Flags().Bool("temp", false, "create a temporary query that won't appear in the dune.com library or be accessible when shared")
 	_ = cmd.MarkFlagRequired("name")
 	_ = cmd.MarkFlagRequired("sql")
 	output.AddFormatFlag(cmd, "text")

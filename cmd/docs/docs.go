@@ -6,7 +6,7 @@ import "github.com/spf13/cobra"
 func NewDocsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         "docs",
-		Short:       "Search and browse Dune documentation",
+		Short:       "Search the Dune documentation for guides, API references, and examples",
 		Annotations: map[string]string{"skipAuth": "true"},
 	}
 	cmd.AddCommand(newSearchCmd())

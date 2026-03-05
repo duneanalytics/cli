@@ -11,7 +11,10 @@ import (
 func newArchiveCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "archive <query-id>",
-		Short: "Archive a saved query",
+		Short: "Archive a saved Dune query by ID",
+		Long: "Mark a Dune query as archived. Archived queries are hidden from the library\n" +
+			"but can still be retrieved by ID. You must own the query or have edit access\n" +
+			"via team membership.",
 		Args:  cobra.ExactArgs(1),
 		RunE:  runArchive,
 	}
