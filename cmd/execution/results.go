@@ -26,8 +26,8 @@ func newResultsCmd() *cobra.Command {
 			"  3. If completed: returns the result data\n" +
 			"  4. If failed/cancelled: returns the error details\n\n" +
 			"Use --no-wait to return the current state immediately without polling.",
-		Args:  cobra.ExactArgs(1),
-		RunE:  runResults,
+		Args: cobra.ExactArgs(1),
+		RunE: runResults,
 	}
 
 	cmd.Flags().Int("limit", 0, "maximum number of result rows to return (0 = all)")
@@ -81,36 +81,17 @@ func runResults(cmd *cobra.Command, args []string) error {
 		maxRetries = 1
 	}
 
-	return waitForResults(cmd, client, executionID, opts, PollInterval, maxRetries)
-}
-
-func waitForResults(
-	cmd *cobra.Command,
-	client dune.DuneClient,
-	executionID string,
-	opts models.ResultOptions,
-	interval time.Duration,
-	maxRetries int,
-) error {
-	for i := 0; i < maxRetries; i++ {
-		resp, err := client.QueryResultsV2(executionID, opts)
-		if err != nil {
-			return err
-		}
-
-		switch resp.State {
-		case "QUERY_STATE_PENDING", "QUERY_STATE_EXECUTING":
-			// still running, wait and retry
-		default:
-			return handleResultsResponse(cmd, executionID, resp)
-		}
-
-		if i < maxRetries-1 {
-			time.Sleep(interval)
-		}
+	exec := dune.NewExecution(client, executionID)
+	if _, err := exec.WaitGetResults(PollInterval, maxRetries); err != nil {
+		return err
 	}
 
-	return fmt.Errorf("timed out waiting for execution %s to complete", executionID)
+	// Fetch final results with any limit/offset options.
+	resp, err := client.QueryResultsV2(executionID, opts)
+	if err != nil {
+		return err
+	}
+	return handleResultsResponse(cmd, executionID, resp)
 }
 
 func handleResultsResponse(cmd *cobra.Command, executionID string, resp *models.ResultsResponse) error {
