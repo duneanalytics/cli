@@ -6,7 +6,7 @@ import "github.com/spf13/cobra"
 func NewDatasetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "dataset",
-		Short: "Manage Dune datasets",
+		Short: "Discover and explore datasets across the Dune catalog",
 	}
 	cmd.AddCommand(newSearchCmd())
 	return cmd

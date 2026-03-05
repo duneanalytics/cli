@@ -28,8 +28,12 @@ func parsePerformance(cmd *cobra.Command) (string, error) {
 	return performance, nil
 }
 
-func waitAndDisplay(cmd *cobra.Command, exec dune.Execution) error {
-	resp, err := exec.WaitGetResults(5*time.Second, 60)
+func waitAndDisplay(cmd *cobra.Command, exec dune.Execution, timeout int) error {
+	maxRetries := timeout / 2
+	if maxRetries < 1 {
+		maxRetries = 1
+	}
+	resp, err := exec.WaitGetResults(2*time.Second, maxRetries)
 	if err != nil {
 		return err
 	}

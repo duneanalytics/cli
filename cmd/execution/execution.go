@@ -6,7 +6,7 @@ import "github.com/spf13/cobra"
 func NewExecutionCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "execution",
-		Short: "Manage query executions",
+		Short: "Retrieve and inspect query execution results",
 	}
 	cmd.AddCommand(newResultsCmd())
 	return cmd

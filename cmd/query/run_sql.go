@@ -10,17 +10,22 @@ import (
 func newRunSQLCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "run-sql",
-		Short: "Execute raw SQL and display results",
+		Short: "Execute a raw DuneSQL query and display results",
+		Long: "Execute an inline SQL statement in DuneSQL dialect without saving it as a\n" +
+			"query on Dune. By default, waits for completion and displays result rows.\n\n" +
+			"Use --no-wait to submit the execution and exit immediately with just the\n" +
+			"execution ID. Credits are consumed based on actual compute resources used.",
 		Args:  cobra.NoArgs,
 		RunE:  runRunSQL,
 	}
 
-	cmd.Flags().String("sql", "", "SQL query to execute (required)")
+	cmd.Flags().String("sql", "", "the SQL query text in DuneSQL dialect (required)")
 	_ = cmd.MarkFlagRequired("sql")
-	cmd.Flags().StringArray("param", nil, "query parameter in key=value format (repeatable)")
-	cmd.Flags().String("performance", "medium", `performance tier: "medium" or "large"`)
-	cmd.Flags().Int("limit", 0, "maximum number of rows to display (0 = all)")
-	cmd.Flags().Bool("no-wait", false, "submit execution and exit without waiting for results")
+	cmd.Flags().StringArray("param", nil, "typed query parameter in key=value format (repeatable); numbers are stringified, datetimes use YYYY-MM-DD HH:mm:ss")
+	cmd.Flags().String("performance", "medium", `engine size for the execution: "medium" (default) or "large"; credits are consumed based on actual compute resources used`)
+	cmd.Flags().Int("limit", 0, "maximum number of result rows to return (0 = all)")
+	cmd.Flags().Bool("no-wait", false, "submit the execution and exit immediately, printing only the execution ID and state")
+	cmd.Flags().Int("timeout", 300, "maximum seconds to wait for the execution to complete before timing out")
 	output.AddFormatFlag(cmd, "text")
 
 	return cmd
@@ -52,7 +57,9 @@ func runRunSQL(cmd *cobra.Command, _ []string) error {
 	if noWait {
 		return runSQLNoWait(cmd, req)
 	}
-	return runSQLWait(cmd, req)
+
+	timeout, _ := cmd.Flags().GetInt("timeout")
+	return runSQLWait(cmd, req, timeout)
 }
 
 func runSQLNoWait(cmd *cobra.Command, req models.ExecuteSQLRequest) error {
@@ -66,7 +73,7 @@ func runSQLNoWait(cmd *cobra.Command, req models.ExecuteSQLRequest) error {
 	return displayExecuteResponse(cmd, resp)
 }
 
-func runSQLWait(cmd *cobra.Command, req models.ExecuteSQLRequest) error {
+func runSQLWait(cmd *cobra.Command, req models.ExecuteSQLRequest, timeout int) error {
 	client := cmdutil.ClientFromCmd(cmd)
 
 	exec, err := client.RunSQL(req)
@@ -74,5 +81,5 @@ func runSQLWait(cmd *cobra.Command, req models.ExecuteSQLRequest) error {
 		return err
 	}
 
-	return waitAndDisplay(cmd, exec)
+	return waitAndDisplay(cmd, exec, timeout)
 }

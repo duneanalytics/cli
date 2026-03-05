@@ -24,9 +24,12 @@ var apiKeyFlag string
 
 var rootCmd = &cobra.Command{
 	Use:   "dune",
-	Short: "Dune CLI — interact with the Dune Analytics API",
-	Long: "A command-line interface for interacting with the Dune Analytics API.\n" +
-		"Manage queries, execute them, and retrieve results.",
+	Short: "Dune CLI — query, explore, and manage blockchain data on Dune Analytics",
+	Long: "A command-line interface for the Dune Analytics platform.\n\n" +
+		"Discover datasets across the Dune catalog, execute SQL queries (DuneSQL dialect),\n" +
+		"retrieve execution results, and manage your saved queries — all from the terminal.\n\n" +
+		"Authenticate with an API key via --api-key, the DUNE_API_KEY environment variable,\n" +
+		"or by running `dune auth`.",
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 		if cmd.Annotations["skipAuth"] == "true" {
 			return nil

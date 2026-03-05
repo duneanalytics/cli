@@ -6,15 +6,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/duneanalytics/cli/cmd/execution"
 	"github.com/duneanalytics/duneapi-client-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 var testResultsResponse = &models.ResultsResponse{
-	QueryID:            4125432,
-	State:              "QUERY_STATE_COMPLETED",
-	ExecutionEndedAt:   ptrTime(time.Now()),
+	QueryID:             4125432,
+	State:               "QUERY_STATE_COMPLETED",
+	ExecutionEndedAt:    ptrTime(time.Now()),
 	IsExecutionFinished: true,
 	Result: models.Result{
 		Metadata: models.ResultMetadata{
@@ -39,7 +40,7 @@ func TestResultsSuccess(t *testing.T) {
 	}
 
 	root, buf := newTestRoot(mock)
-	root.SetArgs([]string{"execution", "results", "01ABCDEFGHIJKLMNOPQRSTUV"})
+	root.SetArgs([]string{"execution", "results", "--no-wait", "01ABCDEFGHIJKLMNOPQRSTUV"})
 	require.NoError(t, root.Execute())
 
 	out := buf.String()
@@ -58,7 +59,7 @@ func TestResultsJSONOutput(t *testing.T) {
 	}
 
 	root, buf := newTestRoot(mock)
-	root.SetArgs([]string{"execution", "results", "01ABC", "-o", "json"})
+	root.SetArgs([]string{"execution", "results", "--no-wait", "01ABC", "-o", "json"})
 	require.NoError(t, root.Execute())
 
 	var got models.ResultsResponse
@@ -67,7 +68,7 @@ func TestResultsJSONOutput(t *testing.T) {
 	assert.Equal(t, "QUERY_STATE_COMPLETED", got.State)
 }
 
-func TestResultsPending(t *testing.T) {
+func TestResultsPendingNoWait(t *testing.T) {
 	mock := &mockClient{
 		queryResultsV2Fn: func(_ string, _ models.ResultOptions) (*models.ResultsResponse, error) {
 			return &models.ResultsResponse{
@@ -77,7 +78,7 @@ func TestResultsPending(t *testing.T) {
 	}
 
 	root, buf := newTestRoot(mock)
-	root.SetArgs([]string{"execution", "results", "01ABC"})
+	root.SetArgs([]string{"execution", "results", "--no-wait", "01ABC"})
 	require.NoError(t, root.Execute())
 
 	out := buf.String()
@@ -85,7 +86,7 @@ func TestResultsPending(t *testing.T) {
 	assert.Contains(t, out, "State:        QUERY_STATE_PENDING")
 }
 
-func TestResultsExecuting(t *testing.T) {
+func TestResultsExecutingNoWait(t *testing.T) {
 	mock := &mockClient{
 		queryResultsV2Fn: func(_ string, _ models.ResultOptions) (*models.ResultsResponse, error) {
 			return &models.ResultsResponse{
@@ -95,7 +96,7 @@ func TestResultsExecuting(t *testing.T) {
 	}
 
 	root, buf := newTestRoot(mock)
-	root.SetArgs([]string{"execution", "results", "01ABC"})
+	root.SetArgs([]string{"execution", "results", "--no-wait", "01ABC"})
 	require.NoError(t, root.Execute())
 
 	out := buf.String()
@@ -116,7 +117,7 @@ func TestResultsFailed(t *testing.T) {
 	}
 
 	root, _ := newTestRoot(mock)
-	root.SetArgs([]string{"execution", "results", "01ABC"})
+	root.SetArgs([]string{"execution", "results", "--no-wait", "01ABC"})
 	err := root.Execute()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "syntax error at line 1")
@@ -134,7 +135,7 @@ func TestResultsCancelled(t *testing.T) {
 	}
 
 	root, _ := newTestRoot(mock)
-	root.SetArgs([]string{"execution", "results", "01ABC"})
+	root.SetArgs([]string{"execution", "results", "--no-wait", "01ABC"})
 	err := root.Execute()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "cancelled")
@@ -150,7 +151,7 @@ func TestResultsWithLimitAndOffset(t *testing.T) {
 	}
 
 	root, _ := newTestRoot(mock)
-	root.SetArgs([]string{"execution", "results", "01ABC", "--limit", "10", "--offset", "5"})
+	root.SetArgs([]string{"execution", "results", "--no-wait", "01ABC", "--limit", "10", "--offset", "5"})
 	require.NoError(t, root.Execute())
 
 	require.NotNil(t, capturedOpts.Page)
@@ -166,7 +167,7 @@ func TestResultsAPIError(t *testing.T) {
 	}
 
 	root, _ := newTestRoot(mock)
-	root.SetArgs([]string{"execution", "results", "01ABC"})
+	root.SetArgs([]string{"execution", "results", "--no-wait", "01ABC"})
 	err := root.Execute()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "api: connection refused")
@@ -178,4 +179,109 @@ func TestResultsMissingArgument(t *testing.T) {
 	err := root.Execute()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "accepts 1 arg(s)")
+}
+
+func TestResultsWaitPollsUntilComplete(t *testing.T) {
+	execution.PollInterval = 0
+	t.Cleanup(func() {
+		execution.PollInterval = 2 * time.Second
+	})
+
+	callCount := 0
+	mock := &mockClient{
+		queryResultsV2Fn: func(_ string, _ models.ResultOptions) (*models.ResultsResponse, error) {
+			callCount++
+			if callCount < 3 {
+				return &models.ResultsResponse{
+					State: "QUERY_STATE_EXECUTING",
+				}, nil
+			}
+			return testResultsResponse, nil
+		},
+	}
+
+	root, buf := newTestRoot(mock)
+	root.SetArgs([]string{"execution", "results", "--timeout", "10", "01ABC"})
+	require.NoError(t, root.Execute())
+
+	// 3 calls from WaitGetResults (2 executing + 1 completed) + 1 final fetch
+	assert.Equal(t, 4, callCount)
+	out := buf.String()
+	assert.Contains(t, out, "block_number")
+	assert.Contains(t, out, "2 rows")
+}
+
+func TestResultsWaitPollsUntilFailed(t *testing.T) {
+	execution.PollInterval = 0
+	t.Cleanup(func() {
+		execution.PollInterval = 2 * time.Second
+	})
+
+	callCount := 0
+	mock := &mockClient{
+		queryResultsV2Fn: func(_ string, _ models.ResultOptions) (*models.ResultsResponse, error) {
+			callCount++
+			if callCount < 2 {
+				return &models.ResultsResponse{
+					State: "QUERY_STATE_PENDING",
+				}, nil
+			}
+			return &models.ResultsResponse{
+				State:               "QUERY_STATE_FAILED",
+				IsExecutionFinished: true,
+				Error: &models.ExecutionError{
+					Message: "out of memory",
+				},
+			}, nil
+		},
+	}
+
+	root, _ := newTestRoot(mock)
+	root.SetArgs([]string{"execution", "results", "--timeout", "10", "01ABC"})
+	err := root.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "out of memory")
+	// 2 calls from WaitGetResults (1 pending + 1 failed) + 1 final fetch
+	assert.Equal(t, 3, callCount)
+}
+
+func TestResultsWaitRetriesExhausted(t *testing.T) {
+	execution.PollInterval = 0
+	t.Cleanup(func() {
+		execution.PollInterval = 2 * time.Second
+	})
+
+	mock := &mockClient{
+		queryResultsV2Fn: func(_ string, _ models.ResultOptions) (*models.ResultsResponse, error) {
+			return nil, errors.New("server unavailable")
+		},
+	}
+
+	root, _ := newTestRoot(mock)
+	root.SetArgs([]string{"execution", "results", "--timeout", "1", "01ABC"})
+	err := root.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "retries have been exhausted")
+}
+
+func TestResultsWaitAPIError(t *testing.T) {
+	execution.PollInterval = 0
+	t.Cleanup(func() {
+		execution.PollInterval = 2 * time.Second
+	})
+
+	mock := &mockClient{
+		queryResultsV2Fn: func(_ string, _ models.ResultOptions) (*models.ResultsResponse, error) {
+			return nil, errors.New("api: rate limited")
+		},
+	}
+
+	root, _ := newTestRoot(mock)
+	// With --timeout=2 and PollInterval=0, maxRetries=2.
+	// The SDK retries on API errors until errCount > maxRetries.
+	root.SetArgs([]string{"execution", "results", "--timeout", "2", "01ABC"})
+	err := root.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "retries have been exhausted")
+	assert.Contains(t, err.Error(), "api: rate limited")
 }

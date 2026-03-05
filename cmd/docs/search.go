@@ -14,15 +14,17 @@ const defaultMCPEndpoint = "https://docs.dune.com/mcp"
 func newSearchCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         "search",
-		Short:       "Search the Dune documentation",
+		Short:       "Search the Dune documentation for guides, API references, and code examples",
+		Long: "Search across all Dune documentation pages including guides, API references,\n" +
+			"DuneSQL syntax, and code examples. Does not require authentication.",
 		Annotations: map[string]string{"skipAuth": "true"},
 		RunE:        runSearch,
 	}
 
-	cmd.Flags().String("query", "", "search query text (required)")
+	cmd.Flags().String("query", "", "search query text, e.g. 'DuneSQL date functions' or 'API authentication' (required)")
 	_ = cmd.MarkFlagRequired("query")
-	cmd.Flags().Bool("api-reference-only", false, "prioritize API reference pages")
-	cmd.Flags().Bool("code-only", false, "prioritize pages with code examples")
+	cmd.Flags().Bool("api-reference-only", false, "prioritize API reference pages over conceptual guides")
+	cmd.Flags().Bool("code-only", false, "prioritize pages with executable examples and code snippets")
 	cmd.Flags().String("mcp-endpoint", defaultMCPEndpoint, "MCP server endpoint URL")
 	_ = cmd.Flags().MarkHidden("mcp-endpoint")
 	output.AddFormatFlag(cmd, "text")

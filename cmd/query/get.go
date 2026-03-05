@@ -12,7 +12,9 @@ import (
 func newGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get <query-id>",
-		Short: "Get a saved query",
+		Short: "Fetch a saved Dune query by ID, including SQL and metadata",
+		Long: "Retrieve SQL, metadata, owner, privacy flags, tags, and execution state for\n" +
+			"an existing Dune query. Only queries visible to the authenticated user are returned.",
 		Args:  cobra.ExactArgs(1),
 		RunE:  runGet,
 	}

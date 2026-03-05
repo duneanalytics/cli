@@ -6,7 +6,7 @@ import "github.com/spf13/cobra"
 func NewQueryCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "query",
-		Short: "Manage Dune queries",
+		Short: "Create, retrieve, update, execute, and archive Dune queries",
 	}
 	cmd.AddCommand(newCreateCmd())
 	cmd.AddCommand(newGetCmd())
