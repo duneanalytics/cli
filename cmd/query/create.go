@@ -12,12 +12,18 @@ import (
 func newCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
-		Short: "Create a new Dune query and return the query ID",
+		Short: "Create a new saved Dune query and return the query ID",
 		Long: "Create a new SQL query on Dune. Returns the query ID on success.\n\n" +
 			"The query is written in DuneSQL dialect. If the query targets tables with\n" +
 			"known partition columns, include a WHERE filter on those columns\n" +
 			"(e.g. WHERE block_date >= CURRENT_DATE - INTERVAL '7' DAY) to enable\n" +
-			"partition pruning and reduce query cost.",
+			"partition pruning and reduce query cost.\n\n" +
+			"Use --temp to create a temporary query that won't appear in the dune.com\n" +
+			"library or be accessible when shared. Temporary queries are auto-deleted.\n\n" +
+			"Examples:\n" +
+			"  dune query create --name \"Recent Blocks\" --sql \"SELECT * FROM ethereum.blocks LIMIT 10\"\n" +
+			"  dune query create --name \"My Query\" --sql \"SELECT 1\" --private --description \"Test query\"\n" +
+			"  dune query create --name \"Throwaway\" --sql \"SELECT 1\" --temp",
 		RunE: runCreate,
 	}
 
@@ -25,7 +31,7 @@ func newCreateCmd() *cobra.Command {
 	cmd.Flags().String("sql", "", "the SQL query text in DuneSQL dialect, max 500,000 characters (required)")
 	cmd.Flags().String("description", "", "short description of what the query does, max 1,000 characters")
 	cmd.Flags().Bool("private", false, "make the query private; may be forced by team privacy settings")
-	cmd.Flags().Bool("temp", false, "create a temporary query that won't appear in the dune.com library or be accessible when shared")
+	cmd.Flags().Bool("temp", false, "create a temporary query that won't appear in the dune.com library or be accessible when shared; auto-deleted")
 	_ = cmd.MarkFlagRequired("name")
 	_ = cmd.MarkFlagRequired("sql")
 	output.AddFormatFlag(cmd, "text")

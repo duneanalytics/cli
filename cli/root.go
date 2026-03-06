@@ -28,6 +28,12 @@ var rootCmd = &cobra.Command{
 	Long: "A command-line interface for the Dune Analytics platform.\n\n" +
 		"Discover datasets across the Dune catalog, execute SQL queries (DuneSQL dialect),\n" +
 		"retrieve execution results, and manage your saved queries — all from the terminal.\n\n" +
+		"Capabilities:\n" +
+		"  - Search datasets by keyword, contract address, category, or blockchain\n" +
+		"  - Create, update, archive, and retrieve saved DuneSQL queries\n" +
+		"  - Execute saved queries or raw DuneSQL and display results\n" +
+		"  - Browse Dune documentation for DuneSQL syntax, API references, and guides\n" +
+		"  - Monitor credit usage, storage consumption, and billing periods\n\n" +
 		"Authenticate with an API key via --api-key, the DUNE_API_KEY environment variable,\n" +
 		"or by running `dune auth`.",
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
