@@ -19,7 +19,7 @@ func newSearchCmd() *cobra.Command {
 			"Filter by category (canonical for chain primitives, decoded for ABI-level\n" +
 			"events/calls, spell for curated datasets, community for user-contributed),\n" +
 			"by blockchain, schema, dataset type, or ownership scope.",
-		RunE:  runSearch,
+		RunE: runSearch,
 	}
 
 	cmd.Flags().String("query", "", "natural-language search intent or entity hints (e.g. 'uniswap v3 swaps'); use '*' to browse without keyword bias")

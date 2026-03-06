@@ -13,8 +13,8 @@ const defaultMCPEndpoint = "https://docs.dune.com/mcp"
 
 func newSearchCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "search",
-		Short:       "Search the Dune documentation for guides, API references, and code examples",
+		Use:   "search",
+		Short: "Search the Dune documentation for guides, API references, and code examples",
 		Long: "Search across all Dune documentation pages including guides, API references,\n" +
 			"DuneSQL syntax, and code examples. Does not require authentication.",
 		Annotations: map[string]string{"skipAuth": "true"},

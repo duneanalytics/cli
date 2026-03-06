@@ -18,7 +18,7 @@ func newCreateCmd() *cobra.Command {
 			"known partition columns, include a WHERE filter on those columns\n" +
 			"(e.g. WHERE block_date >= CURRENT_DATE - INTERVAL '7' DAY) to enable\n" +
 			"partition pruning and reduce query cost.",
-		RunE:  runCreate,
+		RunE: runCreate,
 	}
 
 	cmd.Flags().String("name", "", "human-readable query title, max 600 characters (required)")

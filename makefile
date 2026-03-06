@@ -1,4 +1,12 @@
-.PHONY: all setup build lint test
+.PHONY: all setup build lint test install
+
+VERSION  ?= $(shell git describe --tags --always --dirty 2>/dev/null | sed 's/^v//')
+COMMIT   ?= $(shell git rev-parse --short=12 HEAD 2>/dev/null || echo "unknown")
+DATE     ?= $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
+LDFLAGS   = -s -w \
+            -X main.version=$(VERSION) \
+            -X main.commit=$(COMMIT) \
+            -X main.date=$(DATE)
 
 all: lint test build
 
@@ -6,9 +14,12 @@ setup: bin/golangci-lint
 	go mod download
 
 dune-cli: lint
-	go build -o dune-cli cmd/main.go
+	go build -ldflags '$(LDFLAGS)' -o dune-cli ./cmd
 
 build: dune-cli
+
+install:
+	go install -ldflags '$(LDFLAGS)' ./cmd
 
 bin:
 	mkdir -p bin

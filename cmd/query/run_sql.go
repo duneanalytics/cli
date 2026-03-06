@@ -15,8 +15,8 @@ func newRunSQLCmd() *cobra.Command {
 			"query on Dune. By default, waits for completion and displays result rows.\n\n" +
 			"Use --no-wait to submit the execution and exit immediately with just the\n" +
 			"execution ID. Credits are consumed based on actual compute resources used.",
-		Args:  cobra.NoArgs,
-		RunE:  runRunSQL,
+		Args: cobra.NoArgs,
+		RunE: runRunSQL,
 	}
 
 	cmd.Flags().String("sql", "", "the SQL query text in DuneSQL dialect (required)")

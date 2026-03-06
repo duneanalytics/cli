@@ -19,8 +19,8 @@ func newRunCmd() *cobra.Command {
 			"the execution and exit immediately with just the execution ID.\n\n" +
 			"Credits are consumed based on actual compute resources used. Use --performance\n" +
 			"to select the engine size (medium or large).",
-		Args:  cobra.ExactArgs(1),
-		RunE:  runRun,
+		Args: cobra.ExactArgs(1),
+		RunE: runRun,
 	}
 
 	cmd.Flags().StringArray("param", nil, "typed query parameter in key=value format (repeatable); numbers are stringified, datetimes use YYYY-MM-DD HH:mm:ss")
@@ -106,4 +106,3 @@ func parseParams(raw []string) (map[string]any, error) {
 	}
 	return params, nil
 }
-

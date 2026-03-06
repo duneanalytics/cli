@@ -17,8 +17,8 @@ func newUpdateCmd() *cobra.Command {
 			"Only supply the flags you want to change; unchanged fields are preserved.\n\n" +
 			"The update uses optimistic locking — if someone else edited the query\n" +
 			"concurrently, you'll get a conflict error.",
-		Args:  cobra.ExactArgs(1),
-		RunE:  runUpdate,
+		Args: cobra.ExactArgs(1),
+		RunE: runUpdate,
 	}
 
 	cmd.Flags().String("name", "", "new title for the query, max 600 characters")
