@@ -8,6 +8,9 @@ A command-line interface for interacting with the Dune Analytics API.
 # Save your API key to ~/.config/dune/config.yaml
 dune auth --api-key <key>
 
+# Or run interactively (prompts for key)
+dune auth
+
 # Or set via environment variable
 export DUNE_API_KEY=<key>
 ```
@@ -26,8 +29,8 @@ Manage and execute Dune queries.
 | `query get <query-id>` | Get a saved query's details and SQL |
 | `query update <query-id> [--name] [--sql] [--description] [--private] [--tags]` | Update an existing query |
 | `query archive <query-id>` | Archive a saved query |
-| `query run <query-id> [--param key=value] [--performance medium\|large] [--limit] [--no-wait]` | Execute a saved query and display results |
-| `query run-sql --sql <sql> [--param key=value] [--performance medium\|large] [--limit] [--no-wait]` | Execute raw SQL directly |
+| `query run <query-id> [--param key=value] [--performance medium\|large] [--limit] [--timeout] [--no-wait]` | Execute a saved query and display results |
+| `query run-sql --sql <sql> [--param key=value] [--performance medium\|large] [--limit] [--timeout] [--no-wait]` | Execute raw SQL directly |
 
 ### `dune execution`
 
@@ -35,7 +38,7 @@ Manage query executions.
 
 | Command | Description |
 |---------|-------------|
-| `execution results <execution-id> [--limit] [--offset]` | Fetch results of a query execution |
+| `execution results <execution-id> [--limit] [--offset] [--timeout] [--no-wait]` | Fetch results of a query execution |
 
 ### `dune dataset`
 
@@ -44,6 +47,7 @@ Search the Dune dataset catalog.
 | Command | Description |
 |---------|-------------|
 | `dataset search [--query] [--categories] [--blockchains] [--schemas] [--dataset-types] [--owner-scope] [--include-private] [--include-schema] [--include-metadata] [--limit] [--offset]` | Search for datasets |
+| `dataset search-by-contract --contract-address <address> [--blockchains] [--include-schema] [--limit] [--offset]` | Search for decoded tables by contract address |
 
 Categories: `canonical`, `decoded`, `spell`, `community`
 
@@ -65,4 +69,4 @@ dune usage [--start-date YYYY-MM-DD] [--end-date YYYY-MM-DD]
 
 ## Output Format
 
-Most commands support `-o, --output <format>` with `text` (default) or `json`.
+All commands (except `auth`) support `-o, --output <format>` with `text` (default) or `json`.
