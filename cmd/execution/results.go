@@ -17,27 +17,31 @@ var PollInterval = 2 * time.Second
 func newResultsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "results <execution-id>",
-		Short: "Fetch results of a query execution",
-		Long: "Fetch results of a query execution by its execution ID.\n\n" +
-			"Use this after submitting a query with --no-wait, or to re-fetch results from\n" +
-			"a completed execution. The command handles all execution states:\n" +
-			"  - Completed: displays result rows\n" +
-			"  - Pending/Executing: shows current state (re-run later)\n" +
-			"  - Failed: returns the error message\n" +
-			"  - Cancelled: returns cancellation notice\n\n" +
+		Short: "Retrieve execution results for a query execution by execution ID",
+		Long: "Retrieve the results of a query execution. By default, waits for the execution\n" +
+			"to complete (up to the timeout) before returning results.\n\n" +
+			"Behavior:\n" +
+			"  1. Checks the current execution status\n" +
+			"  2. If still running: polls every 2 seconds until complete or timeout is reached\n" +
+			"  3. If completed: returns the result data\n" +
+			"  4. If failed/cancelled: returns the error details\n\n" +
+			"Use --no-wait to return the current state immediately without polling.\n" +
 			"Use --limit and --offset to paginate through large result sets.\n\n" +
+			"Use this after submitting a query with --no-wait, or to re-fetch results from\n" +
+			"a completed execution.\n\n" +
 			"Examples:\n" +
 			"  dune execution results 01JXYZ...\n" +
 			"  dune execution results 01JXYZ... --limit 100 --offset 200\n" +
+			"  dune execution results 01JXYZ... --no-wait\n" +
 			"  dune execution results 01JXYZ... --output json",
 		Args: cobra.ExactArgs(1),
 		RunE: runResults,
 	}
 
-	cmd.Flags().Int("limit", 0, "maximum number of result rows to return (0 = all)")
-	cmd.Flags().Int("offset", 0, "number of rows to skip before returning results, used for pagination")
-	cmd.Flags().Bool("no-wait", false, "return the current execution state immediately without waiting for completion")
-	cmd.Flags().Int("timeout", 300, "maximum seconds to wait for the execution to complete before timing out")
+	cmd.Flags().Int("limit", 0, "maximum number of result rows to return (0 = all); use with --offset to paginate large result sets")
+	cmd.Flags().Int("offset", 0, "number of rows to skip before starting to return results; use with --limit for pagination through large result sets")
+	cmd.Flags().Bool("no-wait", false, "return the current execution state immediately without waiting for completion; useful for checking status of long-running queries")
+	cmd.Flags().Int("timeout", 300, "maximum seconds to wait for the execution to complete before timing out (default 300s = 5 minutes)")
 	output.AddFormatFlag(cmd, "text")
 
 	return cmd
