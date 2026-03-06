@@ -84,9 +84,11 @@ func init() {
 
 // Execute runs the root command via Fang.
 func Execute(version, commit, date string) {
-	rootCmd.Version = fmt.Sprintf("%s (commit: %s, built: %s)", version, commit, date)
+	versionStr := fmt.Sprintf("%s (commit: %s, built: %s)", version, commit, date)
 
-	if err := fang.Execute(context.Background(), rootCmd); err != nil {
+	if err := fang.Execute(context.Background(), rootCmd,
+		fang.WithVersion(versionStr),
+	); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

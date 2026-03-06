@@ -15,8 +15,8 @@ func newGetCmd() *cobra.Command {
 		Short: "Fetch a saved Dune query by ID, including SQL and metadata",
 		Long: "Retrieve SQL, metadata, owner, privacy flags, tags, and execution state for\n" +
 			"an existing Dune query. Only queries visible to the authenticated user are returned.",
-		Args:  cobra.ExactArgs(1),
-		RunE:  runGet,
+		Args: cobra.ExactArgs(1),
+		RunE: runGet,
 	}
 
 	output.AddFormatFlag(cmd, "text")
