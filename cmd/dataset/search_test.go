@@ -18,11 +18,16 @@ import (
 
 type mockClient struct {
 	dune.DuneClient
-	searchDatasetsFn func(models.SearchDatasetsRequest) (*models.SearchDatasetsResponse, error)
+	searchDatasetsFn          func(models.SearchDatasetsRequest) (*models.SearchDatasetsResponse, error)
+	searchByContractAddressFn func(models.SearchDatasetsByContractAddressRequest) (*models.SearchDatasetsResponse, error)
 }
 
 func (m *mockClient) SearchDatasets(req models.SearchDatasetsRequest) (*models.SearchDatasetsResponse, error) {
 	return m.searchDatasetsFn(req)
+}
+
+func (m *mockClient) SearchDatasetsByContractAddress(req models.SearchDatasetsByContractAddressRequest) (*models.SearchDatasetsResponse, error) {
+	return m.searchByContractAddressFn(req)
 }
 
 func newTestRoot(mock dune.DuneClient) (*cobra.Command, *bytes.Buffer) {
