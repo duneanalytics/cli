@@ -13,15 +13,25 @@ const defaultMCPEndpoint = "https://docs.dune.com/mcp"
 
 func newSearchCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "search",
-		Short:       "Search the Dune documentation for guides, API references, and code examples",
+		Use:   "search",
+		Short: "Search the Dune documentation for guides, API references, and code examples",
 		Long: "Search across all Dune documentation pages including guides, API references,\n" +
-			"DuneSQL syntax, and code examples. Does not require authentication.",
+			"DuneSQL syntax, table naming conventions, and code examples.\n" +
+			"Does not require authentication.\n\n" +
+			"Useful for looking up:\n" +
+			"  - DuneSQL functions and syntax (date/time, string, aggregate, window functions)\n" +
+			"  - API endpoint references and authentication\n" +
+			"  - Table naming conventions and dataset structure\n" +
+			"  - Dune platform concepts (decoding, Spellbook, materialized views)\n\n" +
+			"Examples:\n" +
+			"  dune docs search --query \"DuneSQL string functions\"\n" +
+			"  dune docs search --query \"execute query API\" --api-reference-only\n" +
+			"  dune docs search --query \"decoded tables\" --code-only",
 		Annotations: map[string]string{"skipAuth": "true"},
 		RunE:        runSearch,
 	}
 
-	cmd.Flags().String("query", "", "search query text, e.g. 'DuneSQL date functions' or 'API authentication' (required)")
+	cmd.Flags().String("query", "", "natural-language search query for Dune docs; e.g. 'DuneSQL date functions', 'API authentication', 'decoded tables meaning', 'query pagination' (required)")
 	_ = cmd.MarkFlagRequired("query")
 	cmd.Flags().Bool("api-reference-only", false, "prioritize API reference pages over conceptual guides")
 	cmd.Flags().Bool("code-only", false, "prioritize pages with executable examples and code snippets")

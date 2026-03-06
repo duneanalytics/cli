@@ -14,11 +14,16 @@ func newUpdateCmd() *cobra.Command {
 		Use:   "update <query-id>",
 		Short: "Update an existing Dune query's SQL, title, description, privacy, or tags",
 		Long: "Modify a query you own or have edit access to via team membership.\n" +
-			"Only supply the flags you want to change; unchanged fields are preserved.\n\n" +
+			"Only supply the flags you want to change; unchanged fields are preserved.\n" +
+			"At least one flag must be provided.\n\n" +
 			"The update uses optimistic locking — if someone else edited the query\n" +
-			"concurrently, you'll get a conflict error.",
-		Args:  cobra.ExactArgs(1),
-		RunE:  runUpdate,
+			"concurrently, you'll get a conflict error.\n\n" +
+			"Examples:\n" +
+			"  dune query update 12345 --sql \"SELECT * FROM ethereum.blocks LIMIT 20\"\n" +
+			"  dune query update 12345 --name \"Renamed Query\" --tags defi,ethereum\n" +
+			"  dune query update 12345 --private",
+		Args: cobra.ExactArgs(1),
+		RunE: runUpdate,
 	}
 
 	cmd.Flags().String("name", "", "new title for the query, max 600 characters")
