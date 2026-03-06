@@ -13,10 +13,15 @@ const defaultMCPEndpoint = "https://docs.dune.com/mcp"
 
 func newSearchCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "search",
-		Short:       "Search the Dune documentation for guides, API references, and code examples",
-		Long: "Search across all Dune documentation pages including guides, API references,\n" +
-			"DuneSQL syntax, and code examples. Does not require authentication.",
+		Use:   "search",
+		Short: "Search the Dune documentation",
+		Long: "Search the official Dune documentation. No authentication required.\n\n" +
+			"Look up DuneSQL syntax, API references, table naming conventions,\n" +
+			"and Dune platform concepts.\n\n" +
+			"Examples:\n" +
+			"  dune docs search --query \"DuneSQL string functions\"\n" +
+			"  dune docs search --query \"execute query API\" --api-reference-only\n" +
+			"  dune docs search --query \"decoded tables\" --code-only",
 		Annotations: map[string]string{"skipAuth": "true"},
 		RunE:        runSearch,
 	}

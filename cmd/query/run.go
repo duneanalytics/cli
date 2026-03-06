@@ -13,20 +13,24 @@ import (
 func newRunCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "run <query-id>",
-		Short: "Execute a saved Dune query by its ID and display results",
-		Long: "Execute a saved Dune query by its numeric ID. By default, waits for the\n" +
-			"execution to complete and displays the result rows. Use --no-wait to submit\n" +
-			"the execution and exit immediately with just the execution ID.\n\n" +
-			"Credits are consumed based on actual compute resources used. Use --performance\n" +
-			"to select the engine size (medium or large).",
-		Args:  cobra.ExactArgs(1),
-		RunE:  runRun,
+		Short: "Execute a saved query and display results",
+		Long: "Execute a saved DuneSQL query by its numeric ID and display results.\n\n" +
+			"By default, polls every 5 seconds for up to ~5 minutes waiting for completion.\n" +
+			"Use --no-wait to submit the execution and exit immediately; then fetch\n" +
+			"results later with 'dune execution results <execution-id>'.\n\n" +
+			"Examples:\n" +
+			"  dune query run 12345\n" +
+			"  dune query run 12345 --param wallet=0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --param days=30\n" +
+			"  dune query run 12345 --performance large --limit 100\n" +
+			"  dune query run 12345 --no-wait",
+		Args: cobra.ExactArgs(1),
+		RunE: runRun,
 	}
 
-	cmd.Flags().StringArray("param", nil, "typed query parameter in key=value format (repeatable); numbers are stringified, datetimes use YYYY-MM-DD HH:mm:ss")
-	cmd.Flags().String("performance", "medium", `engine size for the execution: "medium" (default) or "large"; credits are consumed based on actual compute resources used`)
-	cmd.Flags().Int("limit", 0, "maximum number of result rows to return (0 = all)")
-	cmd.Flags().Bool("no-wait", false, "submit the execution and exit immediately, printing only the execution ID and state")
+	cmd.Flags().StringArray("param", nil, "query parameter in key=value format (repeatable)")
+	cmd.Flags().String("performance", "medium", `performance tier: "medium" (default) or "large" for higher compute resources`)
+	cmd.Flags().Int("limit", 0, "maximum number of rows to display (0 = all)")
+	cmd.Flags().Bool("no-wait", false, "submit execution and exit without waiting for results")
 	cmd.Flags().Int("timeout", 300, "maximum seconds to wait for the execution to complete before timing out")
 	output.AddFormatFlag(cmd, "text")
 
@@ -106,4 +110,3 @@ func parseParams(raw []string) (map[string]any, error) {
 	}
 	return params, nil
 }
-

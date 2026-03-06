@@ -6,7 +6,10 @@ import "github.com/spf13/cobra"
 func NewQueryCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "query",
-		Short: "Create, retrieve, update, execute, and archive Dune queries",
+		Short: "Manage Dune queries",
+		Long: "Create, retrieve, update, archive, and execute DuneSQL queries.\n\n" +
+			"Use 'query create' to save a reusable query, 'query run' to execute a saved query,\n" +
+			"or 'query run-sql' to execute raw DuneSQL without saving.",
 	}
 	cmd.AddCommand(newCreateCmd())
 	cmd.AddCommand(newGetCmd())

@@ -14,10 +14,16 @@ import (
 func NewUsageCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "usage",
-		Short: "Get credit and resource usage for the authenticated Dune account",
-		Long: "Show current-period credit usage, storage consumption, and billing period\n" +
-			"boundaries for the authenticated user or team. Optionally filter by date range.",
-		RunE:  runUsage,
+		Short: "Show credit and resource usage for your Dune account",
+		Long: "Show credit and resource usage for your Dune account.\n\n" +
+			"Displays private queries/dashboards count, storage usage, and credit\n" +
+			"consumption per billing period. Use --start-date and --end-date to\n" +
+			"filter to a specific date range.\n\n" +
+			"Examples:\n" +
+			"  dune usage\n" +
+			"  dune usage --start-date 2025-01-01 --end-date 2025-06-01\n" +
+			"  dune usage --output json",
+		RunE: runUsage,
 	}
 
 	cmd.Flags().String("start-date", "", "filter usage from this date (YYYY-MM-DD format)")
