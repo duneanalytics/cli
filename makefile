@@ -19,7 +19,7 @@ dune-cli: lint
 build: dune-cli
 
 install:
-	go install -ldflags '$(LDFLAGS)' ./cmd
+	go build -ldflags '$(LDFLAGS)' -o $(shell go env GOPATH)/bin/dune ./cmd
 
 bin:
 	mkdir -p bin
