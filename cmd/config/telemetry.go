@@ -23,8 +23,9 @@ func newTelemetryCmd() *cobra.Command {
 
 func newTelemetryEnableCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "enable",
-		Short: "Enable anonymous usage telemetry",
+		Use:         "enable",
+		Short:       "Enable anonymous usage telemetry",
+		Annotations: map[string]string{"skipAuth": "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return setTelemetry(cmd, true)
 		},
@@ -33,8 +34,9 @@ func newTelemetryEnableCmd() *cobra.Command {
 
 func newTelemetryDisableCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "disable",
-		Short: "Disable anonymous usage telemetry",
+		Use:         "disable",
+		Short:       "Disable anonymous usage telemetry",
+		Annotations: map[string]string{"skipAuth": "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return setTelemetry(cmd, false)
 		},
@@ -43,8 +45,9 @@ func newTelemetryDisableCmd() *cobra.Command {
 
 func newTelemetryStatusCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "status",
-		Short: "Show current telemetry status",
+		Use:         "status",
+		Short:       "Show current telemetry status",
+		Annotations: map[string]string{"skipAuth": "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			enabled := IsTelemetryEnabled()
 			if enabled {

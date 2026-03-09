@@ -40,7 +40,15 @@ func runAuth(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("no API key provided")
 	}
 
-	if err := authconfig.Save(&authconfig.Config{APIKey: key}); err != nil {
+	cfg, err := authconfig.Load()
+	if err != nil {
+		return fmt.Errorf("loading existing config: %w", err)
+	}
+	if cfg == nil {
+		cfg = &authconfig.Config{}
+	}
+	cfg.APIKey = key
+	if err := authconfig.Save(cfg); err != nil {
 		return fmt.Errorf("saving config: %w", err)
 	}
 
