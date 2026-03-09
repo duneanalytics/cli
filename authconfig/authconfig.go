@@ -12,7 +12,8 @@ import (
 
 // Config holds the persisted CLI configuration.
 type Config struct {
-	APIKey string `yaml:"api_key"`
+	APIKey    string `yaml:"api_key"`
+	Telemetry *bool  `yaml:"telemetry,omitempty"`
 }
 
 // configDirFunc allows tests to override the config directory.

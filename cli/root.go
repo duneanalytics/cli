@@ -5,16 +5,19 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/fang"
 	"github.com/duneanalytics/cli/authconfig"
 	"github.com/duneanalytics/cli/cmd/auth"
+	duneconfig "github.com/duneanalytics/cli/cmd/config"
 	"github.com/duneanalytics/cli/cmd/dataset"
 	"github.com/duneanalytics/cli/cmd/docs"
 	"github.com/duneanalytics/cli/cmd/execution"
 	"github.com/duneanalytics/cli/cmd/query"
 	"github.com/duneanalytics/cli/cmd/usage"
 	"github.com/duneanalytics/cli/cmdutil"
+	"github.com/duneanalytics/cli/tracking"
 	"github.com/duneanalytics/duneapi-client-go/config"
 	"github.com/duneanalytics/duneapi-client-go/dune"
 	"github.com/spf13/cobra"
@@ -37,6 +40,8 @@ var rootCmd = &cobra.Command{
 		"Authenticate with an API key via --api-key, the DUNE_API_KEY environment variable,\n" +
 		"or by running `dune auth`.",
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+		cmdutil.SetStartTime(cmd, time.Now())
+
 		if cmd.Annotations["skipAuth"] == "true" {
 			return nil
 		}
@@ -68,6 +73,24 @@ var rootCmd = &cobra.Command{
 
 		client := dune.NewDuneClient(env)
 		cmdutil.SetClient(cmd, client)
+
+		return nil
+	},
+	PersistentPostRunE: func(cmd *cobra.Command, _ []string) error {
+		tr := cmdutil.TrackerFromCmd(cmd)
+		if tr == nil {
+			return nil
+		}
+		start := cmdutil.StartTimeFromCmd(cmd)
+		durationMs := time.Since(start).Milliseconds()
+
+		commandPath := cmd.CommandPath()
+		// Strip the root command name for cleaner paths.
+		if parts := strings.SplitN(commandPath, " ", 2); len(parts) == 2 {
+			commandPath = parts[1]
+		}
+
+		tr.Track(commandPath, tracking.StatusSuccess, "", durationMs)
 		return nil
 	},
 }
@@ -75,6 +98,7 @@ var rootCmd = &cobra.Command{
 func init() {
 	rootCmd.PersistentFlags().StringVar(&apiKeyFlag, "api-key", "", "Dune API key (overrides DUNE_API_KEY env var)")
 	rootCmd.AddCommand(auth.NewAuthCmd())
+	rootCmd.AddCommand(duneconfig.NewConfigCmd())
 	rootCmd.AddCommand(dataset.NewDatasetCmd())
 	rootCmd.AddCommand(docs.NewDocsCmd())
 	rootCmd.AddCommand(query.NewQueryCmd())
@@ -83,12 +107,27 @@ func init() {
 }
 
 // Execute runs the root command via Fang.
-func Execute(version, commit, date string) {
+func Execute(version, commit, date, amplitudeKey string) {
 	versionStr := fmt.Sprintf("%s (commit: %s, built: %s)", version, commit, date)
 
-	if err := fang.Execute(context.Background(), rootCmd,
+	telemetryEnabled := duneconfig.IsTelemetryEnabled()
+	configDir, _ := authconfig.Dir()
+	tracker := tracking.New(tracking.Config{
+		AmplitudeKey: amplitudeKey,
+		CLIVersion:   version,
+		ConfigDir:    configDir,
+		Enabled:      telemetryEnabled,
+	})
+	defer tracker.Shutdown()
+
+	rootCmd.SetContext(context.Background())
+	cmdutil.SetTracker(rootCmd, tracker)
+
+	if err := fang.Execute(rootCmd.Context(), rootCmd,
 		fang.WithVersion(versionStr),
 	); err != nil {
+		tracker.Track("unknown", tracking.StatusError, err.Error(), 0)
+
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

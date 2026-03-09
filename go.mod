@@ -3,6 +3,7 @@ module github.com/duneanalytics/cli
 go 1.25.6
 
 require (
+	github.com/amplitude/analytics-go v1.3.0
 	github.com/charmbracelet/fang v0.4.4
 	github.com/duneanalytics/duneapi-client-go v0.4.3
 	github.com/modelcontextprotocol/go-sdk v1.4.0
@@ -25,6 +26,7 @@ require (
 	github.com/clipperhouse/uax29/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/google/jsonschema-go v0.4.2 // indirect
+	github.com/google/uuid v1.3.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.3.0 // indirect
 	github.com/mattn/go-runewidth v0.0.19 // indirect

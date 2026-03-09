@@ -16,6 +16,7 @@ builds:
       - -X main.version={{.Version}}
       - -X main.commit={{.Commit}}
       - -X main.date={{.Date}}
+      - -X main.amplitudeKey={{ .Env.AMPLITUDE_KEY }}
     goos:
       - linux
       - darwin
