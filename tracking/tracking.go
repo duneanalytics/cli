@@ -39,6 +39,9 @@ func New(cfg Config) *Tracker {
 	ampConfig.ServerZone = "EU"
 	ampConfig.FlushQueueSize = 1
 	ampConfig.FlushInterval = 1 * time.Second
+	if !isDevVersion(cfg.CLIVersion) {
+		ampConfig.Logger = silentLogger{}
+	}
 
 	return &Tracker{
 		client:  amplitude.NewClient(ampConfig),
@@ -75,6 +78,19 @@ func (t *Tracker) Shutdown() {
 		t.client.Shutdown()
 	}
 }
+
+// isDevVersion returns true for local / non-release builds.
+func isDevVersion(v string) bool {
+	return v == "" || v == "dev"
+}
+
+// silentLogger suppresses all amplitude SDK log output.
+type silentLogger struct{}
+
+func (silentLogger) Debugf(string, ...interface{}) {}
+func (silentLogger) Infof(string, ...interface{})  {}
+func (silentLogger) Warnf(string, ...interface{})  {}
+func (silentLogger) Errorf(string, ...interface{}) {}
 
 const (
 	anonIDFile   = "anonymous_id"

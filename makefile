@@ -1,4 +1,4 @@
-.PHONY: all setup build lint test install
+.PHONY: all setup build run lint test
 
 VERSION        ?= $(shell git describe --tags --always --dirty 2>/dev/null | sed 's/^v//')
 COMMIT         ?= $(shell git rev-parse --short=12 HEAD 2>/dev/null || echo "unknown")
@@ -15,13 +15,11 @@ all: lint test build
 setup: bin/golangci-lint
 	go mod download
 
-dune-cli: lint
+build: lint
 	go build -ldflags '$(LDFLAGS)' -o dune-cli ./cmd
 
-build: dune-cli
-
-install:
-	go build -ldflags '$(LDFLAGS)' -o $(shell go env GOPATH)/bin/dune ./cmd
+run:
+	go run -ldflags '$(LDFLAGS)' ./cmd $(ARGS)
 
 bin:
 	mkdir -p bin
