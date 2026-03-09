@@ -2,6 +2,9 @@ version: 2
 
 project_name: dune-cli
 
+env:
+  - AMPLITUDE_KEY={{ if index .Env "AMPLITUDE_KEY" }}{{ .Env.AMPLITUDE_KEY }}{{ end }}
+
 before:
   hooks:
     - go mod tidy
@@ -16,6 +19,7 @@ builds:
       - -X main.version={{.Version}}
       - -X main.commit={{.Commit}}
       - -X main.date={{.Date}}
+      - -X main.amplitudeKey={{ .Env.AMPLITUDE_KEY }}
     goos:
       - linux
       - darwin

@@ -1,12 +1,14 @@
 .PHONY: all setup build lint test install
 
-VERSION  ?= $(shell git describe --tags --always --dirty 2>/dev/null | sed 's/^v//')
-COMMIT   ?= $(shell git rev-parse --short=12 HEAD 2>/dev/null || echo "unknown")
-DATE     ?= $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
-LDFLAGS   = -s -w \
-            -X main.version=$(VERSION) \
-            -X main.commit=$(COMMIT) \
-            -X main.date=$(DATE)
+VERSION        ?= $(shell git describe --tags --always --dirty 2>/dev/null | sed 's/^v//')
+COMMIT         ?= $(shell git rev-parse --short=12 HEAD 2>/dev/null || echo "unknown")
+DATE           ?= $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
+AMPLITUDE_KEY  ?= $(DUNE_CLI_AMPLITUDE_KEY)
+LDFLAGS         = -s -w \
+                  -X main.version=$(VERSION) \
+                  -X main.commit=$(COMMIT) \
+                  -X main.date=$(DATE) \
+                  -X main.amplitudeKey=$(AMPLITUDE_KEY)
 
 all: lint test build
 

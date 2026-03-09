@@ -9,14 +9,15 @@ import (
 
 // Set by GoReleaser or Makefile via ldflags.
 var (
-	version = ""
-	commit  = ""
-	date    = ""
+	version      = ""
+	commit       = ""
+	date         = ""
+	amplitudeKey = ""
 )
 
 func main() {
 	resolveVersion()
-	cli.Execute(version, commit, date)
+	cli.Execute(version, commit, date, amplitudeKey)
 }
 
 // resolveVersion fills in version/commit/date from Go build info
