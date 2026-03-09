@@ -3,9 +3,14 @@ package main
 import (
 	"runtime/debug"
 	"strings"
+	"time"
 
 	"github.com/duneanalytics/cli/cli"
 )
+
+func init() {
+	time.Local = time.UTC
+}
 
 // Set by GoReleaser or Makefile via ldflags.
 var (
