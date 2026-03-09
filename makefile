@@ -37,7 +37,7 @@ lint: bin/golangci-lint lint-timezone
 # time.Now() always returns UTC.
 lint-timezone:
 	@fail=0; \
-	for f in $$(find . -name main.go -path '*/cmd/*/main.go'); do \
+	for f in $$(find . -name main.go -path '*/cmd/*'); do \
 		if ! grep -q 'time\.Local = time\.UTC' "$$f"; then \
 			echo "ERROR: $$f missing 'time.Local = time.UTC' in init()"; \
 			fail=1; \
