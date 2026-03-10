@@ -8,6 +8,11 @@ import (
 	"time"
 
 	"github.com/charmbracelet/fang"
+	"github.com/spf13/cobra"
+
+	"github.com/duneanalytics/duneapi-client-go/config"
+	"github.com/duneanalytics/duneapi-client-go/dune"
+
 	"github.com/duneanalytics/cli/authconfig"
 	"github.com/duneanalytics/cli/cmd/auth"
 	duneconfig "github.com/duneanalytics/cli/cmd/config"
@@ -18,9 +23,6 @@ import (
 	"github.com/duneanalytics/cli/cmd/usage"
 	"github.com/duneanalytics/cli/cmdutil"
 	"github.com/duneanalytics/cli/tracking"
-	"github.com/duneanalytics/duneapi-client-go/config"
-	"github.com/duneanalytics/duneapi-client-go/dune"
-	"github.com/spf13/cobra"
 )
 
 var apiKeyFlag string
@@ -126,9 +128,40 @@ func Execute(version, commit, date, amplitudeKey string) {
 	if err := fang.Execute(rootCmd.Context(), rootCmd,
 		fang.WithVersion(versionStr),
 	); err != nil {
-		tracker.Track("unknown", tracking.StatusError, err.Error(), 0)
+		// Build best-effort command path from os.Args (strip flags).
+		commandPath := commandPathFromArgs(os.Args)
+		tracker.Track(commandPath, tracking.StatusError, err.Error(), 0)
+		// Flush the event before exiting — os.Exit does not run deferred funcs,
+		// so defer tracker.Shutdown() above would never fire.
+		tracker.Shutdown()
 
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+// commandPathFromArgs extracts the subcommand path from os.Args, skipping
+// the binary name, flags, and flag values so the tracked path is e.g.
+// "query list" even when invoked as "dune --api-key KEY query list --limit 10".
+func commandPathFromArgs(args []string) string {
+	var parts []string
+	skipNext := false
+	for _, a := range args[1:] { // skip binary name
+		if skipNext {
+			skipNext = false
+			continue
+		}
+		if strings.HasPrefix(a, "-") {
+			// --flag=value is self-contained; --flag value needs to skip the next arg.
+			if !strings.Contains(a, "=") {
+				skipNext = true
+			}
+			continue
+		}
+		parts = append(parts, a)
+	}
+	if len(parts) == 0 {
+		return "unknown"
+	}
+	return strings.Join(parts, " ")
 }

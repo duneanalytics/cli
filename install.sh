@@ -3,7 +3,7 @@
 # Usage: curl -sSfL https://github.com/duneanalytics/cli/raw/main/install.sh | bash
 #
 # Environment variables:
-#   INSTALL_DIR  — installation directory (default: /usr/local/bin)
+#   INSTALL_DIR  — override installation directory (default: auto-detected)
 #   VERSION      — specific version to install (default: latest)
 #   GITHUB_TOKEN — GitHub token for private repo access
 
@@ -30,7 +30,11 @@ main() {
     # Strip leading 'v' for archive name
     version_num="${version#v}"
 
-    install_dir="${INSTALL_DIR:-/usr/local/bin}"
+    if [ -n "$INSTALL_DIR" ]; then
+        install_dir="$INSTALL_DIR"
+    else
+        install_dir=$(detect_install_dir)
+    fi
 
     case "$os" in
         windows) ext="zip" ;;
@@ -68,14 +72,37 @@ main() {
 
     chmod +x "$tmp/$binary_name"
 
+    mkdir -p "$install_dir" 2>/dev/null || true
+
     if [ -w "$install_dir" ]; then
         mv "$tmp/$binary_name" "$install_dir/$binary_name"
     else
         log "Installing to ${install_dir} (requires sudo)..."
+        sudo mkdir -p "$install_dir"
         sudo mv "$tmp/$binary_name" "$install_dir/$binary_name"
     fi
 
     log "Installed ${BINARY} ${version} to ${install_dir}/${binary_name}"
+}
+
+# Pick the best install directory by checking user-writable directories
+# already on PATH, falling back to /usr/local/bin (always on PATH).
+detect_install_dir() {
+    for candidate in \
+        "$HOME/.local/bin" \
+        "$HOME/bin" \
+        "$HOME/go/bin" \
+        "$HOME/.cargo/bin"; do
+        case ":$PATH:" in
+            *":${candidate}:"*)
+                if [ -d "$candidate" ] && [ -w "$candidate" ]; then
+                    echo "$candidate"
+                    return
+                fi
+                ;;
+        esac
+    done
+    echo "/usr/local/bin"
 }
 
 detect_os() {
