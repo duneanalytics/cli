@@ -82,8 +82,8 @@ main() {
         sudo mv "$tmp/$binary_name" "$install_dir/$binary_name"
     fi
 
-    # Post-install interactive setup (only when a terminal is available)
-    if [ -e /dev/tty ]; then
+    # Post-install interactive setup only when we have a usable terminal.
+    if has_tty; then
         post_install "${install_dir}/${binary_name}" "$version"
     else
         echo "" >&2
@@ -140,6 +140,10 @@ post_install() {
 
     echo "" >&2
     log "Dune CLI ${dune_version} installed successfully!"
+}
+
+has_tty() {
+    [ -t 0 ] || [ -t 1 ] || [ -t 2 ]
 }
 
 # Pick the best install directory by checking user-writable directories
