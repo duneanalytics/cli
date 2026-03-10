@@ -33,6 +33,7 @@ func NewSimCmd() *cobra.Command {
 		"Sim API key (overrides DUNE_SIM_API_KEY env var)",
 	)
 
+	cmd.AddCommand(NewAuthCmd())
 	cmd.AddCommand(evm.NewEvmCmd())
 	cmd.AddCommand(svm.NewSvmCmd())
 
