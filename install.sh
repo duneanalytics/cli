@@ -82,7 +82,64 @@ main() {
         sudo mv "$tmp/$binary_name" "$install_dir/$binary_name"
     fi
 
-    log "Installed ${BINARY} ${version} to ${install_dir}/${binary_name}"
+    # Post-install interactive setup (only when a terminal is available)
+    if [ -e /dev/tty ]; then
+        post_install "${install_dir}/${binary_name}" "$version"
+    else
+        echo "" >&2
+        log "Dune CLI ${version} installed successfully!"
+        echo "" >&2
+        log "Tip: Run 'npx skills add duneanalytics/skills' to install the Dune AI coding skill."
+        log "Tip: Run 'dune auth' to authenticate with your Dune account."
+    fi
+}
+
+post_install() {
+    dune_bin="$1"
+    dune_version="$2"
+    echo "" >&2
+
+    # --- Skill install ---
+    if has npx; then
+        log "The Dune skill lets AI coding agents (Cursor, Claude Code, etc.) query"
+        log "blockchain data on your behalf."
+        printf "  Install Dune skill for your AI coding agent? [Y/n] " >&2
+        read -r answer < /dev/tty || answer=""
+        case "$answer" in
+            [nN]*)
+                log "Skipped. You can install it later with: npx skills add duneanalytics/skills"
+                ;;
+            *)
+                log "Installing Dune skill..."
+                npx skills add duneanalytics/skills < /dev/tty || log "Skill installation failed. You can retry with: npx skills add duneanalytics/skills"
+                ;;
+        esac
+    else
+        log "Tip: Run 'npx skills add duneanalytics/skills' to install the Dune AI coding skill."
+        log "(requires Node.js / npx)"
+    fi
+
+    echo "" >&2
+
+    # --- Authentication ---
+    log "Authenticate to start running queries and accessing your Dune account."
+    printf "  Authenticate with Dune now? [Y/n] " >&2
+    read -r answer < /dev/tty || answer=""
+    case "$answer" in
+        [nN]*)
+            log "Skipped. You can authenticate later with: dune auth"
+            ;;
+        *)
+            echo "" >&2
+            log "You'll need a Dune API key."
+            log "Go to https://dune.com and navigate to APIs and Connectors > API Keys."
+            echo "" >&2
+            "$dune_bin" auth < /dev/tty || log "Authentication failed. You can retry with: dune auth"
+            ;;
+    esac
+
+    echo "" >&2
+    log "Dune CLI ${dune_version} installed successfully!"
 }
 
 # Pick the best install directory by checking user-writable directories
