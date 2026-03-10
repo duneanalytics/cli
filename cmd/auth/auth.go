@@ -8,6 +8,7 @@ import (
 
 	"github.com/duneanalytics/cli/authconfig"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 // NewAuthCmd returns the `auth` command.
@@ -29,15 +30,23 @@ func runAuth(cmd *cobra.Command, _ []string) error {
 	}
 
 	if key == "" {
+		if stdin, ok := cmd.InOrStdin().(*os.File); ok && !term.IsTerminal(int(stdin.Fd())) {
+			return fmt.Errorf("no API key provided; pass --api-key, set DUNE_API_KEY, or run dune auth in an interactive terminal")
+		}
+
+		var (
+			reader = cmd.InOrStdin()
+		)
+
 		fmt.Fprint(cmd.ErrOrStderr(), "Enter your Dune API key: ")
-		scanner := bufio.NewScanner(cmd.InOrStdin())
+		scanner := bufio.NewScanner(reader)
 		if scanner.Scan() {
 			key = strings.TrimSpace(scanner.Text())
 		}
 	}
 
 	if key == "" {
-		return fmt.Errorf("no API key provided")
+		return fmt.Errorf("no API key provided; pass --api-key, set DUNE_API_KEY, or run dune auth in an interactive terminal")
 	}
 
 	cfg, err := authconfig.Load()
