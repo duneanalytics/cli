@@ -140,14 +140,23 @@ func Execute(version, commit, date, amplitudeKey string) {
 	}
 }
 
-// commandPathFromArgs extracts the subcommand path from os.Args, stripping
-// the binary name and any flags so the tracked path is e.g. "query list"
-// rather than "query list --limit 10".
+// commandPathFromArgs extracts the subcommand path from os.Args, skipping
+// the binary name, flags, and flag values so the tracked path is e.g.
+// "query list" even when invoked as "dune --api-key KEY query list --limit 10".
 func commandPathFromArgs(args []string) string {
 	var parts []string
+	skipNext := false
 	for _, a := range args[1:] { // skip binary name
+		if skipNext {
+			skipNext = false
+			continue
+		}
 		if strings.HasPrefix(a, "-") {
-			break
+			// --flag=value is self-contained; --flag value needs to skip the next arg.
+			if !strings.Contains(a, "=") {
+				skipNext = true
+			}
+			continue
 		}
 		parts = append(parts, a)
 	}

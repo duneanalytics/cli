@@ -69,3 +69,58 @@ func TestPersistentPreRunEConfigFallback(t *testing.T) {
 	err := rootCmd.PersistentPreRunE(cmd, nil)
 	require.NoError(t, err)
 }
+
+func TestCommandPathFromArgs(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{
+			name: "simple subcommand",
+			args: []string{"dune", "query", "list"},
+			want: "query list",
+		},
+		{
+			name: "root flag before subcommand",
+			args: []string{"dune", "--api-key", "KEY", "query", "list"},
+			want: "query list",
+		},
+		{
+			name: "flag with equals syntax",
+			args: []string{"dune", "--api-key=KEY", "query", "list"},
+			want: "query list",
+		},
+		{
+			name: "trailing flags after subcommand",
+			args: []string{"dune", "query", "list", "--limit", "10"},
+			want: "query list",
+		},
+		{
+			name: "flags before and after subcommand",
+			args: []string{"dune", "--api-key", "KEY", "query", "list", "--limit", "10"},
+			want: "query list",
+		},
+		{
+			name: "binary only",
+			args: []string{"dune"},
+			want: "unknown",
+		},
+		{
+			name: "only flags",
+			args: []string{"dune", "--help"},
+			want: "unknown",
+		},
+		{
+			name: "single subcommand",
+			args: []string{"dune", "auth"},
+			want: "auth",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, commandPathFromArgs(tt.args))
+		})
+	}
+}
