@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -33,6 +34,7 @@ func NewSimCmd() *cobra.Command {
 		"Sim API key (overrides DUNE_SIM_API_KEY env var)",
 	)
 
+	cmd.AddCommand(NewAuthCmd())
 	cmd.AddCommand(evm.NewEvmCmd())
 	cmd.AddCommand(svm.NewSvmCmd())
 
@@ -42,6 +44,12 @@ func NewSimCmd() *cobra.Command {
 // simPreRun resolves the Sim API key and stores a SimClient in the command context.
 // Commands annotated with "skipSimAuth": "true" bypass this step.
 func simPreRun(cmd *cobra.Command, _ []string) error {
+	// The sim command's PersistentPreRunE overrides the root command's hook
+	// (cobra does not chain PersistentPreRunE without EnableTraverseRunHooks).
+	// Record the start time here so the root's PersistentPostRunE computes a
+	// correct duration for telemetry.
+	cmdutil.SetStartTime(cmd, time.Now())
+
 	// Allow commands like `sim auth` to skip sim client creation.
 	if cmd.Annotations["skipSimAuth"] == "true" {
 		return nil
