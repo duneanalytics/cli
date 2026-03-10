@@ -49,6 +49,7 @@ func NewEvmCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(NewSupportedChainsCmd())
+	cmd.AddCommand(NewBalancesCmd())
 
 	return cmd
 }

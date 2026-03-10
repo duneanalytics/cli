@@ -2,28 +2,12 @@ package evm_test
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"testing"
 
-	"github.com/duneanalytics/cli/cmd/sim/evm"
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-// newEvmTestRoot builds a minimal command tree: dune -> evm -> <subcommands>.
-// No sim parent is needed because evm commands extract the client from context
-// directly; for public endpoints the command creates its own client.
-func newEvmTestRoot() *cobra.Command {
-	root := &cobra.Command{Use: "dune"}
-	root.SetContext(context.Background())
-
-	evmCmd := evm.NewEvmCmd()
-	root.AddCommand(evmCmd)
-
-	return root
-}
 
 // supported-chains is a public endpoint — no API key required.
 
