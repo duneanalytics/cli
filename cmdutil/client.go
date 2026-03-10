@@ -10,6 +10,7 @@ import (
 )
 
 type clientKey struct{}
+type simClientKey struct{}
 type trackerKey struct{}
 type startTimeKey struct{}
 
@@ -25,6 +26,22 @@ func SetClient(cmd *cobra.Command, client dune.DuneClient) {
 // ClientFromCmd extracts the DuneClient stored in the command's context.
 func ClientFromCmd(cmd *cobra.Command) dune.DuneClient {
 	return cmd.Context().Value(clientKey{}).(dune.DuneClient)
+}
+
+// SetSimClient stores a Sim API client in the command's context.
+// The value is stored as any to avoid a circular import with cmd/sim.
+func SetSimClient(cmd *cobra.Command, client any) {
+	ctx := cmd.Context()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	cmd.SetContext(context.WithValue(ctx, simClientKey{}, client))
+}
+
+// SimClientFromCmd extracts the Sim API client stored in the command's context.
+// Callers should type-assert the result to *sim.SimClient.
+func SimClientFromCmd(cmd *cobra.Command) any {
+	return cmd.Context().Value(simClientKey{})
 }
 
 // SetTracker stores a Tracker in the command's context.

@@ -13,6 +13,7 @@ import (
 // Config holds the persisted CLI configuration.
 type Config struct {
 	APIKey    string `yaml:"api_key"`
+	SimAPIKey string `yaml:"sim_api_key,omitempty"`
 	Telemetry *bool  `yaml:"telemetry,omitempty"`
 }
 
