@@ -50,8 +50,11 @@ func simPreRun(cmd *cobra.Command, _ []string) error {
 	// correct duration for telemetry.
 	cmdutil.SetStartTime(cmd, time.Now())
 
-	// Allow commands like `sim auth` to skip sim client creation.
+	// Commands like `sim evm supported-chains` that hit public endpoints
+	// don't require an API key. Provide a bare (unauthenticated) client so
+	// they can still use the shared HTTP infrastructure and error handling.
 	if cmd.Annotations["skipSimAuth"] == "true" {
+		cmdutil.SetSimClient(cmd, NewBareSimClient())
 		return nil
 	}
 
