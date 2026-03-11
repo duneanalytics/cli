@@ -183,8 +183,8 @@ func runBalancesEndpoint(cmd *cobra.Command, args []string, pathPrefix, pathSuff
 				b.Chain,
 				b.Symbol,
 				formatAmount(b.Amount, b.Decimals),
-				formatUSD(b.PriceUSD),
-				formatUSD(b.ValueUSD),
+				output.FormatUSD(b.PriceUSD),
+				output.FormatUSD(b.ValueUSD),
 			}
 		}
 		output.PrintTable(w, columns, rows)
@@ -243,14 +243,6 @@ func formatAmount(raw string, decimals int) string {
 		return intPart
 	}
 	return intPart + "." + fracPart
-}
-
-// formatUSD formats a USD value for display.
-func formatUSD(v float64) string {
-	if v == 0 {
-		return "0.00"
-	}
-	return fmt.Sprintf("%.2f", v)
 }
 
 // printBalanceErrors writes balance-level errors to stderr.

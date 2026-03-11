@@ -111,18 +111,18 @@ func runTokenInfo(cmd *cobra.Command, args []string) error {
 				fmt.Fprintf(w, "Name:         %s\n", t.Name)
 			}
 			fmt.Fprintf(w, "Decimals:     %d\n", t.Decimals)
-			fmt.Fprintf(w, "Price USD:    %s\n", formatUSD(t.PriceUSD))
+			fmt.Fprintf(w, "Price USD:    %s\n", output.FormatUSD(t.PriceUSD))
 			if t.TotalSupply != "" {
 				fmt.Fprintf(w, "Total Supply: %s\n", t.TotalSupply)
 			}
 			if t.MarketCap > 0 {
-				fmt.Fprintf(w, "Market Cap:   %s\n", formatUSD(t.MarketCap))
+				fmt.Fprintf(w, "Market Cap:   %s\n", output.FormatUSD(t.MarketCap))
 			}
 			if t.Logo != "" {
 				fmt.Fprintf(w, "Logo:         %s\n", t.Logo)
 			}
 			for _, hp := range t.HistoricalPrices {
-				fmt.Fprintf(w, "Price %dh ago: %s\n", hp.OffsetHours, formatUSD(hp.PriceUSD))
+				fmt.Fprintf(w, "Price %dh ago: %s\n", hp.OffsetHours, output.FormatUSD(hp.PriceUSD))
 			}
 		}
 
