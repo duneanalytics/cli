@@ -78,11 +78,19 @@ type tokenMetadata struct {
 	Logo     string  `json:"logo,omitempty"`
 	PriceUSD float64 `json:"price_usd"`
 	PoolSize float64 `json:"pool_size,omitempty"`
+	Standard string  `json:"standard,omitempty"`
 }
 
 type functionInfo struct {
-	Signature string `json:"signature,omitempty"`
-	Name      string `json:"name,omitempty"`
+	Signature string          `json:"signature,omitempty"`
+	Name      string          `json:"name,omitempty"`
+	Inputs    []functionInput `json:"inputs,omitempty"`
+}
+
+type functionInput struct {
+	Name  string          `json:"name,omitempty"`
+	Type  string          `json:"type,omitempty"`
+	Value json.RawMessage `json:"value,omitempty"`
 }
 
 type contractMetaObj struct {

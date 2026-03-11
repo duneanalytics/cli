@@ -84,6 +84,7 @@ func runStablecoins(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("parsing response: %w", err)
 		}
 
+		printBalanceErrors(cmd, resp.Errors)
 		printWarnings(cmd, resp.Warnings)
 
 		columns := []string{"CHAIN", "SYMBOL", "AMOUNT", "PRICE_USD", "VALUE_USD"}
