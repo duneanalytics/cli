@@ -1,0 +1,161 @@
+package evm
+
+import (
+	"encoding/json"
+	"fmt"
+	"net/url"
+
+	"github.com/spf13/cobra"
+
+	"github.com/duneanalytics/cli/output"
+)
+
+// NewCollectiblesCmd returns the `sim evm collectibles` command.
+func NewCollectiblesCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "collectibles <address>",
+		Short: "Get NFT collectibles for a wallet address",
+		Long: "Return ERC721 and ERC1155 collectibles (NFTs) held by the given wallet address\n" +
+			"across supported EVM chains. Spam filtering is enabled by default.\n\n" +
+			"Examples:\n" +
+			"  dune sim evm collectibles 0xd8da6bf26964af9d7eed9e03e53415d37aa96045\n" +
+			"  dune sim evm collectibles 0xd8da... --chain-ids 1\n" +
+			"  dune sim evm collectibles 0xd8da... --filter-spam=false --show-spam-scores -o json",
+		Args: cobra.ExactArgs(1),
+		RunE: runCollectibles,
+	}
+
+	cmd.Flags().String("chain-ids", "", "Comma-separated chain IDs or tags (default: all default chains)")
+	cmd.Flags().Bool("filter-spam", true, "Hide collectibles identified as spam")
+	cmd.Flags().Bool("show-spam-scores", false, "Include spam scoring details")
+	cmd.Flags().Int("limit", 0, "Max results per page (1-2500, default 250)")
+	cmd.Flags().String("offset", "", "Pagination cursor from previous response")
+	output.AddFormatFlag(cmd, "text")
+
+	return cmd
+}
+
+type collectiblesResponse struct {
+	Address      string             `json:"address"`
+	Entries      []collectibleEntry `json:"entries"`
+	Warnings     []warningEntry     `json:"warnings,omitempty"`
+	NextOffset   string             `json:"next_offset,omitempty"`
+	RequestTime  string             `json:"request_time,omitempty"`
+	ResponseTime string             `json:"response_time,omitempty"`
+}
+
+type collectibleEntry struct {
+	ContractAddress string               `json:"contract_address"`
+	TokenStandard   string               `json:"token_standard"`
+	TokenID         string               `json:"token_id"`
+	Chain           string               `json:"chain"`
+	ChainID         int64                `json:"chain_id"`
+	Name            string               `json:"name,omitempty"`
+	Symbol          string               `json:"symbol,omitempty"`
+	Description     string               `json:"description,omitempty"`
+	ImageURL        string               `json:"image_url,omitempty"`
+	LastSalePrice   string               `json:"last_sale_price,omitempty"`
+	Metadata        *collectibleMetadata `json:"metadata,omitempty"`
+	Balance         string               `json:"balance"`
+	LastAcquired    string               `json:"last_acquired"`
+	IsSpam          bool                 `json:"is_spam"`
+	SpamScore       int                  `json:"spam_score,omitempty"`
+	Explanations    []spamExplanation    `json:"explanations,omitempty"`
+}
+
+type collectibleMetadata struct {
+	URI        string                 `json:"uri,omitempty"`
+	Attributes []collectibleAttribute `json:"attributes,omitempty"`
+}
+
+type collectibleAttribute struct {
+	Key    string `json:"key"`
+	Value  string `json:"value"`
+	Format string `json:"format,omitempty"`
+}
+
+type spamExplanation struct {
+	Feature       string          `json:"feature"`
+	Value         json.RawMessage `json:"value,omitempty"`
+	FeatureScore  int             `json:"feature_score,omitempty"`
+	FeatureWeight float64         `json:"feature_weight,omitempty"`
+}
+
+func runCollectibles(cmd *cobra.Command, args []string) error {
+	client, err := requireSimClient(cmd)
+	if err != nil {
+		return err
+	}
+
+	address := args[0]
+	params := url.Values{}
+
+	if v, _ := cmd.Flags().GetString("chain-ids"); v != "" {
+		params.Set("chain_ids", v)
+	}
+	// filter_spam defaults to true on the API side, so only send when explicitly false.
+	if v, _ := cmd.Flags().GetBool("filter-spam"); !v {
+		params.Set("filter_spam", "false")
+	}
+	if v, _ := cmd.Flags().GetBool("show-spam-scores"); v {
+		params.Set("show_spam_scores", "true")
+	}
+	if v, _ := cmd.Flags().GetInt("limit"); v > 0 {
+		params.Set("limit", fmt.Sprintf("%d", v))
+	}
+	if v, _ := cmd.Flags().GetString("offset"); v != "" {
+		params.Set("offset", v)
+	}
+
+	data, err := client.Get(cmd.Context(), "/v1/evm/collectibles/"+address, params)
+	if err != nil {
+		return err
+	}
+
+	w := cmd.OutOrStdout()
+	switch output.FormatFromCmd(cmd) {
+	case output.FormatJSON:
+		var raw json.RawMessage = data
+		return output.PrintJSON(w, raw)
+	default:
+		var resp collectiblesResponse
+		if err := json.Unmarshal(data, &resp); err != nil {
+			return fmt.Errorf("parsing response: %w", err)
+		}
+
+		// Print warnings to stderr.
+		printWarnings(cmd, resp.Warnings)
+
+		showSpam, _ := cmd.Flags().GetBool("show-spam-scores")
+
+		columns := []string{"CHAIN", "NAME", "SYMBOL", "TOKEN_ID", "STANDARD", "BALANCE"}
+		if showSpam {
+			columns = append(columns, "SPAM", "SPAM_SCORE")
+		}
+		rows := make([][]string, len(resp.Entries))
+		for i, e := range resp.Entries {
+			row := []string{
+				e.Chain,
+				e.Name,
+				e.Symbol,
+				e.TokenID,
+				e.TokenStandard,
+				e.Balance,
+			}
+			if showSpam {
+				spam := "N"
+				if e.IsSpam {
+					spam = "Y"
+				}
+				row = append(row, spam, fmt.Sprintf("%d", e.SpamScore))
+			}
+			rows[i] = row
+		}
+		output.PrintTable(w, columns, rows)
+
+		if resp.NextOffset != "" {
+			fmt.Fprintf(w, "\nNext offset: %s\n", resp.NextOffset)
+		}
+		return nil
+	}
+}
