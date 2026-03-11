@@ -43,6 +43,7 @@ func NewEvmCmd() *cobra.Command {
 	cmd.AddCommand(NewBalanceCmd())
 	cmd.AddCommand(NewStablecoinsCmd())
 	cmd.AddCommand(NewActivityCmd())
+	cmd.AddCommand(NewTransactionsCmd())
 
 	return cmd
 }

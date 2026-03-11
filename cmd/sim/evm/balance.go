@@ -27,6 +27,8 @@ func NewBalanceCmd() *cobra.Command {
 
 	cmd.Flags().String("token", "", "Token contract address or \"native\" (required)")
 	cmd.Flags().String("chain-ids", "", "Chain ID (required)")
+	cmd.Flags().String("metadata", "", "Extra metadata fields: logo,url,pools")
+	cmd.Flags().String("historical-prices", "", "Hour offsets for historical prices (e.g. 720,168,24)")
 	_ = cmd.MarkFlagRequired("token")
 	_ = cmd.MarkFlagRequired("chain-ids")
 	output.AddFormatFlag(cmd, "text")
@@ -46,6 +48,12 @@ func runBalance(cmd *cobra.Command, args []string) error {
 	params := url.Values{}
 	if v, _ := cmd.Flags().GetString("chain-ids"); v != "" {
 		params.Set("chain_ids", v)
+	}
+	if v, _ := cmd.Flags().GetString("metadata"); v != "" {
+		params.Set("metadata", v)
+	}
+	if v, _ := cmd.Flags().GetString("historical-prices"); v != "" {
+		params.Set("historical_prices", v)
 	}
 
 	path := fmt.Sprintf("/v1/evm/balances/%s/token/%s", address, tokenAddress)

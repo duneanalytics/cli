@@ -35,24 +35,56 @@ func NewBalancesCmd() *cobra.Command {
 type balancesResponse struct {
 	WalletAddress string         `json:"wallet_address"`
 	Balances      []balanceEntry `json:"balances"`
+	Errors        *balanceErrors `json:"errors,omitempty"`
 	NextOffset    string         `json:"next_offset,omitempty"`
 	Warnings      []warningEntry `json:"warnings,omitempty"`
 	RequestTime   string         `json:"request_time,omitempty"`
 	ResponseTime  string         `json:"response_time,omitempty"`
 }
 
+type balanceErrors struct {
+	ErrorMessage string             `json:"error_message,omitempty"`
+	TokenErrors  []balanceErrorInfo `json:"token_errors,omitempty"`
+}
+
+type balanceErrorInfo struct {
+	ChainID     int64  `json:"chain_id"`
+	Address     string `json:"address"`
+	Description string `json:"description,omitempty"`
+}
+
 type balanceEntry struct {
-	Chain        string  `json:"chain"`
-	ChainID      int64   `json:"chain_id"`
-	Address      string  `json:"address"`
-	Amount       string  `json:"amount"`
-	Symbol       string  `json:"symbol"`
-	Name         string  `json:"name"`
-	Decimals     int     `json:"decimals"`
-	PriceUSD     float64 `json:"price_usd"`
-	ValueUSD     float64 `json:"value_usd"`
-	PoolSize     float64 `json:"pool_size"`
-	LowLiquidity bool    `json:"low_liquidity"`
+	Chain            string            `json:"chain"`
+	ChainID          int64             `json:"chain_id"`
+	Address          string            `json:"address"`
+	Amount           string            `json:"amount"`
+	Symbol           string            `json:"symbol"`
+	Name             string            `json:"name"`
+	Decimals         int               `json:"decimals"`
+	PriceUSD         float64           `json:"price_usd"`
+	ValueUSD         float64           `json:"value_usd"`
+	PoolSize         float64           `json:"pool_size"`
+	LowLiquidity     bool              `json:"low_liquidity"`
+	HistoricalPrices []historicalPrice `json:"historical_prices,omitempty"`
+	TokenMetadata    *balanceTokenMeta `json:"token_metadata,omitempty"`
+	Pool             *poolMetadata     `json:"pool,omitempty"`
+}
+
+type historicalPrice struct {
+	OffsetHours int     `json:"offset_hours"`
+	PriceUSD    float64 `json:"price_usd"`
+}
+
+type balanceTokenMeta struct {
+	Logo string `json:"logo,omitempty"`
+	URL  string `json:"url,omitempty"`
+}
+
+type poolMetadata struct {
+	PoolType string `json:"pool_type"`
+	Address  string `json:"address"`
+	Token0   string `json:"token0"`
+	Token1   string `json:"token1"`
 }
 
 type warningEntry struct {
@@ -138,7 +170,8 @@ func runBalancesEndpoint(cmd *cobra.Command, args []string, pathPrefix, pathSuff
 			return fmt.Errorf("parsing response: %w", err)
 		}
 
-		// Print warnings to stderr.
+		// Print errors and warnings to stderr.
+		printBalanceErrors(cmd, resp.Errors)
 		printWarnings(cmd, resp.Warnings)
 
 		columns := []string{"CHAIN", "SYMBOL", "AMOUNT", "PRICE_USD", "VALUE_USD"}
@@ -216,4 +249,25 @@ func formatUSD(v float64) string {
 		return "0.00"
 	}
 	return fmt.Sprintf("%.2f", v)
+}
+
+// printBalanceErrors writes balance-level errors to stderr.
+func printBalanceErrors(cmd *cobra.Command, errs *balanceErrors) {
+	if errs == nil {
+		return
+	}
+	stderr := cmd.ErrOrStderr()
+	if errs.ErrorMessage != "" {
+		fmt.Fprintf(stderr, "Error: %s\n", errs.ErrorMessage)
+	}
+	for _, e := range errs.TokenErrors {
+		fmt.Fprintf(stderr, "  chain_id=%d address=%s", e.ChainID, e.Address)
+		if e.Description != "" {
+			fmt.Fprintf(stderr, " — %s", e.Description)
+		}
+		fmt.Fprintln(stderr)
+	}
+	if errs.ErrorMessage != "" || len(errs.TokenErrors) > 0 {
+		fmt.Fprintln(stderr)
+	}
 }
