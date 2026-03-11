@@ -90,5 +90,5 @@ func TestAuthEmptyInput(t *testing.T) {
 	root.SetArgs([]string{"auth"})
 	err := root.Execute()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "no API key provided")
+	assert.Contains(t, err.Error(), "no API key provided; pass --api-key, set DUNE_API_KEY, or run dune auth in an interactive terminal")
 }
