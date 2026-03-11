@@ -122,21 +122,25 @@ post_install() {
     echo "" >&2
 
     # --- Authentication ---
-    log "Authenticate to start running queries and accessing your Dune account."
-    printf "  Authenticate with Dune now? [Y/n] " >&2
-    read -r answer < /dev/tty || answer=""
-    case "$answer" in
-        [nN]*)
-            log "Skipped. You can authenticate later with: dune auth"
-            ;;
-        *)
-            echo "" >&2
-            log "You'll need a Dune API key."
-            log "Go to https://dune.com and navigate to APIs and Connectors > API Keys."
-            echo "" >&2
-            "$dune_bin" auth < /dev/tty || log "Authentication failed. You can retry with: dune auth"
-            ;;
-    esac
+    if "$dune_bin" usage > /dev/null 2>&1; then
+        log "Already authenticated with Dune."
+    else
+        log "Authenticate to start running queries and accessing your Dune account."
+        printf "  Authenticate with Dune now? [Y/n] " >&2
+        read -r answer < /dev/tty || answer=""
+        case "$answer" in
+            [nN]*)
+                log "Skipped. You can authenticate later with: dune auth"
+                ;;
+            *)
+                echo "" >&2
+                log "You'll need a Dune API key."
+                log "Go to https://dune.com and navigate to APIs and Connectors > API Keys."
+                echo "" >&2
+                "$dune_bin" auth < /dev/tty || log "Authentication failed. You can retry with: dune auth"
+                ;;
+        esac
+    fi
 
     echo "" >&2
     log "Dune CLI ${dune_version} installed successfully!"
