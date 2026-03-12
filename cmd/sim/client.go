@@ -30,6 +30,17 @@ func NewSimClient(apiKey string) *SimClient {
 	}
 }
 
+// NewBareSimClient creates a Sim API client without authentication.
+// Use this for public endpoints that don't require an API key.
+func NewBareSimClient() *SimClient {
+	return &SimClient{
+		baseURL: defaultBaseURL,
+		httpClient: &http.Client{
+			Timeout: 30 * time.Second,
+		},
+	}
+}
+
 // Get performs a GET request to the Sim API and returns the raw JSON response body.
 // The path should include the leading slash (e.g. "/v1/evm/supported-chains").
 // Query parameters are appended from params.
@@ -46,7 +57,9 @@ func (c *SimClient) Get(ctx context.Context, path string, params url.Values) ([]
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
-	req.Header.Set("X-Sim-Api-Key", c.apiKey)
+	if c.apiKey != "" {
+		req.Header.Set("X-Sim-Api-Key", c.apiKey)
+	}
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := c.httpClient.Do(req)
