@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -43,6 +44,8 @@ func NewSimCmd() *cobra.Command {
 // simPreRun resolves the Sim API key and stores a SimClient in the command context.
 // Commands annotated with "skipSimAuth": "true" bypass this step.
 func simPreRun(cmd *cobra.Command, _ []string) error {
+	cmdutil.SetStartTime(cmd, time.Now())
+
 	// Allow commands like `sim auth` to skip sim client creation.
 	if cmd.Annotations["skipSimAuth"] == "true" {
 		return nil
