@@ -69,9 +69,9 @@ type collectibleMetadata struct {
 }
 
 type collectibleAttribute struct {
-	Key    string `json:"key"`
-	Value  string `json:"value"`
-	Format string `json:"format,omitempty"`
+	Key    string          `json:"key"`
+	Value  json.RawMessage `json:"value"`
+	Format string          `json:"format,omitempty"`
 }
 
 type spamExplanation struct {
