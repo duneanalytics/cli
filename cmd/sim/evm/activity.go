@@ -180,9 +180,35 @@ func activitySymbol(a activityItem) string {
 	}
 	// Native transfers may not have token_metadata.
 	if a.AssetType == "native" {
-		return "ETH"
+		return nativeSymbolForChain(a.ChainID)
 	}
 	return ""
+}
+
+// nativeSymbolForChain returns the native token symbol for a given chain ID.
+func nativeSymbolForChain(chainID int64) string {
+	switch chainID {
+	case 1, 10, 42161, 8453:
+		return "ETH"
+	case 56:
+		return "BNB"
+	case 137, 80002:
+		return "MATIC"
+	case 43114:
+		return "AVAX"
+	case 250:
+		return "FTM"
+	case 100:
+		return "xDAI"
+	case 25:
+		return "CRO"
+	case 1284, 1285, 1287:
+		return "GLMR"
+	case 42220:
+		return "CELO"
+	default:
+		return "NATIVE"
+	}
 }
 
 // truncateHash shortens a hex hash for table display.
