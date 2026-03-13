@@ -50,9 +50,9 @@ type holder struct {
 }
 
 func runTokenHolders(cmd *cobra.Command, args []string) error {
-	client, err := requireSimClient(cmd)
-	if err != nil {
-		return err
+	client := SimClientFromCmd(cmd)
+	if client == nil {
+		return fmt.Errorf("sim client not initialized")
 	}
 
 	tokenAddress := args[0]
