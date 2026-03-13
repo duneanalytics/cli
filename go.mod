@@ -48,3 +48,5 @@ require (
 	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/text v0.24.0 // indirect
 )
+
+replace github.com/duneanalytics/duneapi-client-go => ../duneapi-client-go

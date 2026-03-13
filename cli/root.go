@@ -75,6 +75,9 @@ var rootCmd = &cobra.Command{
 			}
 		}
 
+		env.Headers = map[string]string{
+			"Dune-Origin": "CLI",
+		}
 		client := dune.NewDuneClient(env)
 		cmdutil.SetClient(cmd, client)
 
