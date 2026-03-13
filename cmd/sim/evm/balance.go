@@ -27,6 +27,8 @@ func NewBalanceCmd() *cobra.Command {
 
 	cmd.Flags().String("token", "", "Token contract address or \"native\" (required)")
 	cmd.Flags().String("chain-ids", "", "Chain ID (required)")
+	cmd.Flags().String("metadata", "", "Extra metadata fields: logo,url,pools")
+	cmd.Flags().String("historical-prices", "", "Hour offsets for historical prices (e.g. 720,168,24)")
 	_ = cmd.MarkFlagRequired("token")
 	_ = cmd.MarkFlagRequired("chain-ids")
 	output.AddFormatFlag(cmd, "text")
@@ -47,6 +49,12 @@ func runBalance(cmd *cobra.Command, args []string) error {
 	if v, _ := cmd.Flags().GetString("chain-ids"); v != "" {
 		params.Set("chain_ids", v)
 	}
+	if v, _ := cmd.Flags().GetString("metadata"); v != "" {
+		params.Set("metadata", v)
+	}
+	if v, _ := cmd.Flags().GetString("historical-prices"); v != "" {
+		params.Set("historical_prices", v)
+	}
 
 	path := fmt.Sprintf("/v1/evm/balances/%s/token/%s", address, tokenAddress)
 	data, err := client.Get(cmd.Context(), path, params)
@@ -64,6 +72,8 @@ func runBalance(cmd *cobra.Command, args []string) error {
 		if err := json.Unmarshal(data, &resp); err != nil {
 			return fmt.Errorf("parsing response: %w", err)
 		}
+
+		printBalanceErrors(cmd, resp.Errors)
 
 		if len(resp.Balances) == 0 {
 			fmt.Fprintln(w, "No balance found.")
