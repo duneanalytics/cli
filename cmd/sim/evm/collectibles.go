@@ -82,10 +82,7 @@ type spamExplanation struct {
 }
 
 func runCollectibles(cmd *cobra.Command, args []string) error {
-	client, err := requireSimClient(cmd)
-	if err != nil {
-		return err
-	}
+	client := SimClientFromCmd(cmd)
 
 	address := args[0]
 	params := url.Values{}
