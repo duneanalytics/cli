@@ -73,6 +73,8 @@ func runBalance(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("parsing response: %w", err)
 		}
 
+		printBalanceErrors(cmd, resp.Errors)
+
 		if len(resp.Balances) == 0 {
 			fmt.Fprintln(w, "No balance found.")
 			return nil

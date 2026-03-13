@@ -45,14 +45,8 @@ type transactionsResponse struct {
 }
 
 type transactionErrors struct {
-	ErrorMessage      string                 `json:"error_message,omitempty"`
-	TransactionErrors []transactionErrorInfo `json:"transaction_errors,omitempty"`
-}
-
-type transactionErrorInfo struct {
-	ChainID     int64  `json:"chain_id"`
-	Address     string `json:"address"`
-	Description string `json:"description,omitempty"`
+	ErrorMessage      string          `json:"error_message,omitempty"`
+	TransactionErrors []apiChainError `json:"transaction_errors,omitempty"`
 }
 
 type transactionTx struct {
@@ -96,9 +90,9 @@ type transactionLog struct {
 }
 
 func runTransactions(cmd *cobra.Command, args []string) error {
-	client, err := requireSimClient(cmd)
-	if err != nil {
-		return err
+	client := SimClientFromCmd(cmd)
+	if client == nil {
+		return fmt.Errorf("sim client not initialized")
 	}
 
 	address := args[0]
@@ -170,18 +164,5 @@ func printTransactionErrors(cmd *cobra.Command, errs *transactionErrors) {
 	if errs == nil {
 		return
 	}
-	stderr := cmd.ErrOrStderr()
-	if errs.ErrorMessage != "" {
-		fmt.Fprintf(stderr, "Error: %s\n", errs.ErrorMessage)
-	}
-	for _, e := range errs.TransactionErrors {
-		fmt.Fprintf(stderr, "  chain_id=%d address=%s", e.ChainID, e.Address)
-		if e.Description != "" {
-			fmt.Fprintf(stderr, " — %s", e.Description)
-		}
-		fmt.Fprintln(stderr)
-	}
-	if errs.ErrorMessage != "" || len(errs.TransactionErrors) > 0 {
-		fmt.Fprintln(stderr)
-	}
+	printAPIChainErrors(cmd, errs.ErrorMessage, errs.TransactionErrors)
 }

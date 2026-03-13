@@ -43,11 +43,13 @@ type balancesResponse struct {
 }
 
 type balanceErrors struct {
-	ErrorMessage string             `json:"error_message,omitempty"`
-	TokenErrors  []balanceErrorInfo `json:"token_errors,omitempty"`
+	ErrorMessage string          `json:"error_message,omitempty"`
+	TokenErrors  []apiChainError `json:"token_errors,omitempty"`
 }
 
-type balanceErrorInfo struct {
+// apiChainError is a per-chain error returned by several Sim API endpoints
+// (balances, transactions, etc.). It is intentionally shared across commands.
+type apiChainError struct {
 	ChainID     int64  `json:"chain_id"`
 	Address     string `json:"address"`
 	Description string `json:"description,omitempty"`
@@ -256,18 +258,26 @@ func printBalanceErrors(cmd *cobra.Command, errs *balanceErrors) {
 	if errs == nil {
 		return
 	}
-	stderr := cmd.ErrOrStderr()
-	if errs.ErrorMessage != "" {
-		fmt.Fprintf(stderr, "Error: %s\n", errs.ErrorMessage)
+	printAPIChainErrors(cmd, errs.ErrorMessage, errs.TokenErrors)
+}
+
+// printAPIChainErrors is a shared helper that writes per-chain API errors to
+// stderr. It is used by both balance and transaction commands to avoid
+// duplicating the same formatting logic.
+func printAPIChainErrors(cmd *cobra.Command, msg string, errs []apiChainError) {
+	if msg == "" && len(errs) == 0 {
+		return
 	}
-	for _, e := range errs.TokenErrors {
+	stderr := cmd.ErrOrStderr()
+	if msg != "" {
+		fmt.Fprintf(stderr, "Error: %s\n", msg)
+	}
+	for _, e := range errs {
 		fmt.Fprintf(stderr, "  chain_id=%d address=%s", e.ChainID, e.Address)
 		if e.Description != "" {
 			fmt.Fprintf(stderr, " — %s", e.Description)
 		}
 		fmt.Fprintln(stderr)
 	}
-	if errs.ErrorMessage != "" || len(errs.TokenErrors) > 0 {
-		fmt.Fprintln(stderr)
-	}
+	fmt.Fprintln(stderr)
 }
