@@ -47,6 +47,7 @@ func NewEvmCmd() *cobra.Command {
 	cmd.AddCommand(NewCollectiblesCmd())
 	cmd.AddCommand(NewTokenInfoCmd())
 	cmd.AddCommand(NewTokenHoldersCmd())
+	cmd.AddCommand(NewDefiPositionsCmd())
 
 	return cmd
 }
