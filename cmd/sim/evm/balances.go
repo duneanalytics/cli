@@ -26,15 +26,8 @@ func NewBalancesCmd() *cobra.Command {
 		RunE: runBalances,
 	}
 
-	cmd.Flags().String("chain-ids", "", "Comma-separated chain IDs or tags (default: all default chains)")
-	cmd.Flags().String("filters", "", "Token filter: erc20 or native")
+	addBalanceFlags(cmd)
 	cmd.Flags().String("asset-class", "", "Asset class filter: stablecoin")
-	cmd.Flags().String("metadata", "", "Extra metadata fields: logo,url,pools")
-	cmd.Flags().Bool("exclude-spam", false, "Exclude tokens with <100 USD liquidity")
-	cmd.Flags().String("historical-prices", "", "Hour offsets for historical prices (e.g. 720,168,24)")
-	cmd.Flags().Int("limit", 0, "Max results (1-1000)")
-	cmd.Flags().String("offset", "", "Pagination cursor from previous response")
-	output.AddFormatFlag(cmd, "text")
 
 	return cmd
 }
@@ -70,6 +63,30 @@ type warningEntry struct {
 }
 
 func runBalances(cmd *cobra.Command, args []string) error {
+	return runBalancesEndpoint(cmd, args, "/v1/evm/balances/", "")
+}
+
+// addBalanceFlags registers the common flags shared by the balances and
+// stablecoins commands.
+func addBalanceFlags(cmd *cobra.Command) {
+	cmd.Flags().String("chain-ids", "", "Comma-separated chain IDs or tags (default: all default chains)")
+	cmd.Flags().String("filters", "", "Token filter: erc20 or native")
+	cmd.Flags().String("metadata", "", "Extra metadata fields: logo,url,pools")
+	cmd.Flags().Bool("exclude-spam", false, "Exclude tokens with <100 USD liquidity")
+	cmd.Flags().String("historical-prices", "", "Hour offsets for historical prices (e.g. 720,168,24)")
+	cmd.Flags().Int("limit", 0, "Max results (1-1000)")
+	cmd.Flags().String("offset", "", "Pagination cursor from previous response")
+	output.AddFormatFlag(cmd, "text")
+}
+
+// runBalancesEndpoint is the shared run implementation for the balances and
+// stablecoins commands. The final API path is built as:
+//
+//	pathPrefix + address + pathSuffix
+//
+// For example "/v1/evm/balances/" + addr + "" for balances,
+// or "/v1/evm/balances/" + addr + "/stablecoins" for stablecoins.
+func runBalancesEndpoint(cmd *cobra.Command, args []string, pathPrefix, pathSuffix string) error {
 	client := SimClientFromCmd(cmd)
 	if client == nil {
 		return fmt.Errorf("sim client not initialized")
@@ -84,6 +101,8 @@ func runBalances(cmd *cobra.Command, args []string) error {
 	if v, _ := cmd.Flags().GetString("filters"); v != "" {
 		params.Set("filters", v)
 	}
+	// asset-class is only registered on the balances command; silently ignored
+	// when the flag is absent.
 	if v, _ := cmd.Flags().GetString("asset-class"); v != "" {
 		params.Set("asset_class", v)
 	}
@@ -103,7 +122,7 @@ func runBalances(cmd *cobra.Command, args []string) error {
 		params.Set("offset", v)
 	}
 
-	data, err := client.Get(cmd.Context(), "/v1/evm/balances/"+address, params)
+	data, err := client.Get(cmd.Context(), pathPrefix+address+pathSuffix, params)
 	if err != nil {
 		return err
 	}
