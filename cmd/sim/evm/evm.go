@@ -46,6 +46,7 @@ func NewEvmCmd() *cobra.Command {
 	cmd.AddCommand(NewTransactionsCmd())
 	cmd.AddCommand(NewCollectiblesCmd())
 	cmd.AddCommand(NewTokenInfoCmd())
+	cmd.AddCommand(NewTokenHoldersCmd())
 
 	return cmd
 }
