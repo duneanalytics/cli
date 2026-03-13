@@ -107,9 +107,9 @@ type nftPositionDetails struct {
 }
 
 func runDefiPositions(cmd *cobra.Command, args []string) error {
-	client, err := requireSimClient(cmd)
-	if err != nil {
-		return err
+	client := SimClientFromCmd(cmd)
+	if client == nil {
+		return fmt.Errorf("sim client not initialized")
 	}
 
 	address := args[0]
