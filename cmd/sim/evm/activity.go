@@ -152,7 +152,7 @@ func runActivity(cmd *cobra.Command, args []string) error {
 				a.Type,
 				a.AssetType,
 				activitySymbol(a),
-				formatUSD(a.ValueUSD),
+				output.FormatUSD(a.ValueUSD),
 				truncateHash(a.TxHash),
 				a.BlockTime,
 			}

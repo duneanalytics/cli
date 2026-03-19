@@ -150,7 +150,7 @@ func runDefiPositions(cmd *cobra.Command, args []string) error {
 				p.Type,
 				fmt.Sprintf("%d", p.ChainID),
 				p.Protocol,
-				formatUSD(p.USDVal),
+				output.FormatUSD(p.USDVal),
 				positionDetails(p),
 			}
 		}
@@ -233,7 +233,7 @@ func printAggregations(w io.Writer, agg *defiAggregations) {
 		return
 	}
 
-	fmt.Fprintf(w, "\nTotal USD Value: %s\n", formatUSD(agg.TotalUSDValue))
+	fmt.Fprintf(w, "\nTotal USD Value: %s\n", output.FormatUSD(agg.TotalUSDValue))
 
 	if len(agg.TotalByChain) > 0 {
 		fmt.Fprintln(w, "Breakdown by chain:")
@@ -253,7 +253,7 @@ func printAggregations(w io.Writer, agg *defiAggregations) {
 		})
 
 		for _, cid := range chainIDs {
-			fmt.Fprintf(w, "  Chain %s: %s\n", cid, formatUSD(agg.TotalByChain[cid]))
+			fmt.Fprintf(w, "  Chain %s: %s\n", cid, output.FormatUSD(agg.TotalByChain[cid]))
 		}
 	}
 }

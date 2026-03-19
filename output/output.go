@@ -55,6 +55,14 @@ func PrintTable(w io.Writer, columns []string, rows [][]string) {
 	tw.Flush()
 }
 
+// FormatUSD formats a USD value for display with 2 decimal places.
+func FormatUSD(v float64) string {
+	if v == 0 {
+		return "0.00"
+	}
+	return fmt.Sprintf("%.2f", v)
+}
+
 // FormatBytes returns a human-readable byte size string (e.g. "1.2 GB").
 func FormatBytes(b int64) string {
 	const (

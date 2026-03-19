@@ -89,8 +89,8 @@ func runBalance(cmd *cobra.Command, args []string) error {
 		}
 		fmt.Fprintf(w, "Decimals:  %d\n", b.Decimals)
 		fmt.Fprintf(w, "Amount:    %s\n", formatAmount(b.Amount, b.Decimals))
-		fmt.Fprintf(w, "Price USD: %s\n", formatUSD(b.PriceUSD))
-		fmt.Fprintf(w, "Value USD: %s\n", formatUSD(b.ValueUSD))
+		fmt.Fprintf(w, "Price USD: %s\n", output.FormatUSD(b.PriceUSD))
+		fmt.Fprintf(w, "Value USD: %s\n", output.FormatUSD(b.ValueUSD))
 
 		return nil
 	}
