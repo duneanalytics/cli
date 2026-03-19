@@ -42,12 +42,13 @@ func requireSimClient(cmd *cobra.Command) (SimClient, error) {
 func NewSvmCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "svm",
-		Short: "Query SVM chain data (balances)",
-		Long: "Access real-time SVM blockchain data including token balances\n" +
-			"for Solana and Eclipse chains.",
+		Short: "Query SVM chain data (balances, transactions)",
+		Long: "Access real-time SVM blockchain data including token balances and\n" +
+			"transaction history for Solana and Eclipse chains.",
 	}
 
 	cmd.AddCommand(NewBalancesCmd())
+	cmd.AddCommand(NewTransactionsCmd())
 
 	return cmd
 }
