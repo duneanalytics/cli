@@ -22,6 +22,7 @@ import (
 	"github.com/duneanalytics/cli/cmd/query"
 	"github.com/duneanalytics/cli/cmd/sim"
 	"github.com/duneanalytics/cli/cmd/usage"
+	"github.com/duneanalytics/cli/cmd/whoami"
 	"github.com/duneanalytics/cli/cmdutil"
 	"github.com/duneanalytics/cli/tracking"
 )
@@ -77,6 +78,13 @@ var rootCmd = &cobra.Command{
 		client := dune.NewDuneClient(env)
 		cmdutil.SetClient(cmd, client)
 
+		// Resolve real user identity for analytics (best-effort, never blocks the CLI).
+		if tr := cmdutil.TrackerFromCmd(cmd); tr != nil {
+			if userID := resolveUserID(client, env.APIKey); userID != "" {
+				tr.SetUserID(userID)
+			}
+		}
+
 		return nil
 	},
 	PersistentPostRunE: func(cmd *cobra.Command, _ []string) error {
@@ -107,6 +115,7 @@ func init() {
 	rootCmd.AddCommand(query.NewQueryCmd())
 	rootCmd.AddCommand(execution.NewExecutionCmd())
 	rootCmd.AddCommand(usage.NewUsageCmd())
+	rootCmd.AddCommand(whoami.NewWhoAmICmd())
 	rootCmd.AddCommand(sim.NewSimCmd())
 }
 
@@ -115,11 +124,9 @@ func Execute(version, commit, date, amplitudeKey string) {
 	versionStr := fmt.Sprintf("%s (commit: %s, built: %s)", version, commit, date)
 
 	telemetryEnabled := duneconfig.IsTelemetryEnabled()
-	configDir, _ := authconfig.Dir()
 	tracker := tracking.New(tracking.Config{
 		AmplitudeKey: amplitudeKey,
 		CLIVersion:   version,
-		ConfigDir:    configDir,
 		Enabled:      telemetryEnabled,
 	})
 	defer tracker.Shutdown()
@@ -140,6 +147,33 @@ func Execute(version, commit, date, amplitudeKey string) {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+// resolveUserID returns the customer_id associated with the given API key.
+// It uses a local cache to avoid calling /api/whoami on every invocation.
+// On any error it returns "" silently — analytics should never block the CLI.
+func resolveUserID(client dune.DuneClient, apiKey string) string {
+	keyHash := authconfig.HashAPIKey(apiKey)
+
+	// Try the cache first.
+	cached, err := authconfig.LoadIdentity()
+	if err == nil && cached != nil && cached.APIKeyHash == keyHash && cached.CustomerID != "" {
+		return cached.CustomerID
+	}
+
+	// Cache miss or stale — call the API.
+	resp, err := client.WhoAmI()
+	if err != nil || resp == nil || resp.CustomerID == "" {
+		return ""
+	}
+
+	// Persist for next time (best-effort).
+	_ = authconfig.SaveIdentity(&authconfig.UserIdentity{
+		CustomerID: resp.CustomerID,
+		APIKeyHash: keyHash,
+	})
+
+	return resp.CustomerID
 }
 
 // commandPathFromArgs extracts the subcommand path from os.Args, skipping

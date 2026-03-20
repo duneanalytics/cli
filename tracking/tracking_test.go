@@ -1,13 +1,9 @@
 package tracking
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestTracker_DisabledNoOp(t *testing.T) {
@@ -23,29 +19,22 @@ func TestTracker_EmptyAmplitudeKeyDisabled(t *testing.T) {
 	assert.False(t, tr.enabled)
 }
 
-func TestLoadOrCreateAnonID_CreatesFile(t *testing.T) {
-	dir := t.TempDir()
-	id := loadOrCreateAnonID(dir)
-
-	_, err := uuid.Parse(id)
-	assert.NoError(t, err, "should return a valid UUID")
-	assert.NotEqual(t, anonFallback, id)
-
-	data, err := os.ReadFile(filepath.Join(dir, anonIDFile))
-	require.NoError(t, err)
-	assert.Equal(t, id, string(data))
+func TestTracker_DefaultUserIDEmpty(t *testing.T) {
+	tr := New(Config{Enabled: true, AmplitudeKey: "test-key"})
+	assert.Equal(t, "", tr.userID, "userID should be empty by default")
 }
 
-func TestLoadOrCreateAnonID_ReusesExisting(t *testing.T) {
-	dir := t.TempDir()
-	knownID := "550e8400-e29b-41d4-a716-446655440000"
-	require.NoError(t, os.WriteFile(filepath.Join(dir, anonIDFile), []byte(knownID), 0o644))
+func TestTracker_SetUserID(t *testing.T) {
+	tr := New(Config{Enabled: true, AmplitudeKey: "test-key"})
+	assert.Equal(t, "", tr.userID)
 
-	id := loadOrCreateAnonID(dir)
-	assert.Equal(t, knownID, id)
+	tr.SetUserID("user_123")
+	assert.Equal(t, "user_123", tr.userID)
 }
 
-func TestLoadOrCreateAnonID_InvalidDir(t *testing.T) {
-	id := loadOrCreateAnonID("/nonexistent/path/that/should/not/exist")
-	assert.Equal(t, anonFallback, id)
+func TestTracker_TrackWithoutUserID(t *testing.T) {
+	tr := New(Config{Enabled: true, AmplitudeKey: "test-key"})
+	// Should not panic — events are sent with empty UserID.
+	tr.Track("test cmd", StatusSuccess, "", 100)
+	tr.Shutdown()
 }

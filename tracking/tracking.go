@@ -1,14 +1,10 @@
 package tracking
 
 import (
-	"os"
-	"path/filepath"
 	"runtime"
-	"strings"
 	"time"
 
 	"github.com/amplitude/analytics-go/amplitude"
-	"github.com/google/uuid"
 )
 
 const (
@@ -26,7 +22,6 @@ type Tracker struct {
 type Config struct {
 	AmplitudeKey string
 	CLIVersion   string
-	ConfigDir    string
 	Enabled      bool
 }
 
@@ -46,9 +41,14 @@ func New(cfg Config) *Tracker {
 	return &Tracker{
 		client:  amplitude.NewClient(ampConfig),
 		version: cfg.CLIVersion,
-		userID:  loadOrCreateAnonID(cfg.ConfigDir),
 		enabled: true,
 	}
+}
+
+// SetUserID sets the real user identity (e.g. "user_123") for all subsequent events.
+// If not called, events are sent with an empty UserID.
+func (t *Tracker) SetUserID(id string) {
+	t.userID = id
 }
 
 func (t *Tracker) Track(commandPath, status, errMsg string, durationMs int64) {
@@ -91,35 +91,3 @@ func (silentLogger) Debugf(string, ...interface{}) {}
 func (silentLogger) Infof(string, ...interface{})  {}
 func (silentLogger) Warnf(string, ...interface{})  {}
 func (silentLogger) Errorf(string, ...interface{}) {}
-
-const (
-	anonIDFile   = "anonymous_id"
-	anonFallback = "anonymous"
-)
-
-func loadOrCreateAnonID(configDir string) string {
-	if configDir == "" {
-		return anonFallback
-	}
-
-	path := filepath.Join(configDir, anonIDFile)
-
-	data, err := os.ReadFile(path)
-	if err == nil {
-		id := strings.TrimSpace(string(data))
-		if _, err := uuid.Parse(id); err == nil {
-			return id
-		}
-	}
-
-	id := uuid.New().String()
-
-	if err := os.MkdirAll(configDir, 0o755); err != nil {
-		return anonFallback
-	}
-	if err := os.WriteFile(path, []byte(id), 0o644); err != nil {
-		return anonFallback
-	}
-
-	return id
-}
