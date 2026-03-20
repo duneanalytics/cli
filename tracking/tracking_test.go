@@ -19,22 +19,22 @@ func TestTracker_EmptyAmplitudeKeyDisabled(t *testing.T) {
 	assert.False(t, tr.enabled)
 }
 
-func TestTracker_DefaultUserIDEmpty(t *testing.T) {
+func TestTracker_DefaultUserIDAnonymous(t *testing.T) {
 	tr := New(Config{Enabled: true, AmplitudeKey: "test-key"})
-	assert.Equal(t, "", tr.userID, "userID should be empty by default")
+	assert.Equal(t, "anonymous", tr.userID, "userID should default to 'anonymous'")
 }
 
 func TestTracker_SetUserID(t *testing.T) {
 	tr := New(Config{Enabled: true, AmplitudeKey: "test-key"})
-	assert.Equal(t, "", tr.userID)
+	assert.Equal(t, "anonymous", tr.userID)
 
 	tr.SetUserID("user_123")
 	assert.Equal(t, "user_123", tr.userID)
 }
 
-func TestTracker_TrackWithoutUserID(t *testing.T) {
+func TestTracker_TrackWithoutSetUserID(t *testing.T) {
 	tr := New(Config{Enabled: true, AmplitudeKey: "test-key"})
-	// Should not panic — events are sent with empty UserID.
+	// Should not panic — events are sent with "anonymous" UserID.
 	tr.Track("test cmd", StatusSuccess, "", 100)
 	tr.Shutdown()
 }
