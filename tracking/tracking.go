@@ -41,12 +41,13 @@ func New(cfg Config) *Tracker {
 	return &Tracker{
 		client:  amplitude.NewClient(ampConfig),
 		version: cfg.CLIVersion,
+		userID:  "anonymous",
 		enabled: true,
 	}
 }
 
 // SetUserID sets the real user identity (e.g. "user_123") for all subsequent events.
-// If not called, events are sent with an empty UserID.
+// If not called, events are sent with UserID "anonymous".
 func (t *Tracker) SetUserID(id string) {
 	t.userID = id
 }
