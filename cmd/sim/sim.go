@@ -8,6 +8,9 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/duneanalytics/duneapi-client-go/config"
+	"github.com/duneanalytics/duneapi-client-go/dune"
+
 	"github.com/duneanalytics/cli/authconfig"
 	"github.com/duneanalytics/cli/cmd/sim/evm"
 	"github.com/duneanalytics/cli/cmd/sim/svm"
@@ -49,6 +52,17 @@ func simPreRun(cmd *cobra.Command, _ []string) error {
 	// Record the start time here so the root's PersistentPostRunE computes a
 	// correct duration for telemetry.
 	cmdutil.SetStartTime(cmd, time.Now())
+
+	// Resolve customer identity for analytics (best-effort, never blocks the CLI).
+	// We try to resolve the Dune API key (not the Sim API key) to identify the user.
+	if tr := cmdutil.TrackerFromCmd(cmd); tr != nil {
+		if env := resolveDuneEnv(); env != nil {
+			client := dune.NewDuneClient(env)
+			if customerID := resolveCustomerIDForSim(client, env.APIKey); customerID != "" {
+				tr.SetUserID(customerID)
+			}
+		}
+	}
 
 	// Commands like `sim evm supported-chains` that hit public endpoints
 	// don't require an API key. Provide a bare (unauthenticated) client so
@@ -102,4 +116,55 @@ func SimClientFromCmd(cmd *cobra.Command) *SimClient {
 		return nil
 	}
 	return v.(*SimClient)
+}
+
+// resolveDuneEnv attempts to resolve the Dune API key from environment variables
+// or the config file, returning a Dune environment configuration.
+// Returns nil if no Dune API key is available (this is not an error for sim commands).
+func resolveDuneEnv() *config.Env {
+	// Try environment variable first.
+	env, err := config.FromEnvVars()
+	if err == nil {
+		return env
+	}
+
+	// Try config file.
+	cfg, err := authconfig.Load()
+	if err != nil || cfg == nil {
+		return nil
+	}
+
+	key := strings.TrimSpace(cfg.APIKey)
+	if key == "" {
+		return nil
+	}
+
+	return config.FromAPIKey(key)
+}
+
+// resolveCustomerIDForSim is a wrapper around cli.ResolveCustomerID that
+// can be called from the sim package. It must be declared here to avoid
+// a circular import between cli and cmd/sim.
+func resolveCustomerIDForSim(client dune.DuneClient, apiKey string) string {
+	keyHash := authconfig.HashAPIKey(apiKey)
+
+	// Try the cache first.
+	cached, err := authconfig.LoadIdentity()
+	if err == nil && cached != nil && cached.APIKeyHash == keyHash && cached.CustomerID != "" {
+		return cached.CustomerID
+	}
+
+	// Cache miss or stale — call the API.
+	resp, err := client.WhoAmI()
+	if err != nil || resp == nil || resp.CustomerID == "" {
+		return ""
+	}
+
+	// Persist for next time (best-effort).
+	_ = authconfig.SaveIdentity(&authconfig.UserIdentity{
+		CustomerID: resp.CustomerID,
+		APIKeyHash: keyHash,
+	})
+
+	return resp.CustomerID
 }
