@@ -78,10 +78,10 @@ var rootCmd = &cobra.Command{
 		client := dune.NewDuneClient(env)
 		cmdutil.SetClient(cmd, client)
 
-		// Resolve real user identity for analytics (best-effort, never blocks the CLI).
+		// Resolve customer identity for analytics (best-effort, never blocks the CLI).
 		if tr := cmdutil.TrackerFromCmd(cmd); tr != nil {
-			if userID := resolveUserID(client, env.APIKey); userID != "" {
-				tr.SetUserID(userID)
+			if customerID := resolveCustomerID(client, env.APIKey); customerID != "" {
+				tr.SetUserID(customerID)
 			}
 		}
 
@@ -149,10 +149,11 @@ func Execute(version, commit, date, amplitudeKey string) {
 	}
 }
 
-// resolveUserID returns the customer_id associated with the given API key.
+// resolveCustomerID returns the customer_id associated with the given API key.
+// The customer_id may represent a user ("user_123") or a team ("team_456").
 // It uses a local cache to avoid calling /api/whoami on every invocation.
 // On any error it returns "" silently — analytics should never block the CLI.
-func resolveUserID(client dune.DuneClient, apiKey string) string {
+func resolveCustomerID(client dune.DuneClient, apiKey string) string {
 	keyHash := authconfig.HashAPIKey(apiKey)
 
 	// Try the cache first.
