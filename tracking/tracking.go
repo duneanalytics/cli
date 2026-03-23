@@ -35,6 +35,7 @@ func New(cfg Config) *Tracker {
 	ampConfig.ServerZone = "EU"
 	ampConfig.FlushQueueSize = 1
 	ampConfig.FlushInterval = 1 * time.Second
+	ampConfig.MinIDLength = 1
 	if !isDevVersion(cfg.CLIVersion) {
 		ampConfig.Logger = silentLogger{}
 	}
@@ -74,7 +75,9 @@ func toAmplitudeUserID(customerID string) string {
 	return customerID
 }
 
-func (t *Tracker) Track(commandPath, status, errMsg string, durationMs int64) {
+// Track sends a "CLI Command Executed" event to Amplitude.
+// Set isSim to true for commands under `dune sim`.
+func (t *Tracker) Track(commandPath, status, errMsg string, durationMs int64, isSim bool) {
 	if !t.enabled || t.client == nil {
 		return
 	}
@@ -92,6 +95,7 @@ func (t *Tracker) Track(commandPath, status, errMsg string, durationMs int64) {
 			"cli_version":   t.version,
 			"os":            runtime.GOOS,
 			"arch":          runtime.GOARCH,
+			"is_sim":        isSim,
 		},
 	})
 }

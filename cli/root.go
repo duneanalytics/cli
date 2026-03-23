@@ -101,7 +101,8 @@ var rootCmd = &cobra.Command{
 			commandPath = parts[1]
 		}
 
-		tr.Track(commandPath, tracking.StatusSuccess, "", durationMs)
+		isSim := strings.HasPrefix(commandPath, "sim")
+		tr.Track(commandPath, tracking.StatusSuccess, "", durationMs, isSim)
 		return nil
 	},
 }
@@ -139,7 +140,8 @@ func Execute(version, commit, date, amplitudeKey string) {
 	); err != nil {
 		// Build best-effort command path from os.Args (strip flags).
 		commandPath := commandPathFromArgs(os.Args)
-		tracker.Track(commandPath, tracking.StatusError, err.Error(), 0)
+		isSim := strings.HasPrefix(commandPath, "sim")
+		tracker.Track(commandPath, tracking.StatusError, err.Error(), 0, isSim)
 		// Flush the event before exiting — os.Exit does not run deferred funcs,
 		// so defer tracker.Shutdown() above would never fire.
 		tracker.Shutdown()
