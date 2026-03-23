@@ -2,6 +2,7 @@ package tracking
 
 import (
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/amplitude/analytics-go/amplitude"
@@ -41,15 +42,36 @@ func New(cfg Config) *Tracker {
 	return &Tracker{
 		client:  amplitude.NewClient(ampConfig),
 		version: cfg.CLIVersion,
-		userID:  "anonymous",
+		userID:  "cli",
 		enabled: true,
 	}
 }
 
-// SetUserID sets the real user identity (e.g. "user_123") for all subsequent events.
+// SetUserID converts a customer ID (e.g. "user_123", "team_456") to the
+// canonical Amplitude user_id format used by duneapi and core-node:
+//
+//	"user_123" → "123"
+//	"team_456" → "system_456"
+//
 // If not called, events are sent with UserID "anonymous".
 func (t *Tracker) SetUserID(id string) {
-	t.userID = id
+	t.userID = toAmplitudeUserID(id)
+}
+
+// toAmplitudeUserID strips the customer-ID prefix so the Amplitude user_id
+// matches the format used by duneapi and core-node (MCP).
+//
+//	"user_123" → "123"
+//	"team_456" → "system_456"
+//	anything else is returned as-is.
+func toAmplitudeUserID(customerID string) string {
+	if after, ok := strings.CutPrefix(customerID, "team_"); ok {
+		return "system_" + after
+	}
+	if after, ok := strings.CutPrefix(customerID, "user_"); ok {
+		return after
+	}
+	return customerID
 }
 
 func (t *Tracker) Track(commandPath, status, errMsg string, durationMs int64) {
