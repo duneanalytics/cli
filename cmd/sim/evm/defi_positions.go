@@ -46,64 +46,67 @@ type defiPositionsResponse struct {
 }
 
 type defiAggregations struct {
-	TotalUSDValue float64            `json:"total_usd_value"`
+	TotalUSDValue float64            `json:"total_value_usd"`
 	TotalByChain  map[string]float64 `json:"total_by_chain,omitempty"`
 }
 
-// defiPosition is a flat struct matching the polymorphic DefiPosition schema.
+// defiTokenInfo represents a token object returned by the API with address,
+// name, symbol, and optional numeric fields depending on position type.
+type defiTokenInfo struct {
+	Address  string  `json:"address,omitempty"`
+	Name     string  `json:"name,omitempty"`
+	Symbol   string  `json:"symbol,omitempty"`
+	Decimals int     `json:"decimals,omitempty"`
+	Holdings float64 `json:"holdings,omitempty"`
+	PriceUSD float64 `json:"price_usd,omitempty"`
+}
+
+// nftTokenDetails holds per-token data inside an NFT concentrated-liquidity position.
+type nftTokenDetails struct {
+	PriceUSD float64 `json:"price_usd"`
+	Holdings float64 `json:"holdings,omitempty"`
+	Rewards  float64 `json:"rewards,omitempty"`
+}
+
+// defiPosition matches the polymorphic DefiPosition schema returned by the API.
 // Fields are optional depending on the `type` discriminator.
 type defiPosition struct {
 	Type    string  `json:"type"`
+	Chain   string  `json:"chain,omitempty"`
 	ChainID int64   `json:"chain_id"`
-	USDVal  float64 `json:"usd_value"`
+	USDVal  float64 `json:"value_usd"`
 	Logo    *string `json:"logo,omitempty"`
 
 	// Erc4626 / Tokenized fields
-	TokenType               string `json:"token_type,omitempty"`
-	Token                   string `json:"token,omitempty"`
-	TokenName               string `json:"token_name,omitempty"`
-	TokenSymbol             string `json:"token_symbol,omitempty"`
-	UnderlyingToken         string `json:"underlying_token,omitempty"`
-	UnderlyingTokenName     string `json:"underlying_token_name,omitempty"`
-	UnderlyingTokenSymbol   string `json:"underlying_token_symbol,omitempty"`
-	UnderlyingTokenDecimals int    `json:"underlying_token_decimals,omitempty"`
+	TokenType       string         `json:"token_type,omitempty"`
+	Token           *defiTokenInfo `json:"token,omitempty"`
+	UnderlyingToken *defiTokenInfo `json:"underlying_token,omitempty"`
+	LendingPool     string         `json:"lending_pool,omitempty"`
 
 	// Erc4626 / Tokenized / UniswapV2 fields
-	CalculatedBalance float64 `json:"calculated_balance,omitempty"`
-	PriceInUSD        float64 `json:"price_in_usd,omitempty"`
+	Balance  float64 `json:"balance,omitempty"`
+	PriceUSD float64 `json:"price_usd,omitempty"`
 
 	// UniswapV2 / Nft / NftV4 fields
-	Protocol       string  `json:"protocol,omitempty"`
-	Pool           string  `json:"pool,omitempty"`
-	PoolID         []int   `json:"pool_id,omitempty"`
-	PoolManager    string  `json:"pool_manager,omitempty"`
-	Salt           []int   `json:"salt,omitempty"`
-	Token0         string  `json:"token0,omitempty"`
-	Token0Name     string  `json:"token0_name,omitempty"`
-	Token0Symbol   string  `json:"token0_symbol,omitempty"`
-	Token0Decimals int     `json:"token0_decimals,omitempty"`
-	Token1         string  `json:"token1,omitempty"`
-	Token1Name     string  `json:"token1_name,omitempty"`
-	Token1Symbol   string  `json:"token1_symbol,omitempty"`
-	Token1Decimals int     `json:"token1_decimals,omitempty"`
-	LPBalance      string  `json:"lp_balance,omitempty"`
-	Token0Price    float64 `json:"token0_price,omitempty"`
-	Token1Price    float64 `json:"token1_price,omitempty"`
+	Protocol    string         `json:"protocol,omitempty"`
+	Pool        string         `json:"pool,omitempty"`
+	PoolID      string         `json:"pool_id,omitempty"`
+	PoolManager string         `json:"pool_manager,omitempty"`
+	Salt        string         `json:"salt,omitempty"`
+	Token0      *defiTokenInfo `json:"token0,omitempty"`
+	Token1      *defiTokenInfo `json:"token1,omitempty"`
+	LPBalance   string         `json:"lp_balance,omitempty"`
 
 	// Nft / NftV4 concentrated liquidity positions
 	Positions []nftPositionDetails `json:"positions,omitempty"`
 }
 
 type nftPositionDetails struct {
-	TickLower      int     `json:"tick_lower"`
-	TickUpper      int     `json:"tick_upper"`
-	TokenID        string  `json:"token_id"`
-	Token0Price    float64 `json:"token0_price"`
-	Token0Holdings float64 `json:"token0_holdings,omitempty"`
-	Token0Rewards  float64 `json:"token0_rewards,omitempty"`
-	Token1Price    float64 `json:"token1_price"`
-	Token1Holdings float64 `json:"token1_holdings,omitempty"`
-	Token1Rewards  float64 `json:"token1_rewards,omitempty"`
+	TickLower int              `json:"tick_lower"`
+	TickUpper int              `json:"tick_upper"`
+	TokenID   string           `json:"token_id"`
+	Token0    *nftTokenDetails `json:"token0,omitempty"`
+	Token1    *nftTokenDetails `json:"token1,omitempty"`
 }
 
 func runDefiPositions(cmd *cobra.Command, args []string) error {
@@ -165,18 +168,26 @@ func runDefiPositions(cmd *cobra.Command, args []string) error {
 
 // positionDetails returns a human-readable summary for a DeFi position,
 // varying by position type.
+// tokenSymbol safely extracts the symbol from a token info pointer.
+func tokenSymbol(t *defiTokenInfo) string {
+	if t == nil {
+		return ""
+	}
+	return t.Symbol
+}
+
 func positionDetails(p defiPosition) string {
 	switch p.Type {
 	case "Erc4626":
 		parts := []string{}
-		if p.TokenSymbol != "" {
-			parts = append(parts, p.TokenSymbol)
+		if sym := tokenSymbol(p.Token); sym != "" {
+			parts = append(parts, sym)
 		}
-		if p.UnderlyingTokenSymbol != "" {
-			parts = append(parts, fmt.Sprintf("-> %s", p.UnderlyingTokenSymbol))
+		if sym := tokenSymbol(p.UnderlyingToken); sym != "" {
+			parts = append(parts, fmt.Sprintf("-> %s", sym))
 		}
-		if p.CalculatedBalance != 0 {
-			parts = append(parts, fmt.Sprintf("bal=%.6g", p.CalculatedBalance))
+		if p.Balance != 0 {
+			parts = append(parts, fmt.Sprintf("bal=%.6g", p.Balance))
 		}
 		return strings.Join(parts, " ")
 
@@ -185,23 +196,23 @@ func positionDetails(p defiPosition) string {
 		if p.TokenType != "" {
 			parts = append(parts, p.TokenType)
 		}
-		if p.TokenSymbol != "" {
-			parts = append(parts, p.TokenSymbol)
+		if sym := tokenSymbol(p.Token); sym != "" {
+			parts = append(parts, sym)
 		}
-		if p.CalculatedBalance != 0 {
-			parts = append(parts, fmt.Sprintf("bal=%.6g", p.CalculatedBalance))
+		if p.Balance != 0 {
+			parts = append(parts, fmt.Sprintf("bal=%.6g", p.Balance))
 		}
 		return strings.Join(parts, " ")
 
 	case "UniswapV2":
-		pair := formatPair(p.Token0Symbol, p.Token1Symbol)
-		if p.CalculatedBalance != 0 {
-			return fmt.Sprintf("%s bal=%.6g", pair, p.CalculatedBalance)
+		pair := formatPair(tokenSymbol(p.Token0), tokenSymbol(p.Token1))
+		if p.Balance != 0 {
+			return fmt.Sprintf("%s bal=%.6g", pair, p.Balance)
 		}
 		return pair
 
 	case "Nft", "NftV4":
-		pair := formatPair(p.Token0Symbol, p.Token1Symbol)
+		pair := formatPair(tokenSymbol(p.Token0), tokenSymbol(p.Token1))
 		nPos := len(p.Positions)
 		if nPos == 1 {
 			return fmt.Sprintf("%s (1 position)", pair)
