@@ -5,10 +5,11 @@ go 1.25.6
 require (
 	github.com/amplitude/analytics-go v1.3.0
 	github.com/charmbracelet/fang v0.4.4
-	github.com/duneanalytics/duneapi-client-go v0.4.3
+	github.com/duneanalytics/duneapi-client-go v0.4.4
 	github.com/modelcontextprotocol/go-sdk v1.4.0
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
+	golang.org/x/term v0.40.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -45,6 +46,5 @@ require (
 	golang.org/x/oauth2 v0.34.0 // indirect
 	golang.org/x/sync v0.17.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
-	golang.org/x/term v0.40.0 // indirect
 	golang.org/x/text v0.24.0 // indirect
 )
