@@ -1,14 +1,11 @@
 package tracking
 
 import (
-	"os"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
 
 	"github.com/amplitude/analytics-go/amplitude"
-	"github.com/google/uuid"
 )
 
 const (
@@ -26,7 +23,6 @@ type Tracker struct {
 type Config struct {
 	AmplitudeKey string
 	CLIVersion   string
-	ConfigDir    string
 	Enabled      bool
 }
 
@@ -39,6 +35,7 @@ func New(cfg Config) *Tracker {
 	ampConfig.ServerZone = "EU"
 	ampConfig.FlushQueueSize = 1
 	ampConfig.FlushInterval = 1 * time.Second
+	ampConfig.MinIDLength = 1
 	if !isDevVersion(cfg.CLIVersion) {
 		ampConfig.Logger = silentLogger{}
 	}
@@ -46,12 +43,41 @@ func New(cfg Config) *Tracker {
 	return &Tracker{
 		client:  amplitude.NewClient(ampConfig),
 		version: cfg.CLIVersion,
-		userID:  loadOrCreateAnonID(cfg.ConfigDir),
+		userID:  "cli",
 		enabled: true,
 	}
 }
 
-func (t *Tracker) Track(commandPath, status, errMsg string, durationMs int64) {
+// SetUserID converts a customer ID (e.g. "user_123", "team_456") to the
+// canonical Amplitude user_id format used by duneapi and core-node:
+//
+//	"user_123" → "123"
+//	"team_456" → "system_456"
+//
+// If not called, events are sent with UserID "anonymous".
+func (t *Tracker) SetUserID(id string) {
+	t.userID = toAmplitudeUserID(id)
+}
+
+// toAmplitudeUserID strips the customer-ID prefix so the Amplitude user_id
+// matches the format used by duneapi and core-node (MCP).
+//
+//	"user_123" → "123"
+//	"team_456" → "system_456"
+//	anything else is returned as-is.
+func toAmplitudeUserID(customerID string) string {
+	if after, ok := strings.CutPrefix(customerID, "team_"); ok {
+		return "system_" + after
+	}
+	if after, ok := strings.CutPrefix(customerID, "user_"); ok {
+		return after
+	}
+	return customerID
+}
+
+// Track sends a "CLI Command Executed" event to Amplitude.
+// Set isSim to true for commands under `dune sim`.
+func (t *Tracker) Track(commandPath, status, errMsg string, durationMs int64, isSim bool) {
 	if !t.enabled || t.client == nil {
 		return
 	}
@@ -69,6 +95,7 @@ func (t *Tracker) Track(commandPath, status, errMsg string, durationMs int64) {
 			"cli_version":   t.version,
 			"os":            runtime.GOOS,
 			"arch":          runtime.GOARCH,
+			"is_sim":        isSim,
 		},
 	})
 }
@@ -91,35 +118,3 @@ func (silentLogger) Debugf(string, ...interface{}) {}
 func (silentLogger) Infof(string, ...interface{})  {}
 func (silentLogger) Warnf(string, ...interface{})  {}
 func (silentLogger) Errorf(string, ...interface{}) {}
-
-const (
-	anonIDFile   = "anonymous_id"
-	anonFallback = "anonymous"
-)
-
-func loadOrCreateAnonID(configDir string) string {
-	if configDir == "" {
-		return anonFallback
-	}
-
-	path := filepath.Join(configDir, anonIDFile)
-
-	data, err := os.ReadFile(path)
-	if err == nil {
-		id := strings.TrimSpace(string(data))
-		if _, err := uuid.Parse(id); err == nil {
-			return id
-		}
-	}
-
-	id := uuid.New().String()
-
-	if err := os.MkdirAll(configDir, 0o755); err != nil {
-		return anonFallback
-	}
-	if err := os.WriteFile(path, []byte(id), 0o644); err != nil {
-		return anonFallback
-	}
-
-	return id
-}

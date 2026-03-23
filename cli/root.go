@@ -22,6 +22,7 @@ import (
 	"github.com/duneanalytics/cli/cmd/query"
 	"github.com/duneanalytics/cli/cmd/sim"
 	"github.com/duneanalytics/cli/cmd/usage"
+	"github.com/duneanalytics/cli/cmd/whoami"
 	"github.com/duneanalytics/cli/cmdutil"
 	"github.com/duneanalytics/cli/tracking"
 )
@@ -77,6 +78,13 @@ var rootCmd = &cobra.Command{
 		client := dune.NewDuneClient(env)
 		cmdutil.SetClient(cmd, client)
 
+		// Resolve customer identity for analytics (best-effort, never blocks the CLI).
+		if tr := cmdutil.TrackerFromCmd(cmd); tr != nil {
+			if customerID := resolveCustomerID(client, env.APIKey); customerID != "" {
+				tr.SetUserID(customerID)
+			}
+		}
+
 		return nil
 	},
 	PersistentPostRunE: func(cmd *cobra.Command, _ []string) error {
@@ -93,7 +101,8 @@ var rootCmd = &cobra.Command{
 			commandPath = parts[1]
 		}
 
-		tr.Track(commandPath, tracking.StatusSuccess, "", durationMs)
+		isSim := strings.HasPrefix(commandPath, "sim")
+		tr.Track(commandPath, tracking.StatusSuccess, "", durationMs, isSim)
 		return nil
 	},
 }
@@ -107,6 +116,7 @@ func init() {
 	rootCmd.AddCommand(query.NewQueryCmd())
 	rootCmd.AddCommand(execution.NewExecutionCmd())
 	rootCmd.AddCommand(usage.NewUsageCmd())
+	rootCmd.AddCommand(whoami.NewWhoAmICmd())
 	rootCmd.AddCommand(sim.NewSimCmd())
 }
 
@@ -115,11 +125,9 @@ func Execute(version, commit, date, amplitudeKey string) {
 	versionStr := fmt.Sprintf("%s (commit: %s, built: %s)", version, commit, date)
 
 	telemetryEnabled := duneconfig.IsTelemetryEnabled()
-	configDir, _ := authconfig.Dir()
 	tracker := tracking.New(tracking.Config{
 		AmplitudeKey: amplitudeKey,
 		CLIVersion:   version,
-		ConfigDir:    configDir,
 		Enabled:      telemetryEnabled,
 	})
 	defer tracker.Shutdown()
@@ -132,7 +140,8 @@ func Execute(version, commit, date, amplitudeKey string) {
 	); err != nil {
 		// Build best-effort command path from os.Args (strip flags).
 		commandPath := commandPathFromArgs(os.Args)
-		tracker.Track(commandPath, tracking.StatusError, err.Error(), 0)
+		isSim := strings.HasPrefix(commandPath, "sim")
+		tracker.Track(commandPath, tracking.StatusError, err.Error(), 0, isSim)
 		// Flush the event before exiting — os.Exit does not run deferred funcs,
 		// so defer tracker.Shutdown() above would never fire.
 		tracker.Shutdown()
@@ -140,6 +149,34 @@ func Execute(version, commit, date, amplitudeKey string) {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+// resolveCustomerID returns the customer_id associated with the given API key.
+// The customer_id may represent a user ("user_123") or a team ("team_456").
+// It uses a local cache to avoid calling /api/whoami on every invocation.
+// On any error it returns "" silently — analytics should never block the CLI.
+func resolveCustomerID(client dune.DuneClient, apiKey string) string {
+	keyHash := authconfig.HashAPIKey(apiKey)
+
+	// Try the cache first.
+	cached, err := authconfig.LoadIdentity()
+	if err == nil && cached != nil && cached.APIKeyHash == keyHash && cached.CustomerID != "" {
+		return cached.CustomerID
+	}
+
+	// Cache miss or stale — call the API.
+	resp, err := client.WhoAmI()
+	if err != nil || resp == nil || resp.CustomerID == "" {
+		return ""
+	}
+
+	// Persist for next time (best-effort).
+	_ = authconfig.SaveIdentity(&authconfig.UserIdentity{
+		CustomerID: resp.CustomerID,
+		APIKeyHash: keyHash,
+	})
+
+	return resp.CustomerID
 }
 
 // commandPathFromArgs extracts the subcommand path from os.Args, skipping
