@@ -21,11 +21,6 @@ func NewBalanceCmd() *cobra.Command {
 			"Both --token and --chain-ids are required. Use the literal string 'native'\n" +
 			"as the --token value to query the chain's native asset (e.g. ETH on Ethereum,\n" +
 			"MATIC on Polygon), or pass an ERC20 contract address.\n\n" +
-			"Response fields:\n" +
-			"  - chain, chain_id: network name and numeric ID\n" +
-			"  - address, symbol, name, decimals: token identity\n" +
-			"  - amount: raw balance (divide by 10^decimals for human-readable)\n" +
-			"  - price_usd, value_usd: current pricing and total value\n\n" +
 			"For multi-token or multi-chain lookups, use 'dune sim evm balances' instead.\n\n" +
 			"Examples:\n" +
 			"  dune sim evm balance 0xd8da... --token native --chain-ids 1\n" +

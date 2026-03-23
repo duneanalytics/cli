@@ -22,12 +22,9 @@ func NewTokenHoldersCmd() *cobra.Command {
 			"Both --chain-id (single numeric chain ID) and the token address argument are\n" +
 			"required. Unlike other sim evm commands that accept --chain-ids (plural),\n" +
 			"this command uses --chain-id (singular) and queries exactly one chain.\n\n" +
-			"Response fields per holder:\n" +
-			"  - wallet_address: holder's Ethereum address\n" +
-			"  - balance: raw token balance (divide by 10^decimals for human-readable)\n" +
-			"  - first_acquired: timestamp of the holder's earliest token acquisition\n" +
-			"  - has_initiated_transfer: whether the holder has ever sent tokens (useful\n" +
-			"    for distinguishing active holders from passive recipients/airdrops)\n\n" +
+			"Each holder entry includes the wallet address, token balance, earliest\n" +
+			"acquisition timestamp, and whether they have ever initiated an outgoing\n" +
+			"transfer (useful for distinguishing active holders from airdrop recipients).\n\n" +
 			"Results are paginated; use --offset with the next_offset value from a\n" +
 			"previous response to retrieve additional pages.\n\n" +
 			"Run 'dune sim evm supported-chains' to see which chains support token-holders.\n\n" +

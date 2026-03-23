@@ -26,14 +26,9 @@ func NewActivityCmd() *cobra.Command {
 			"  - approve: ERC20/ERC721 spending approvals\n" +
 			"  - call: contract interactions with decoded function name and inputs\n\n" +
 			"Asset types: native, erc20, erc721, erc1155.\n\n" +
-			"Response fields per activity item:\n" +
-			"  - chain_id, block_number, block_time, tx_hash: transaction context\n" +
-			"  - type: activity classification (send, receive, swap, etc.)\n" +
-			"  - asset_type: token standard (native, erc20, erc721, erc1155)\n" +
-			"  - value, value_usd: transfer amount and USD value at time of transaction\n" +
-			"  - token_metadata: symbol, decimals, name, logo, price_usd\n" +
-			"  - For swaps: from_token_*, to_token_* fields with both sides of the trade\n" +
-			"  - For calls: function signature, name, and decoded inputs\n\n" +
+			"Each activity item includes the transaction context, transfer amounts with\n" +
+			"USD values, and token metadata. Swap entries include both sides of the trade.\n" +
+			"Call entries include the decoded function name and inputs.\n\n" +
 			"By default, returns all activity types across all default chains.\n" +
 			"Run 'dune sim evm supported-chains' to see which chains support activity.\n\n" +
 			"For raw transaction data (hashes, gas, calldata), use 'dune sim evm transactions'.\n\n" +

@@ -31,16 +31,10 @@ func NewDefiPositionsCmd() *cobra.Command {
 			"  - UniswapV2: AMM liquidity provider positions (Uniswap V2 and forks)\n" +
 			"  - Nft: Uniswap V3 concentrated liquidity positions (NFT-based)\n" +
 			"  - NftV4: Uniswap V4 concentrated liquidity positions (NFT-based)\n\n" +
-			"Response fields per position:\n" +
-			"  - type: position type discriminator (see above)\n" +
-			"  - chain_id: numeric EVM chain ID\n" +
-			"  - usd_value: total USD value of the position\n" +
-			"  - protocol: protocol name (e.g. 'uniswap_v3', 'aave_v3')\n" +
-			"  - Type-specific fields: token symbols, underlying assets, pool info,\n" +
-			"    calculated balances, tick ranges (for concentrated liquidity)\n\n" +
-			"Aggregations (in JSON output):\n" +
-			"  - total_usd_value: sum of all position values\n" +
-			"  - total_by_chain: USD value grouped by chain ID\n\n" +
+			"Each position includes the chain, USD value, protocol name, and type-\n" +
+			"specific details (token identities, pool info, balances). The response\n" +
+			"also includes aggregation summaries with total value and per-chain\n" +
+			"breakdowns. Use -o json for the full structured response.\n\n" +
 			"Run 'dune sim evm supported-chains' to see which chains support defi-positions.\n\n" +
 			"Examples:\n" +
 			"  dune sim evm defi-positions 0xd8da6bf26964af9d7eed9e03e53415d37aa96045\n" +

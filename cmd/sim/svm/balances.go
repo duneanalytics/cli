@@ -16,21 +16,11 @@ func NewBalancesCmd() *cobra.Command {
 		Use:   "balances <address>",
 		Short: "Get SPL token balances for an SVM wallet address with USD valuations",
 		Long: "Return SPL token balances for the given SVM (Solana Virtual Machine) wallet\n" +
-			"address. Each balance entry includes the token amount, current USD price,\n" +
-			"and total USD value. Data comes from Dune's real-time index.\n\n" +
+			"address. Each balance entry includes the token identity, balance (both raw\n" +
+			"and human-readable), current USD price, total USD value, and liquidity data.\n" +
+			"Data comes from Dune's real-time index.\n\n" +
 			"Supported chains: Solana, Eclipse (default: Solana only).\n\n" +
 			"Note: This endpoint is in beta (served under /beta/svm/balances/*).\n\n" +
-			"Response fields per balance:\n" +
-			"  - chain: network name ('solana' or 'eclipse')\n" +
-			"  - address: SPL token mint address\n" +
-			"  - amount: raw token balance; balance: human-readable balance\n" +
-			"  - symbol, name: token identity\n" +
-			"  - decimals: token precision\n" +
-			"  - price_usd, value_usd: current pricing and total holding value\n" +
-			"  - liquidity_usd: USD liquidity depth of the pricing pool\n" +
-			"  - program_id: owning program (e.g. SPL Token program)\n" +
-			"  - total_supply: total token supply\n" +
-			"  - mint_authority: address authorized to mint new tokens\n\n" +
 			"Results are paginated; use --offset with the next_offset value from a\n" +
 			"previous response to retrieve additional pages.\n\n" +
 			"Examples:\n" +

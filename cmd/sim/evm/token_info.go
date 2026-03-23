@@ -19,14 +19,9 @@ func NewTokenInfoCmd() *cobra.Command {
 			"specified EVM chain. Use the literal string 'native' as the address to query\n" +
 			"the chain's native asset (e.g. ETH on chain 1, MATIC on chain 137).\n\n" +
 			"The --chain-ids flag is required and should specify a single chain ID.\n\n" +
-			"Response fields per token:\n" +
-			"  - chain, chain_id: network name and numeric ID\n" +
-			"  - symbol, name, decimals: token identity and precision\n" +
-			"  - price_usd: current USD price from on-chain DEX liquidity pools\n" +
-			"  - total_supply: total token supply (raw, divide by 10^decimals)\n" +
-			"  - market_cap: estimated market capitalization in USD\n" +
-			"  - logo: URL to the token's icon image\n" +
-			"  - historical_prices: past USD prices at requested hour offsets\n\n" +
+			"Returns the token identity, current USD price (from on-chain DEX pools),\n" +
+			"total supply, estimated market cap, and logo. Use --historical-prices to\n" +
+			"include past USD prices at specified hour offsets.\n\n" +
 			"This command is useful for looking up token details before querying\n" +
 			"balances or activity. For wallet-scoped token data, use\n" +
 			"'dune sim evm balances' or 'dune sim evm balance'.\n\n" +

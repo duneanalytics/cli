@@ -16,19 +16,10 @@ func NewCollectiblesCmd() *cobra.Command {
 		Use:   "collectibles <address>",
 		Short: "Get NFT collectibles (ERC721/ERC1155) held by a wallet address",
 		Long: "Return ERC721 and ERC1155 collectibles (NFTs) held by the given wallet\n" +
-			"address across supported EVM chains. Results include token metadata, images,\n" +
-			"and acquisition timestamps. Spam filtering is enabled by default to hide\n" +
+			"address across supported EVM chains. Each entry includes the collection and\n" +
+			"token identity, image URL, quantity held, acquisition timestamp, and spam\n" +
+			"classification when requested. Spam filtering is enabled by default to hide\n" +
 			"airdropped junk NFTs.\n\n" +
-			"Response fields per collectible:\n" +
-			"  - contract_address: NFT collection contract\n" +
-			"  - token_id: unique token identifier within the collection\n" +
-			"  - token_standard: 'erc721' or 'erc1155'\n" +
-			"  - chain, chain_id: network name and numeric ID\n" +
-			"  - name, symbol, description: collection metadata\n" +
-			"  - image_url: token image (may be IPFS, HTTP, or data URI)\n" +
-			"  - balance: quantity held (always '1' for ERC721, may be >1 for ERC1155)\n" +
-			"  - last_acquired: timestamp of most recent acquisition\n" +
-			"  - is_spam, spam_score: spam classification (visible with --show-spam-scores)\n\n" +
 			"Spam filtering uses a scoring model based on collection traits (holder count,\n" +
 			"transfer patterns, metadata quality). Disable with --filter-spam=false to see\n" +
 			"all NFTs including suspected spam.\n\n" +

@@ -16,15 +16,11 @@ func NewSupportedChainsCmd() *cobra.Command {
 		Use:   "supported-chains",
 		Short: "List supported EVM chains and their endpoint availability",
 		Long: "Display all EVM chains supported by the Sim API along with a capability\n" +
-			"matrix showing which endpoints are available for each chain.\n\n" +
+			"matrix showing which endpoints are available for each chain. Each chain\n" +
+			"entry includes the chain name, numeric ID, tags, and boolean flags\n" +
+			"indicating which Sim API endpoints are supported.\n\n" +
 			"This is a public endpoint and does not require a Sim API key.\n\n" +
-			"Response fields per chain:\n" +
-			"  - name: human-readable chain name (e.g. 'ethereum', 'base', 'arbitrum')\n" +
-			"  - chain_id: numeric EVM chain ID (e.g. 1, 8453, 42161)\n" +
-			"  - tags: grouping labels (e.g. 'default') usable in --chain-ids filters\n" +
-			"  - balances, activity, transactions, token_info, token_holders,\n" +
-			"    collectibles, defi_positions: boolean support flags per endpoint\n\n" +
-			"Use the chain_id values or tag names from this output as --chain-ids\n" +
+			"Use the chain IDs or tag names from this output as --chain-ids\n" +
 			"arguments in other 'dune sim evm' commands.\n\n" +
 			"Examples:\n" +
 			"  dune sim evm supported-chains\n" +

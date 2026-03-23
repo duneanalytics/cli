@@ -17,16 +17,9 @@ func NewBalancesCmd() *cobra.Command {
 		Use:   "balances <address>",
 		Short: "Get EVM token balances for a wallet address across multiple chains",
 		Long: "Return native and ERC20 token balances for the given wallet address across\n" +
-			"supported EVM chains. Each balance entry includes the token amount, current\n" +
-			"USD price, and total USD value. Data comes from Dune's real-time index.\n\n" +
-			"Response fields per balance:\n" +
-			"  - chain, chain_id: network name and numeric ID\n" +
-			"  - address: token contract address (or native asset identifier)\n" +
-			"  - symbol, name, decimals: token identity and precision\n" +
-			"  - amount: raw token balance (divide by 10^decimals for human-readable)\n" +
-			"  - price_usd, value_usd: current token price and total holding value\n" +
-			"  - low_liquidity: true if on-chain liquidity is thin (price may be unreliable)\n" +
-			"  - pool_size: USD liquidity depth of the pricing pool\n\n" +
+			"supported EVM chains. Each balance entry includes the token identity, raw\n" +
+			"balance amount, current USD price, total USD value, and liquidity indicators.\n" +
+			"Data comes from Dune's real-time index.\n\n" +
 			"By default, queries all chains tagged 'default'. Use --chain-ids to restrict\n" +
 			"to specific networks. Run 'dune sim evm supported-chains' to see valid IDs.\n\n" +
 			"For a single-token balance lookup, use 'dune sim evm balance' instead.\n" +

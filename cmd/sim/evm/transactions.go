@@ -16,16 +16,9 @@ func NewTransactionsCmd() *cobra.Command {
 		Use:   "transactions <address>",
 		Short: "Get raw EVM transaction history for a wallet address across chains",
 		Long: "Return raw transaction history for the given wallet address across supported\n" +
-			"EVM chains. Transactions are returned in reverse-chronological order.\n\n" +
-			"Response fields per transaction:\n" +
-			"  - chain: network name (e.g. 'ethereum', 'base')\n" +
-			"  - hash: transaction hash\n" +
-			"  - from, to: sender and recipient addresses\n" +
-			"  - value: native currency amount transferred (in wei)\n" +
-			"  - block_number, block_time: block context\n" +
-			"  - gas_price, max_fee_per_gas, max_priority_fee_per_gas: gas parameters\n" +
-			"  - transaction_type: EIP-2718 type (e.g. legacy, EIP-1559)\n" +
-			"  - data: raw calldata hex (available in JSON output)\n\n" +
+			"EVM chains. Transactions are returned in reverse-chronological order. Each\n" +
+			"transaction includes the hash, sender/recipient, value, block context, gas\n" +
+			"parameters, and raw calldata.\n\n" +
 			"Use --decode with -o json to include ABI-decoded function calls and event\n" +
 			"logs. Decoded data adds 'decoded' fields with function name and typed inputs,\n" +
 			"plus 'logs' with decoded event emissions. Note: --decode data is only visible\n" +
