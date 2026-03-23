@@ -91,6 +91,7 @@ main() {
         echo "" >&2
         log "Tip: Run 'npx skills add duneanalytics/skills' to install the Dune AI coding skill."
         log "Tip: Run 'dune auth' to authenticate with your Dune account."
+        log "Tip: Run 'dune sim auth' to access real-time blockchain data (balances, tokens, NFTs)."
     fi
 }
 
@@ -134,10 +135,38 @@ post_install() {
                 ;;
             *)
                 echo "" >&2
-                log "You'll need a Dune API key."
-                log "Go to https://dune.com and navigate to APIs and Connectors > API Keys."
+                log "You'll need a Dune API key. To create one:"
+                log "  1. Go to https://dune.com and login or create an account"
+                log "  2. Navigate to 'APIs & Connectors'"
+                log "  3. Click 'API Keys' and create a new key"
                 echo "" >&2
                 "$dune_bin" auth < /dev/tty || log "Authentication failed. You can retry with: dune auth"
+                ;;
+        esac
+    fi
+
+    echo "" >&2
+
+    # --- Sim API Authentication ---
+    if "$dune_bin" sim evm token-info native --chain-ids 1 > /dev/null 2>&1; then
+        log "Already authenticated with Sim API."
+    else
+        log "Authenticate with the Sim API to access real-time blockchain data"
+        log "(wallet balances, token prices, NFTs, DeFi positions, etc.)."
+        printf "  Authenticate with Sim API now? [Y/n] " >&2
+        read -r answer < /dev/tty || answer=""
+        case "$answer" in
+            [nN]*)
+                log "Skipped. You can authenticate later with: dune sim auth"
+                ;;
+            *)
+                echo "" >&2
+                log "You'll need a Sim API key. To create one:"
+                log "  1. Go to https://sim.dune.com/ and login or create an account"
+                log "  2. Click 'Keys'"
+                log "  3. Click 'New' to create a new API key"
+                echo "" >&2
+                "$dune_bin" sim auth < /dev/tty || log "Authentication failed. You can retry with: dune sim auth"
                 ;;
         esac
     fi
