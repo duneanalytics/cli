@@ -14,22 +14,40 @@ import (
 func NewCollectiblesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "collectibles <address>",
-		Short: "Get NFT collectibles for a wallet address",
-		Long: "Return ERC721 and ERC1155 collectibles (NFTs) held by the given wallet address\n" +
-			"across supported EVM chains. Spam filtering is enabled by default.\n\n" +
+		Short: "Get NFT collectibles (ERC721/ERC1155) held by a wallet address",
+		Long: "Return ERC721 and ERC1155 collectibles (NFTs) held by the given wallet\n" +
+			"address across supported EVM chains. Results include token metadata, images,\n" +
+			"and acquisition timestamps. Spam filtering is enabled by default to hide\n" +
+			"airdropped junk NFTs.\n\n" +
+			"Response fields per collectible:\n" +
+			"  - contract_address: NFT collection contract\n" +
+			"  - token_id: unique token identifier within the collection\n" +
+			"  - token_standard: 'erc721' or 'erc1155'\n" +
+			"  - chain, chain_id: network name and numeric ID\n" +
+			"  - name, symbol, description: collection metadata\n" +
+			"  - image_url: token image (may be IPFS, HTTP, or data URI)\n" +
+			"  - balance: quantity held (always '1' for ERC721, may be >1 for ERC1155)\n" +
+			"  - last_acquired: timestamp of most recent acquisition\n" +
+			"  - is_spam, spam_score: spam classification (visible with --show-spam-scores)\n\n" +
+			"Spam filtering uses a scoring model based on collection traits (holder count,\n" +
+			"transfer patterns, metadata quality). Disable with --filter-spam=false to see\n" +
+			"all NFTs including suspected spam.\n\n" +
+			"By default, queries all chains tagged 'default'. Run 'dune sim evm\n" +
+			"supported-chains' to see which chains support collectibles.\n\n" +
 			"Examples:\n" +
 			"  dune sim evm collectibles 0xd8da6bf26964af9d7eed9e03e53415d37aa96045\n" +
 			"  dune sim evm collectibles 0xd8da... --chain-ids 1\n" +
-			"  dune sim evm collectibles 0xd8da... --filter-spam=false --show-spam-scores -o json",
+			"  dune sim evm collectibles 0xd8da... --filter-spam=false --show-spam-scores -o json\n" +
+			"  dune sim evm collectibles 0xd8da... --limit 100 -o json",
 		Args: cobra.ExactArgs(1),
 		RunE: runCollectibles,
 	}
 
-	cmd.Flags().String("chain-ids", "", "Comma-separated chain IDs or tags (default: all default chains)")
-	cmd.Flags().Bool("filter-spam", true, "Hide collectibles identified as spam")
-	cmd.Flags().Bool("show-spam-scores", false, "Include spam scoring details")
-	cmd.Flags().Int("limit", 0, "Max results per page (1-2500, default 250)")
-	cmd.Flags().String("offset", "", "Pagination cursor from previous response")
+	cmd.Flags().String("chain-ids", "", "Restrict to specific chains by numeric ID or tag name (comma-separated, e.g. '1,8453' or 'default'); defaults to all chains tagged 'default'")
+	cmd.Flags().Bool("filter-spam", true, "Hide collectibles identified as spam by the scoring model (default: true); set --filter-spam=false to include all NFTs")
+	cmd.Flags().Bool("show-spam-scores", false, "Include spam classification details in the response: is_spam flag, numeric spam_score, and per-feature explanations with weights")
+	cmd.Flags().Int("limit", 0, "Maximum number of collectibles to return per page (1-2500, default: 250)")
+	cmd.Flags().String("offset", "", "Pagination cursor returned as next_offset in a previous response; use to fetch the next page of results")
 	output.AddFormatFlag(cmd, "text")
 
 	return cmd

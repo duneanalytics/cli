@@ -14,9 +14,25 @@ import (
 func NewBalancesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "balances <address>",
-		Short: "Get SVM token balances for a wallet address",
-		Long: "Return token balances for the given SVM wallet address across\n" +
-			"Solana and Eclipse chains, including USD valuations.\n\n" +
+		Short: "Get SPL token balances for an SVM wallet address with USD valuations",
+		Long: "Return SPL token balances for the given SVM (Solana Virtual Machine) wallet\n" +
+			"address. Each balance entry includes the token amount, current USD price,\n" +
+			"and total USD value. Data comes from Dune's real-time index.\n\n" +
+			"Supported chains: Solana, Eclipse (default: Solana only).\n\n" +
+			"Note: This endpoint is in beta (served under /beta/svm/balances/*).\n\n" +
+			"Response fields per balance:\n" +
+			"  - chain: network name ('solana' or 'eclipse')\n" +
+			"  - address: SPL token mint address\n" +
+			"  - amount: raw token balance; balance: human-readable balance\n" +
+			"  - symbol, name: token identity\n" +
+			"  - decimals: token precision\n" +
+			"  - price_usd, value_usd: current pricing and total holding value\n" +
+			"  - liquidity_usd: USD liquidity depth of the pricing pool\n" +
+			"  - program_id: owning program (e.g. SPL Token program)\n" +
+			"  - total_supply: total token supply\n" +
+			"  - mint_authority: address authorized to mint new tokens\n\n" +
+			"Results are paginated; use --offset with the next_offset value from a\n" +
+			"previous response to retrieve additional pages.\n\n" +
 			"Examples:\n" +
 			"  dune sim svm balances 86xCnPeV69n6t3DnyGvkKobf9FdN2H9oiVDdaMpo2MMY\n" +
 			"  dune sim svm balances 86xCnPeV... --chains solana,eclipse\n" +
@@ -25,9 +41,9 @@ func NewBalancesCmd() *cobra.Command {
 		RunE: runBalances,
 	}
 
-	cmd.Flags().String("chains", "", "Comma-separated chains: solana, eclipse (default: solana)")
-	cmd.Flags().Int("limit", 0, "Max results (1-1000, default 1000)")
-	cmd.Flags().String("offset", "", "Pagination cursor from previous response")
+	cmd.Flags().String("chains", "", "Restrict to specific SVM chains (comma-separated): 'solana', 'eclipse' (default: solana only)")
+	cmd.Flags().Int("limit", 0, "Maximum number of balance entries to return per page (1-1000, default: 1000)")
+	cmd.Flags().String("offset", "", "Pagination cursor returned as next_offset in a previous response; use to fetch the next page of results")
 	output.AddFormatFlag(cmd, "text")
 
 	return cmd

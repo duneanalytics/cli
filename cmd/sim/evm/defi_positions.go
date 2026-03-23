@@ -18,11 +18,30 @@ import (
 func NewDefiPositionsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "defi-positions <address>",
-		Short: "Get DeFi positions for a wallet address",
-		Long: "Return DeFi positions for the given wallet address including USD values,\n" +
-			"position-specific metadata, and aggregation summaries across supported protocols.\n\n" +
-			"Supported position types: Erc4626 (vaults), Tokenized (lending, e.g. aTokens),\n" +
-			"UniswapV2 (AMM LP), Nft (Uniswap V3 NFT), NftV4 (Uniswap V4 NFT).\n\n" +
+		Short: "Get DeFi positions (lending, LPs, vaults) for a wallet address",
+		Long: "Return DeFi positions for the given wallet address across supported EVM\n" +
+			"chains and protocols. Each position includes USD valuation and protocol-\n" +
+			"specific metadata. The response also includes aggregation summaries with\n" +
+			"total USD value and per-chain breakdowns.\n\n" +
+			"Note: This endpoint is in beta (served under /beta/evm/defi/positions/*).\n\n" +
+			"Supported position types:\n" +
+			"  - Erc4626: ERC-4626 vault positions (e.g. yield vaults, staking wrappers)\n" +
+			"  - Tokenized: lending protocol positions with receipt tokens (e.g. Aave\n" +
+			"    aTokens, Compound cTokens)\n" +
+			"  - UniswapV2: AMM liquidity provider positions (Uniswap V2 and forks)\n" +
+			"  - Nft: Uniswap V3 concentrated liquidity positions (NFT-based)\n" +
+			"  - NftV4: Uniswap V4 concentrated liquidity positions (NFT-based)\n\n" +
+			"Response fields per position:\n" +
+			"  - type: position type discriminator (see above)\n" +
+			"  - chain_id: numeric EVM chain ID\n" +
+			"  - usd_value: total USD value of the position\n" +
+			"  - protocol: protocol name (e.g. 'uniswap_v3', 'aave_v3')\n" +
+			"  - Type-specific fields: token symbols, underlying assets, pool info,\n" +
+			"    calculated balances, tick ranges (for concentrated liquidity)\n\n" +
+			"Aggregations (in JSON output):\n" +
+			"  - total_usd_value: sum of all position values\n" +
+			"  - total_by_chain: USD value grouped by chain ID\n\n" +
+			"Run 'dune sim evm supported-chains' to see which chains support defi-positions.\n\n" +
 			"Examples:\n" +
 			"  dune sim evm defi-positions 0xd8da6bf26964af9d7eed9e03e53415d37aa96045\n" +
 			"  dune sim evm defi-positions 0xd8da... --chain-ids 1,8453\n" +
@@ -31,7 +50,7 @@ func NewDefiPositionsCmd() *cobra.Command {
 		RunE: runDefiPositions,
 	}
 
-	cmd.Flags().String("chain-ids", "", "Comma-separated chain IDs or tags (default: all default chains)")
+	cmd.Flags().String("chain-ids", "", "Restrict to specific chains by numeric ID or tag name (comma-separated, e.g. '1,8453' or 'default'); defaults to all chains tagged 'default'")
 	output.AddFormatFlag(cmd, "text")
 
 	return cmd

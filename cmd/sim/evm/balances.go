@@ -15,19 +15,35 @@ import (
 func NewBalancesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "balances <address>",
-		Short: "Get EVM token balances for a wallet address",
-		Long: "Return native and ERC20 token balances for the given wallet address\n" +
-			"across supported EVM chains, including USD valuations.\n\n" +
+		Short: "Get EVM token balances for a wallet address across multiple chains",
+		Long: "Return native and ERC20 token balances for the given wallet address across\n" +
+			"supported EVM chains. Each balance entry includes the token amount, current\n" +
+			"USD price, and total USD value. Data comes from Dune's real-time index.\n\n" +
+			"Response fields per balance:\n" +
+			"  - chain, chain_id: network name and numeric ID\n" +
+			"  - address: token contract address (or native asset identifier)\n" +
+			"  - symbol, name, decimals: token identity and precision\n" +
+			"  - amount: raw token balance (divide by 10^decimals for human-readable)\n" +
+			"  - price_usd, value_usd: current token price and total holding value\n" +
+			"  - low_liquidity: true if on-chain liquidity is thin (price may be unreliable)\n" +
+			"  - pool_size: USD liquidity depth of the pricing pool\n\n" +
+			"By default, queries all chains tagged 'default'. Use --chain-ids to restrict\n" +
+			"to specific networks. Run 'dune sim evm supported-chains' to see valid IDs.\n\n" +
+			"For a single-token balance lookup, use 'dune sim evm balance' instead.\n" +
+			"For stablecoin-only balances, use 'dune sim evm stablecoins'.\n\n" +
+			"Results are paginated; use --offset with the next_offset value from a\n" +
+			"previous response to retrieve additional pages.\n\n" +
 			"Examples:\n" +
 			"  dune sim evm balances 0xd8da6bf26964af9d7eed9e03e53415d37aa96045\n" +
 			"  dune sim evm balances 0xd8da... --chain-ids 1,8453 --exclude-spam\n" +
-			"  dune sim evm balances 0xd8da... --historical-prices 168 -o json",
+			"  dune sim evm balances 0xd8da... --filters erc20 --metadata logo,url\n" +
+			"  dune sim evm balances 0xd8da... --historical-prices 720,168,24 -o json",
 		Args: cobra.ExactArgs(1),
 		RunE: runBalances,
 	}
 
 	addBalanceFlags(cmd)
-	cmd.Flags().String("asset-class", "", "Asset class filter: stablecoin")
+	cmd.Flags().String("asset-class", "", "Filter by asset classification: 'stablecoin' (returns only stablecoins like USDC, USDT, DAI); prefer 'dune sim evm stablecoins' as a shorthand")
 
 	return cmd
 }
@@ -103,13 +119,13 @@ func runBalances(cmd *cobra.Command, args []string) error {
 // addBalanceFlags registers the common flags shared by the balances and
 // stablecoins commands.
 func addBalanceFlags(cmd *cobra.Command) {
-	cmd.Flags().String("chain-ids", "", "Comma-separated chain IDs or tags (default: all default chains)")
-	cmd.Flags().String("filters", "", "Token filter: erc20 or native")
-	cmd.Flags().String("metadata", "", "Extra metadata fields: logo,url,pools")
-	cmd.Flags().Bool("exclude-spam", false, "Exclude tokens with <100 USD liquidity")
-	cmd.Flags().String("historical-prices", "", "Hour offsets for historical prices (e.g. 720,168,24)")
-	cmd.Flags().Int("limit", 0, "Max results (1-1000)")
-	cmd.Flags().String("offset", "", "Pagination cursor from previous response")
+	cmd.Flags().String("chain-ids", "", "Restrict to specific chains by numeric ID or tag name (comma-separated, e.g. '1,8453' or 'default'); defaults to all chains tagged 'default'. Run 'dune sim evm supported-chains' for valid values")
+	cmd.Flags().String("filters", "", "Filter by token standard: 'erc20' (only ERC20 tokens) or 'native' (only native chain assets like ETH)")
+	cmd.Flags().String("metadata", "", "Request additional metadata fields in the response (comma-separated): 'logo' (token icon URL), 'url' (project website), 'pools' (liquidity pool details)")
+	cmd.Flags().Bool("exclude-spam", false, "Exclude low-liquidity tokens (less than $100 USD pool size) commonly associated with spam airdrops")
+	cmd.Flags().String("historical-prices", "", "Include historical USD prices at the specified hour offsets from now (comma-separated, e.g. '720,168,24' for 30d, 7d, 1d ago)")
+	cmd.Flags().Int("limit", 0, "Maximum number of balance entries to return per page (1-1000, default: server-determined)")
+	cmd.Flags().String("offset", "", "Pagination cursor returned as next_offset in a previous response; use to fetch the next page of results")
 	output.AddFormatFlag(cmd, "text")
 }
 

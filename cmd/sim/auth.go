@@ -15,13 +15,24 @@ import (
 func NewAuthCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "auth",
-		Short: "Authenticate with the Sim API",
-		Long: "Save your Sim API key so you don't need to pass --sim-api-key or set DUNE_SIM_API_KEY every time.",
+		Short: "Save your Sim API key to the local configuration file",
+		Long: "Persist your Sim API key to ~/.config/dune/config.yaml so subsequent\n" +
+			"'dune sim' commands authenticate automatically without requiring\n" +
+			"--sim-api-key or the DUNE_SIM_API_KEY environment variable.\n\n" +
+			"The key can be provided via:\n" +
+			"  1. --api-key flag\n" +
+			"  2. DUNE_SIM_API_KEY environment variable\n" +
+			"  3. Interactive prompt (if neither of the above is set)\n\n" +
+			"The saved key is used as the lowest-priority fallback; --sim-api-key and\n" +
+			"DUNE_SIM_API_KEY always take precedence when set.\n\n" +
+			"Examples:\n" +
+			"  dune sim auth\n" +
+			"  dune sim auth --api-key sim_abc123...",
 		Annotations: map[string]string{"skipSimAuth": "true"},
 		RunE:        runSimAuth,
 	}
 
-	cmd.Flags().String("api-key", "", "Sim API key to save")
+	cmd.Flags().String("api-key", "", "Sim API key to save (prefixed 'sim_'); if omitted, reads from DUNE_SIM_API_KEY or prompts interactively")
 
 	return cmd
 }
