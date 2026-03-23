@@ -46,7 +46,7 @@ type defiPositionsResponse struct {
 }
 
 type defiAggregations struct {
-	TotalUSDValue float64            `json:"total_value_usd"`
+	TotalValueUSD float64            `json:"total_value_usd"`
 	TotalByChain  map[string]float64 `json:"total_by_chain,omitempty"`
 }
 
@@ -71,11 +71,11 @@ type nftTokenDetails struct {
 // defiPosition matches the polymorphic DefiPosition schema returned by the API.
 // Fields are optional depending on the `type` discriminator.
 type defiPosition struct {
-	Type    string  `json:"type"`
-	Chain   string  `json:"chain,omitempty"`
-	ChainID int64   `json:"chain_id"`
-	USDVal  float64 `json:"value_usd"`
-	Logo    *string `json:"logo,omitempty"`
+	Type     string  `json:"type"`
+	Chain    string  `json:"chain,omitempty"`
+	ChainID  int64   `json:"chain_id"`
+	ValueUSD float64 `json:"value_usd"`
+	Logo     *string `json:"logo,omitempty"`
 
 	// Erc4626 / Tokenized fields
 	TokenType       string         `json:"token_type,omitempty"`
@@ -153,7 +153,7 @@ func runDefiPositions(cmd *cobra.Command, args []string) error {
 				p.Type,
 				fmt.Sprintf("%d", p.ChainID),
 				p.Protocol,
-				output.FormatUSD(p.USDVal),
+				output.FormatUSD(p.ValueUSD),
 				positionDetails(p),
 			}
 		}
@@ -244,7 +244,7 @@ func printAggregations(w io.Writer, agg *defiAggregations) {
 		return
 	}
 
-	fmt.Fprintf(w, "\nTotal USD Value: %s\n", output.FormatUSD(agg.TotalUSDValue))
+	fmt.Fprintf(w, "\nTotal USD Value: %s\n", output.FormatUSD(agg.TotalValueUSD))
 
 	if len(agg.TotalByChain) > 0 {
 		fmt.Fprintln(w, "Breakdown by chain:")

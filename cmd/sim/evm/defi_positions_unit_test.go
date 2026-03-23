@@ -24,7 +24,7 @@ func TestUnmarshal_FullAPIResponse(t *testing.T) {
 	assert.Equal(t, "Erc4626", erc.Type)
 	assert.Equal(t, "ethereum", erc.Chain)
 	assert.Equal(t, int64(1), erc.ChainID)
-	assert.InDelta(t, 46.998, erc.USDVal, 0.01)
+	assert.InDelta(t, 46.998, erc.ValueUSD, 0.01)
 	assert.InDelta(t, 43.0917, erc.Balance, 0.001)
 	assert.InDelta(t, 1.0906, erc.PriceUSD, 0.001)
 	require.NotNil(t, erc.Logo)
@@ -49,7 +49,7 @@ func TestUnmarshal_FullAPIResponse(t *testing.T) {
 	assert.Equal(t, "0x7d2768de32b0b80b7a3454c06bdac94a69ddc7a9", tok.LendingPool)
 	assert.InDelta(t, 0.04961, tok.Balance, 0.0001)
 	assert.InDelta(t, 2257.72, tok.PriceUSD, 0.01)
-	assert.InDelta(t, 112.02, tok.USDVal, 0.01)
+	assert.InDelta(t, 112.02, tok.ValueUSD, 0.01)
 	require.NotNil(t, tok.Token)
 	assert.Equal(t, "aWETH", tok.Token.Symbol)
 	assert.Equal(t, "Aave interest bearing WETH", tok.Token.Name)
@@ -88,7 +88,7 @@ func TestUnmarshal_FullAPIResponse(t *testing.T) {
 	assert.Equal(t, "WETH", nft.Token0.Symbol)
 	require.NotNil(t, nft.Token1)
 	assert.Equal(t, "Mierda", nft.Token1.Symbol)
-	assert.InDelta(t, 0.4365, nft.USDVal, 0.001)
+	assert.InDelta(t, 0.4365, nft.ValueUSD, 0.001)
 	// NFT position details
 	require.Len(t, nft.Positions, 1)
 	nftPos := nft.Positions[0]
@@ -116,7 +116,7 @@ func TestUnmarshal_FullAPIResponse(t *testing.T) {
 	assert.Equal(t, "0x0000000000000000000000000000000000000000", nft4.Token0.Address)
 	require.NotNil(t, nft4.Token1)
 	assert.Equal(t, "GoGo", nft4.Token1.Symbol)
-	assert.InDelta(t, 0.5668, nft4.USDVal, 0.001)
+	assert.InDelta(t, 0.5668, nft4.ValueUSD, 0.001)
 	require.Len(t, nft4.Positions, 1)
 	nft4Pos := nft4.Positions[0]
 	assert.Equal(t, -184220, nft4Pos.TickLower)
@@ -128,7 +128,7 @@ func TestUnmarshal_FullAPIResponse(t *testing.T) {
 
 	// --- Aggregations ---
 	require.NotNil(t, resp.Aggregations)
-	assert.InDelta(t, 6153.43, resp.Aggregations.TotalUSDValue, 0.01)
+	assert.InDelta(t, 6153.43, resp.Aggregations.TotalValueUSD, 0.01)
 	assert.Len(t, resp.Aggregations.TotalByChain, 3)
 	assert.InDelta(t, 4206.86, resp.Aggregations.TotalByChain["1"], 0.01)
 	assert.InDelta(t, 1946.55, resp.Aggregations.TotalByChain["8453"], 0.01)
