@@ -89,7 +89,7 @@ main() {
         echo "" >&2
         log "Dune CLI ${version} installed successfully!"
         echo "" >&2
-        log "Tip: Run 'npx skills add duneanalytics/skills' to install the Dune AI coding skill."
+        log "Tip: Run 'npx skills add duneanalytics/skills' to install Dune AI skills."
         log "Tip: Run 'dune auth' to authenticate with your Dune account."
         log "Tip: Run 'dune sim auth' to access real-time blockchain data (balances, tokens, NFTs)."
     fi
@@ -102,21 +102,21 @@ post_install() {
 
     # --- Skill install ---
     if has npx; then
-        log "The Dune skill lets AI coding agents (Cursor, Claude Code, etc.) query"
-        log "blockchain data on your behalf."
-        printf "  Install Dune skill for your AI coding agent? [Y/n] " >&2
+        log "Dune skills let AI agents (Cursor, Claude Code, etc.) query"
+        log "blockchain data and access real-time wallet/token info on your behalf."
+        printf "  Install Dune skills for your AI coding agent? [Y/n] " >&2
         read -r answer < /dev/tty || answer=""
         case "$answer" in
             [nN]*)
-                log "Skipped. You can install it later with: npx skills add duneanalytics/skills"
+                log "Skipped. You can install them later with: npx skills add duneanalytics/skills"
                 ;;
             *)
-                log "Installing Dune skill..."
-                npx skills add duneanalytics/skills < /dev/tty || log "Skill installation failed. You can retry with: npx skills add duneanalytics/skills"
+                log "Installing Dune skills..."
+                npx skills add duneanalytics/skills --skill '*' < /dev/tty || log "Skill installation failed. You can retry with: npx skills add duneanalytics/skills"
                 ;;
         esac
     else
-        log "Tip: Run 'npx skills add duneanalytics/skills' to install the Dune AI coding skill."
+        log "Tip: Run 'npx skills add duneanalytics/skills' to install Dune AI skills."
         log "(requires Node.js / npx)"
     fi
 
