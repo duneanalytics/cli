@@ -14,21 +14,26 @@ import (
 func NewBalanceCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "balance <wallet_address>",
-		Short: "Get balance for a single token",
-		Long: "Return the balance of a single token for the given wallet address on one chain.\n" +
-			"Use \"native\" as the --token value to query the native asset (e.g. ETH).\n\n" +
+		Short: "Get the balance of a single token for a wallet on one chain",
+		Long: "Return the balance of a specific token for the given wallet address on a\n" +
+			"single EVM chain. This is a targeted lookup that returns exactly one balance\n" +
+			"entry, unlike 'dune sim evm balances' which returns all tokens across chains.\n\n" +
+			"Both --token and --chain-ids are required. Use the literal string 'native'\n" +
+			"as the --token value to query the chain's native asset (e.g. ETH on Ethereum,\n" +
+			"MATIC on Polygon), or pass an ERC20 contract address.\n\n" +
+			"For multi-token or multi-chain lookups, use 'dune sim evm balances' instead.\n\n" +
 			"Examples:\n" +
 			"  dune sim evm balance 0xd8da... --token native --chain-ids 1\n" +
-			"  dune sim evm balance 0xd8da... --token 0xa0b8...eb48 --chain-ids 8453\n" +
-			"  dune sim evm balance 0xd8da... --token native --chain-ids 1 -o json",
+			"  dune sim evm balance 0xd8da... --token 0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48 --chain-ids 8453\n" +
+			"  dune sim evm balance 0xd8da... --token native --chain-ids 1 --historical-prices 168,24 -o json",
 		Args: cobra.ExactArgs(1),
 		RunE: runBalance,
 	}
 
-	cmd.Flags().String("token", "", "Token contract address or \"native\" (required)")
-	cmd.Flags().String("chain-ids", "", "Chain ID (required)")
-	cmd.Flags().String("metadata", "", "Extra metadata fields: logo,url,pools")
-	cmd.Flags().String("historical-prices", "", "Hour offsets for historical prices (e.g. 720,168,24)")
+	cmd.Flags().String("token", "", "Token to query: an ERC20 contract address (0x...) or the literal string 'native' for the chain's native asset (required)")
+	cmd.Flags().String("chain-ids", "", "Numeric EVM chain ID to query (required, single value, e.g. '1' for Ethereum, '8453' for Base)")
+	cmd.Flags().String("metadata", "", "Request additional metadata fields in the response (comma-separated): 'logo' (token icon URL), 'url' (project website), 'pools' (liquidity pool details)")
+	cmd.Flags().String("historical-prices", "", "Include historical USD prices at the specified hour offsets from now (comma-separated, e.g. '720,168,24' for 30d, 7d, 1d ago)")
 	_ = cmd.MarkFlagRequired("token")
 	_ = cmd.MarkFlagRequired("chain-ids")
 	output.AddFormatFlag(cmd, "text")

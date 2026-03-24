@@ -15,9 +15,14 @@ import (
 func NewTransactionsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "transactions <address>",
-		Short: "Get SVM transactions for a wallet address",
-		Long: "Return transactions for the given SVM wallet address.\n" +
-			"Raw transaction data is available in JSON output.\n\n" +
+		Short: "Get Solana transaction history for an SVM wallet address",
+		Long: "Return transaction history for the given SVM (Solana Virtual Machine) wallet\n" +
+			"address. Transactions are returned in reverse-chronological order by block slot.\n" +
+			"Each entry includes the chain, block slot, block time, and in JSON output the\n" +
+			"full raw Solana transaction with signatures, instructions, and account keys.\n\n" +
+			"Note: This endpoint is in beta (served under /beta/svm/transactions/*).\n\n" +
+			"Results are paginated; use --offset with the next_offset value from a\n" +
+			"previous response to retrieve additional pages.\n\n" +
 			"Examples:\n" +
 			"  dune sim svm transactions 86xCnPeV69n6t3DnyGvkKobf9FdN2H9oiVDdaMpo2MMY\n" +
 			"  dune sim svm transactions 86xCnPeV... --limit 20\n" +
@@ -26,8 +31,8 @@ func NewTransactionsCmd() *cobra.Command {
 		RunE: runTransactions,
 	}
 
-	cmd.Flags().Int("limit", 0, "Max results (1-1000, default 100)")
-	cmd.Flags().String("offset", "", "Pagination cursor from previous response")
+	cmd.Flags().Int("limit", 0, "Maximum number of transactions to return per page (1-1000, default: 100)")
+	cmd.Flags().String("offset", "", "Pagination cursor returned as next_offset in a previous response; use to fetch the next page of results")
 	output.AddFormatFlag(cmd, "text")
 
 	return cmd

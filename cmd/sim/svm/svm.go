@@ -42,9 +42,15 @@ func requireSimClient(cmd *cobra.Command) (SimClient, error) {
 func NewSvmCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "svm",
-		Short: "Query SVM chain data (balances, transactions)",
-		Long: "Access real-time SVM blockchain data including token balances and\n" +
-			"transaction history for Solana and Eclipse chains.",
+		Short: "Query SVM chain data (Solana, Eclipse) for balances and transactions",
+		Long: "Access real-time, indexed SVM (Solana Virtual Machine) blockchain data.\n" +
+			"Commands accept a Solana-style base58 wallet address as the primary argument.\n\n" +
+			"Supported chains: Solana, Eclipse.\n\n" +
+			"Available subcommands:\n" +
+			"  balances     - SPL token balances with USD valuations and liquidity data\n" +
+			"  transactions - Raw transaction history with block slot and signature\n\n" +
+			"Note: SVM endpoints are currently in beta (served under /beta/svm/*).\n" +
+			"All commands require a Sim API key.",
 	}
 
 	cmd.AddCommand(NewBalancesCmd())

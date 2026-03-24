@@ -20,18 +20,33 @@ var simAPIKeyFlag string
 func NewSimCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sim",
-		Short: "Query real-time blockchain data via the Sim API",
-		Long: "Access real-time blockchain data including balances, activity, transactions,\n" +
-			"collectibles, token info, token holders, and DeFi positions across EVM and SVM chains.\n\n" +
-			"Authenticate with a Sim API key via --sim-api-key, the DUNE_SIM_API_KEY environment\n" +
-			"variable, or by running `dune sim auth`.",
+		Short: "Query real-time blockchain data via the Dune Sim API",
+		Long: "Access real-time, indexed blockchain data through the Dune Sim API. Unlike\n" +
+			"'dune query run' which executes SQL against historical data warehouses, Sim API\n" +
+			"endpoints return pre-indexed, low-latency responses for common wallet and token\n" +
+			"lookups.\n\n" +
+			"Available subcommands:\n" +
+			"  evm  - Query EVM chains: balances, activity, transactions, collectibles,\n" +
+			"         token-info, token-holders, defi-positions, supported-chains\n" +
+			"  svm  - Query SVM chains (Solana, Eclipse): balances, transactions\n" +
+			"  auth - Save your Sim API key to the local config file\n\n" +
+			"Authentication:\n" +
+			"  Most commands require a Sim API key. The key is resolved in priority order:\n" +
+			"  1. --sim-api-key flag\n" +
+			"  2. DUNE_SIM_API_KEY environment variable\n" +
+			"  3. Saved key in ~/.config/dune/config.yaml (set via 'dune sim auth')\n\n" +
+			"  Exception: 'dune sim evm supported-chains' is a public endpoint and does\n" +
+			"  not require authentication.\n\n" +
+			"Each API call consumes compute units based on the number of chains queried\n" +
+			"and the complexity of the request. Use -o json on any command to get the\n" +
+			"full structured response for programmatic consumption.",
 		Annotations:       map[string]string{"skipAuth": "true"},
 		PersistentPreRunE: simPreRun,
 	}
 
 	cmd.PersistentFlags().StringVar(
 		&simAPIKeyFlag, "sim-api-key", "",
-		"Sim API key (overrides DUNE_SIM_API_KEY env var)",
+		"Sim API key for authentication (overrides DUNE_SIM_API_KEY env var and saved config); keys are prefixed 'sim_'",
 	)
 
 	cmd.AddCommand(NewAuthCmd())

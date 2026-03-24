@@ -15,9 +15,19 @@ import (
 func NewTokenHoldersCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "token-holders <token_address>",
-		Short: "Get token holders ranked by balance",
-		Long: "Return a list of holders for a given ERC20 token contract on a specified chain,\n" +
-			"ranked by balance descending.\n\n" +
+		Short: "Get the top holders of an ERC20 token ranked by balance",
+		Long: "Return a leaderboard of holders for a given ERC20 token contract on a single\n" +
+			"EVM chain, ranked by balance in descending order. Useful for analyzing token\n" +
+			"distribution, identifying whales, and checking concentration.\n\n" +
+			"Both --chain-id (single numeric chain ID) and the token address argument are\n" +
+			"required. Unlike other sim evm commands that accept --chain-ids (plural),\n" +
+			"this command uses --chain-id (singular) and queries exactly one chain.\n\n" +
+			"Each holder entry includes the wallet address, token balance, earliest\n" +
+			"acquisition timestamp, and whether they have ever initiated an outgoing\n" +
+			"transfer (useful for distinguishing active holders from airdrop recipients).\n\n" +
+			"Results are paginated; use --offset with the next_offset value from a\n" +
+			"previous response to retrieve additional pages.\n\n" +
+			"Run 'dune sim evm supported-chains' to see which chains support token-holders.\n\n" +
 			"Examples:\n" +
 			"  dune sim evm token-holders 0x63706e401c06ac8513145b7687A14804d17f814b --chain-id 8453\n" +
 			"  dune sim evm token-holders 0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48 --chain-id 1 --limit 50\n" +
@@ -26,9 +36,9 @@ func NewTokenHoldersCmd() *cobra.Command {
 		RunE: runTokenHolders,
 	}
 
-	cmd.Flags().String("chain-id", "", "Numeric chain ID (required)")
-	cmd.Flags().Int("limit", 0, "Max results (1-500, default 500)")
-	cmd.Flags().String("offset", "", "Pagination cursor from previous response")
+	cmd.Flags().String("chain-id", "", "Numeric EVM chain ID to query (required, single value, e.g. '1' for Ethereum, '8453' for Base); note: singular --chain-id, not --chain-ids")
+	cmd.Flags().Int("limit", 0, "Maximum number of holders to return per page (1-500, default: 500)")
+	cmd.Flags().String("offset", "", "Pagination cursor returned as next_offset in a previous response; use to fetch the next page of results")
 	_ = cmd.MarkFlagRequired("chain-id")
 	output.AddFormatFlag(cmd, "text")
 

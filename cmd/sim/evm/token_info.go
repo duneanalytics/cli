@@ -14,9 +14,17 @@ import (
 func NewTokenInfoCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "token-info <address>",
-		Short: "Get token metadata and pricing",
-		Long: "Return metadata and pricing for a token contract address (or \"native\" for the\n" +
-			"chain's native asset) on a specified chain.\n\n" +
+		Short: "Get token metadata, pricing, supply, and market cap for a token address",
+		Long: "Return metadata and real-time pricing for a token contract address on a\n" +
+			"specified EVM chain. Use the literal string 'native' as the address to query\n" +
+			"the chain's native asset (e.g. ETH on chain 1, MATIC on chain 137).\n\n" +
+			"The --chain-ids flag is required and should specify a single chain ID.\n\n" +
+			"Returns the token identity, current USD price (from on-chain DEX pools),\n" +
+			"total supply, estimated market cap, and logo. Use --historical-prices to\n" +
+			"include past USD prices at specified hour offsets.\n\n" +
+			"This command is useful for looking up token details before querying\n" +
+			"balances or activity. For wallet-scoped token data, use\n" +
+			"'dune sim evm balances' or 'dune sim evm balance'.\n\n" +
 			"Examples:\n" +
 			"  dune sim evm token-info native --chain-ids 1\n" +
 			"  dune sim evm token-info 0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48 --chain-ids 8453\n" +
@@ -25,10 +33,10 @@ func NewTokenInfoCmd() *cobra.Command {
 		RunE: runTokenInfo,
 	}
 
-	cmd.Flags().String("chain-ids", "", "Chain ID (required)")
-	cmd.Flags().String("historical-prices", "", "Hour offsets for historical prices (e.g. 720,168,24)")
-	cmd.Flags().Int("limit", 0, "Max results")
-	cmd.Flags().String("offset", "", "Pagination cursor from previous response")
+	cmd.Flags().String("chain-ids", "", "Numeric EVM chain ID to query (required, single value, e.g. '1' for Ethereum, '8453' for Base)")
+	cmd.Flags().String("historical-prices", "", "Include historical USD prices at the specified hour offsets from now (comma-separated, e.g. '720,168,24' for 30d, 7d, 1d ago)")
+	cmd.Flags().Int("limit", 0, "Maximum number of token entries to return (default: server-determined)")
+	cmd.Flags().String("offset", "", "Pagination cursor returned as next_offset in a previous response; use to fetch the next page of results")
 	_ = cmd.MarkFlagRequired("chain-ids")
 	output.AddFormatFlag(cmd, "text")
 

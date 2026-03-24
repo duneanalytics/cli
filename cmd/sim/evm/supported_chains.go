@@ -15,9 +15,13 @@ func NewSupportedChainsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "supported-chains",
 		Short: "List supported EVM chains and their endpoint availability",
-		Long: "Display all EVM chains supported by the Sim API and which endpoints\n" +
-			"(balances, activity, transactions, etc.) are available for each chain.\n\n" +
-			"This endpoint is public and does not require a Sim API key.\n\n" +
+		Long: "Display all EVM chains supported by the Sim API along with a capability\n" +
+			"matrix showing which endpoints are available for each chain. Each chain\n" +
+			"entry includes the chain name, numeric ID, tags, and boolean flags\n" +
+			"indicating which Sim API endpoints are supported.\n\n" +
+			"This is a public endpoint and does not require a Sim API key.\n\n" +
+			"Use the chain IDs or tag names from this output as --chain-ids\n" +
+			"arguments in other 'dune sim evm' commands.\n\n" +
 			"Examples:\n" +
 			"  dune sim evm supported-chains\n" +
 			"  dune sim evm supported-chains -o json",

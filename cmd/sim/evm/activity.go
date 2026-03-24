@@ -14,23 +14,39 @@ import (
 func NewActivityCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "activity <address>",
-		Short: "Get EVM activity feed for a wallet address",
-		Long: "Return a chronological feed of on-chain activity for the given wallet address\n" +
-			"including native transfers, ERC20 movements, NFT transfers, swaps, and contract calls.\n\n" +
+		Short: "Get a decoded activity feed for a wallet address across EVM chains",
+		Long: "Return a reverse-chronological feed of human-readable on-chain activity for\n" +
+			"the given wallet address. Unlike raw transactions, activity entries are decoded\n" +
+			"and classified into semantic types: sends, receives, mints, burns, token swaps,\n" +
+			"approvals, and contract calls.\n\n" +
+			"Activity types:\n" +
+			"  - send/receive: native or token transfers to/from the wallet\n" +
+			"  - mint/burn: token creation or destruction involving the wallet\n" +
+			"  - swap: DEX token exchanges (includes from/to token details)\n" +
+			"  - approve: ERC20/ERC721 spending approvals\n" +
+			"  - call: contract interactions with decoded function name and inputs\n\n" +
+			"Asset types: native, erc20, erc721, erc1155.\n\n" +
+			"Each activity item includes the transaction context, transfer amounts with\n" +
+			"USD values, and token metadata. Swap entries include both sides of the trade.\n" +
+			"Call entries include the decoded function name and inputs.\n\n" +
+			"By default, returns all activity types across all default chains.\n" +
+			"Run 'dune sim evm supported-chains' to see which chains support activity.\n\n" +
+			"For raw transaction data (hashes, gas, calldata), use 'dune sim evm transactions'.\n\n" +
 			"Examples:\n" +
 			"  dune sim evm activity 0xd8da6bf26964af9d7eed9e03e53415d37aa96045\n" +
 			"  dune sim evm activity 0xd8da... --activity-type send,receive --chain-ids 1\n" +
-			"  dune sim evm activity 0xd8da... --asset-type erc20 --limit 50 -o json",
+			"  dune sim evm activity 0xd8da... --asset-type erc20 --limit 50 -o json\n" +
+			"  dune sim evm activity 0xd8da... --token-address 0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
 		Args: cobra.ExactArgs(1),
 		RunE: runActivity,
 	}
 
-	cmd.Flags().String("chain-ids", "", "Comma-separated chain IDs or tags (default: all default chains)")
-	cmd.Flags().String("token-address", "", "Filter by token contract address (comma-separated for multiple)")
-	cmd.Flags().String("activity-type", "", "Filter by type: send,receive,mint,burn,swap,approve,call")
-	cmd.Flags().String("asset-type", "", "Filter by asset standard: native,erc20,erc721,erc1155")
-	cmd.Flags().Int("limit", 0, "Max results (1-100)")
-	cmd.Flags().String("offset", "", "Pagination cursor from previous response")
+	cmd.Flags().String("chain-ids", "", "Restrict to specific chains by numeric ID or tag name (comma-separated, e.g. '1,8453' or 'default'); defaults to all chains tagged 'default'")
+	cmd.Flags().String("token-address", "", "Filter activities involving specific token contracts (comma-separated ERC20/ERC721/ERC1155 addresses)")
+	cmd.Flags().String("activity-type", "", "Filter by activity classification (comma-separated): send, receive, mint, burn, swap, approve, call; defaults to all types")
+	cmd.Flags().String("asset-type", "", "Filter by token standard (comma-separated): native, erc20, erc721, erc1155; defaults to all standards")
+	cmd.Flags().Int("limit", 0, "Maximum number of activity items to return per page (1-100, default: server-determined)")
+	cmd.Flags().String("offset", "", "Pagination cursor returned as next_offset in a previous response; use to fetch the next page of results")
 	output.AddFormatFlag(cmd, "text")
 
 	return cmd

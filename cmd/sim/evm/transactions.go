@@ -14,9 +14,19 @@ import (
 func NewTransactionsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "transactions <address>",
-		Short: "Get EVM transactions for a wallet address",
-		Long: "Return transaction history for the given wallet address across supported EVM chains.\n" +
-			"Use --decode with -o json to include decoded function calls and event logs.\n\n" +
+		Short: "Get raw EVM transaction history for a wallet address across chains",
+		Long: "Return raw transaction history for the given wallet address across supported\n" +
+			"EVM chains. Transactions are returned in reverse-chronological order. Each\n" +
+			"transaction includes the hash, sender/recipient, value, block context, gas\n" +
+			"parameters, and raw calldata.\n\n" +
+			"Use --decode with -o json to include ABI-decoded function calls and event\n" +
+			"logs. Decoded data adds 'decoded' fields with function name and typed inputs,\n" +
+			"plus 'logs' with decoded event emissions. Note: --decode data is only visible\n" +
+			"in JSON output mode; the text table cannot display nested decoded structures.\n\n" +
+			"For human-readable, classified activity (sends, swaps, approvals, etc.),\n" +
+			"use 'dune sim evm activity' instead.\n\n" +
+			"By default, queries all chains tagged 'default'. Run 'dune sim evm\n" +
+			"supported-chains' to see which chains support transactions.\n\n" +
 			"Examples:\n" +
 			"  dune sim evm transactions 0xd8da6bf26964af9d7eed9e03e53415d37aa96045\n" +
 			"  dune sim evm transactions 0xd8da... --chain-ids 1 --decode -o json\n" +
@@ -25,10 +35,10 @@ func NewTransactionsCmd() *cobra.Command {
 		RunE: runTransactions,
 	}
 
-	cmd.Flags().String("chain-ids", "", "Comma-separated chain IDs or tags (default: all default chains)")
-	cmd.Flags().Bool("decode", false, "Include decoded transaction data and logs (use with -o json)")
-	cmd.Flags().Int("limit", 0, "Max results (1-100)")
-	cmd.Flags().String("offset", "", "Pagination cursor from previous response")
+	cmd.Flags().String("chain-ids", "", "Restrict to specific chains by numeric ID or tag name (comma-separated, e.g. '1,8453' or 'default'); defaults to all chains tagged 'default'")
+	cmd.Flags().Bool("decode", false, "Include ABI-decoded function calls and event logs in the response; only visible in JSON output (-o json), ignored in text table mode")
+	cmd.Flags().Int("limit", 0, "Maximum number of transactions to return per page (1-100, default: server-determined)")
+	cmd.Flags().String("offset", "", "Pagination cursor returned as next_offset in a previous response; use to fetch the next page of results")
 	output.AddFormatFlag(cmd, "text")
 
 	return cmd
