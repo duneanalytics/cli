@@ -89,7 +89,7 @@ main() {
         echo "" >&2
         log "Dune CLI ${version} installed successfully!"
         echo "" >&2
-        log "Tip: Run 'npx skills add duneanalytics/skills' to install Dune AI skills."
+        log "Tip: Run 'npx skills add duneanalytics/skills --skill '\''*'\''' to install Dune AI skills."
         log "Tip: Run 'dune auth' to authenticate with your Dune account."
         log "Tip: Run 'dune sim auth' to access real-time blockchain data (balances, tokens, NFTs)."
     fi
@@ -108,15 +108,15 @@ post_install() {
         read -r answer < /dev/tty || answer=""
         case "$answer" in
             [nN]*)
-                log "Skipped. You can install them later with: npx skills add duneanalytics/skills"
+                log "Skipped. You can install them later with: npx skills add duneanalytics/skills --skill '\''*'\''"
                 ;;
             *)
                 log "Installing Dune skills..."
-                npx skills add duneanalytics/skills --skill '*' < /dev/tty || log "Skill installation failed. You can retry with: npx skills add duneanalytics/skills"
+                npx skills add duneanalytics/skills --skill '*' < /dev/tty || log "Skill installation failed. You can retry with: npx skills add duneanalytics/skills --skill '\''*'\''"
                 ;;
         esac
     else
-        log "Tip: Run 'npx skills add duneanalytics/skills' to install Dune AI skills."
+        log "Tip: Run 'npx skills add duneanalytics/skills --skill '\''*'\''' to install Dune AI skills."
         log "(requires Node.js / npx)"
     fi
 
