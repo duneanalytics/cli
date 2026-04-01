@@ -16,9 +16,12 @@ func newCreateCmd() *cobra.Command {
 		Short: "Create a new visualization on an existing query",
 		Long: `Create a visualization attached to an existing saved query.
 
-IMPORTANT: The --options flag is required for a working visualization. Without
-proper options, the visualization will fail to render. The options format depends
-on the visualization type.
+IMPORTANT: Visualizations can only be attached to saved (non-temporary) queries.
+If you created the query with --temp, you must recreate it without --temp first.
+
+The --options flag is required for a working visualization. Without proper options,
+the visualization will fail to render. The options format depends on the
+visualization type.
 
 Visualization types: chart, table, counter, pivot, cohort, funnel, choropleth,
 sankey, sunburst_sequence, word_cloud.
