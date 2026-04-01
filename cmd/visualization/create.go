@@ -14,25 +14,88 @@ func newCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create a new visualization on an existing query",
-		Long: "Create a visualization attached to an existing saved query.\n\n" +
-			"The visualization type must be one of: chart, table, counter, pivot,\n" +
-			"cohort, funnel, choropleth, sankey, sunburst_sequence, word_cloud.\n\n" +
-			"The --options flag accepts a JSON string of visualization-specific\n" +
-			"configuration (axes, series, formatting, etc.).\n\n" +
-			"Examples:\n" +
-			"  dune viz create --query-id 12345 --name \"Token Volume\" --type chart\n" +
-			"  dune viz create --query-id 12345 --name \"Summary\" --type counter --options '{\"column\":\"total\",\"row_num\":1}'\n" +
-			"  dune viz create --query-id 12345 --name \"Results\" --type table -o json",
+		Long: `Create a visualization attached to an existing saved query.
+
+IMPORTANT: The --options flag is required for a working visualization. Without
+proper options, the visualization will fail to render. The options format depends
+on the visualization type.
+
+Visualization types: chart, table, counter, pivot, cohort, funnel, choropleth,
+sankey, sunburst_sequence, word_cloud.
+
+For chart type, set globalSeriesType to: column, line, area, scatter, or pie.
+
+COUNTER (simplest — shows a single number):
+  --type counter --options '{
+    "counterColName": "<column>",
+    "rowNumber": 1,
+    "stringDecimal": 0,
+    "stringPrefix": "",
+    "stringSuffix": "",
+    "counterLabel": "My Label",
+    "coloredPositiveValues": false,
+    "coloredNegativeValues": false
+  }'
+
+TABLE (displays query results as a table):
+  --type table --options '{
+    "itemsPerPage": 25,
+    "columns": [
+      {"name": "<column>", "title": "Display Name", "type": "normal",
+       "alignContent": "left", "isHidden": false}
+    ]
+  }'
+
+COLUMN/LINE/AREA/SCATTER CHART:
+  --type chart --options '{
+    "globalSeriesType": "line",
+    "sortX": true,
+    "legend": {"enabled": true},
+    "series": {"stacking": null},
+    "xAxis": {"title": {"text": "Date"}},
+    "yAxis": [{"title": {"text": "Value"}}],
+    "columnMapping": {"<x_column>": "x", "<y_column>": "y"},
+    "seriesOptions": {
+      "<y_column>": {"type": "line", "yAxis": 0, "zIndex": 0}
+    }
+  }'
+
+PIE CHART:
+  --type chart --options '{
+    "globalSeriesType": "pie",
+    "sortX": true,
+    "showDataLabels": true,
+    "columnMapping": {"<category_column>": "x", "<value_column>": "y"},
+    "seriesOptions": {
+      "<value_column>": {"type": "pie", "yAxis": 0, "zIndex": 0}
+    }
+  }'
+
+Column names in options must match actual query result columns exactly.
+
+Examples:
+  # Counter showing row count
+  dune viz create --query-id 12345 --name "Total Count" --type counter \
+    --options '{"counterColName":"count","rowNumber":1,"stringDecimal":0}'
+
+  # Line chart of daily volume
+  dune viz create --query-id 12345 --name "Daily Volume" --type chart \
+    --options '{"globalSeriesType":"line","sortX":true,"columnMapping":{"day":"x","volume":"y"},"seriesOptions":{"volume":{"type":"line","yAxis":0,"zIndex":0}},"xAxis":{"title":{"text":"Day"}},"yAxis":[{"title":{"text":"Volume"}}],"legend":{"enabled":true},"series":{"stacking":null}}'
+
+  # Simple table
+  dune viz create --query-id 12345 --name "Results" --type table \
+    --options '{"itemsPerPage":25,"columns":[{"name":"address","title":"Address","type":"normal","alignContent":"left","isHidden":false},{"name":"balance","title":"Balance","type":"normal","alignContent":"right","isHidden":false}]}'`,
 		RunE: runCreate,
 	}
 
 	cmd.Flags().Int("query-id", 0, "ID of the query to attach the visualization to (required)")
 	cmd.Flags().String("name", "", "visualization name, max 300 characters (required)")
-	cmd.Flags().String("type", "table", "visualization type: chart, table, counter, pivot, cohort, funnel, choropleth, sankey, sunburst_sequence, word_cloud")
+	cmd.Flags().String("type", "table", "visualization type: chart, table, counter")
 	cmd.Flags().String("description", "", "visualization description, max 1000 characters")
-	cmd.Flags().String("options", "{}", "JSON string of visualization options")
+	cmd.Flags().String("options", "", `visualization options JSON (required for working visualizations, see --help for format per type)`)
 	_ = cmd.MarkFlagRequired("query-id")
 	_ = cmd.MarkFlagRequired("name")
+	_ = cmd.MarkFlagRequired("options")
 	output.AddFormatFlag(cmd, "text")
 
 	return cmd
@@ -63,12 +126,17 @@ func runCreate(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
+	url := fmt.Sprintf("https://dune.com/embeds/%d/%d", queryID, resp.ID)
+
 	w := cmd.OutOrStdout()
 	switch output.FormatFromCmd(cmd) {
 	case output.FormatJSON:
-		return output.PrintJSON(w, resp)
+		return output.PrintJSON(w, map[string]any{
+			"id":  resp.ID,
+			"url": url,
+		})
 	default:
-		fmt.Fprintf(w, "Created visualization %d on query %d\n", resp.ID, queryID)
+		fmt.Fprintf(w, "Created visualization %d on query %d\n%s\n", resp.ID, queryID, url)
 		return nil
 	}
 }
