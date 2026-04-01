@@ -93,7 +93,7 @@ Examples:
 
 	cmd.Flags().Int("query-id", 0, "ID of the query to attach the visualization to (required)")
 	cmd.Flags().String("name", "", "visualization name, max 300 characters (required)")
-	cmd.Flags().String("type", "table", "visualization type: chart, table, counter")
+	cmd.Flags().String("type", "table", "visualization type: chart, table, counter, pivot, cohort, funnel, choropleth, sankey, sunburst_sequence, word_cloud")
 	cmd.Flags().String("description", "", "visualization description, max 1000 characters")
 	cmd.Flags().String("options", "", `visualization options JSON (required for working visualizations, see --help for format per type)`)
 	_ = cmd.MarkFlagRequired("query-id")
