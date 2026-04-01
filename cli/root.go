@@ -22,6 +22,7 @@ import (
 	"github.com/duneanalytics/cli/cmd/query"
 	"github.com/duneanalytics/cli/cmd/sim"
 	"github.com/duneanalytics/cli/cmd/usage"
+	"github.com/duneanalytics/cli/cmd/visualization"
 	"github.com/duneanalytics/cli/cmd/whoami"
 	"github.com/duneanalytics/cli/cmdutil"
 	"github.com/duneanalytics/cli/tracking"
@@ -121,6 +122,7 @@ func init() {
 	rootCmd.AddCommand(usage.NewUsageCmd())
 	rootCmd.AddCommand(whoami.NewWhoAmICmd())
 	rootCmd.AddCommand(sim.NewSimCmd())
+	rootCmd.AddCommand(visualization.NewVisualizationCmd())
 }
 
 // Execute runs the root command via Fang.
