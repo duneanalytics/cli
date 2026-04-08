@@ -40,7 +40,9 @@ var rootCmd = &cobra.Command{
 		"  - Search datasets by keyword, contract address, category, or blockchain\n" +
 		"  - Create, update, archive, and retrieve saved DuneSQL queries\n" +
 		"  - Execute saved queries or raw DuneSQL and display results\n" +
+		"  - Create and manage visualizations (charts, tables, counters) on query results\n" +
 		"  - Browse Dune documentation for DuneSQL syntax, API references, and guides\n" +
+		"  - Query real-time wallet and token data via the Sim API\n" +
 		"  - Monitor credit usage, storage consumption, and billing periods\n\n" +
 		"Authenticate with an API key via --api-key, the DUNE_API_KEY environment variable,\n" +
 		"or by running `dune auth`.",

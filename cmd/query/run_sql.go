@@ -12,7 +12,11 @@ func newRunSQLCmd() *cobra.Command {
 		Use:   "run-sql",
 		Short: "Execute a raw DuneSQL query inline and display results",
 		Long: "Execute an inline SQL statement in DuneSQL dialect without saving it as a\n" +
-			"query on Dune. Ideal for ad-hoc exploration and one-off analysis.\n\n" +
+			"query on Dune. This is the preferred command for running SQL when you don't\n" +
+			"need to save the query or create visualizations.\n\n" +
+			"Use this for ad-hoc exploration, one-off analysis, and answering data questions.\n" +
+			"Only use 'dune query create' + 'dune query run' when you specifically need a\n" +
+			"saved query ID (e.g. for attaching visualizations).\n\n" +
 			"By default, waits for completion (polling every 2 seconds) and displays result rows.\n" +
 			"Use --no-wait to submit the execution and exit immediately with just the\n" +
 			"execution ID. Credits are consumed based on actual compute resources used.\n\n" +
