@@ -62,22 +62,18 @@ func TestAuthWithEnvVar(t *testing.T) {
 	assert.Contains(t, string(data), "env_key")
 }
 
-func TestAuthWithPrompt(t *testing.T) {
-	dir := setup(t)
+func TestAuthNonInteractiveStdinFails(t *testing.T) {
+	setup(t)
 
 	// Unset env var so it doesn't interfere
 	t.Setenv("DUNE_API_KEY", "")
 
 	root := newRoot()
-	var buf bytes.Buffer
-	root.SetOut(&buf)
 	root.SetIn(strings.NewReader("prompt_key\n"))
 	root.SetArgs([]string{"auth"})
-	require.NoError(t, root.Execute())
-
-	data, err := os.ReadFile(filepath.Join(dir, "config.yaml"))
-	require.NoError(t, err)
-	assert.Contains(t, string(data), "prompt_key")
+	err := root.Execute()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no API key provided")
 }
 
 func TestAuthEmptyInput(t *testing.T) {
