@@ -70,7 +70,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		}
 	}
 	if !hasChange {
-		return fmt.Errorf("at least one flag must be provided (--name, --slug, --private, --tags, --visualization-widgets, --text-widgets, or --columns-per-row)")
+		return fmt.Errorf("at least one flag must be provided (--name, --slug, --private, --tags, --visualization-widgets, --text-widgets, --param-widgets, or --columns-per-row)")
 	}
 
 	client := cmdutil.ClientFromCmd(cmd)
