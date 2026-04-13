@@ -16,6 +16,7 @@ import (
 	"github.com/duneanalytics/cli/authconfig"
 	"github.com/duneanalytics/cli/cmd/auth"
 	duneconfig "github.com/duneanalytics/cli/cmd/config"
+	"github.com/duneanalytics/cli/cmd/dashboard"
 	"github.com/duneanalytics/cli/cmd/dataset"
 	"github.com/duneanalytics/cli/cmd/docs"
 	"github.com/duneanalytics/cli/cmd/execution"
@@ -41,6 +42,7 @@ var rootCmd = &cobra.Command{
 		"  - Create, update, archive, and retrieve saved DuneSQL queries\n" +
 		"  - Execute saved queries or raw DuneSQL and display results\n" +
 		"  - Create and manage visualizations (charts, tables, counters) on query results\n" +
+		"  - Create and manage dashboards with visualizations and text widgets\n" +
 		"  - Browse Dune documentation for DuneSQL syntax, API references, and guides\n" +
 		"  - Query real-time wallet and token data via the Sim API\n" +
 		"  - Monitor credit usage, storage consumption, and billing periods\n\n" +
@@ -125,6 +127,7 @@ func init() {
 	rootCmd.AddCommand(whoami.NewWhoAmICmd())
 	rootCmd.AddCommand(sim.NewSimCmd())
 	rootCmd.AddCommand(visualization.NewVisualizationCmd())
+	rootCmd.AddCommand(dashboard.NewDashboardCmd())
 }
 
 // Execute runs the root command via Fang.
