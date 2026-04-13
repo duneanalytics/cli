@@ -5,7 +5,7 @@ go 1.25.6
 require (
 	github.com/amplitude/analytics-go v1.3.0
 	github.com/charmbracelet/fang v0.4.4
-	github.com/duneanalytics/duneapi-client-go v0.4.7
+	github.com/duneanalytics/duneapi-client-go v0.4.8
 	github.com/modelcontextprotocol/go-sdk v1.4.0
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
@@ -48,5 +48,3 @@ require (
 	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/text v0.24.0 // indirect
 )
-
-replace github.com/duneanalytics/duneapi-client-go => /Users/ivpusic/github/dune/nlq-migration/duneapi-client-go
