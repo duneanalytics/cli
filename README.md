@@ -1,6 +1,6 @@
 # Dune CLI
 
-A command-line interface for interacting with the [Dune](https://dune.com/) API.
+A command-line interface for interacting with the [Dune](https://dune.com/) API — query data, manage visualizations, and build dashboards from your terminal.
 
 ## Installation
 
@@ -56,6 +56,31 @@ Search the Dune dataset catalog.
 | `dataset search-by-contract --contract-address <address> [--blockchains] [--include-schema] [--limit] [--offset]` | Search for decoded tables by contract address |
 
 Categories: `canonical`, `decoded`, `spell`, `community`
+
+### `dune visualization` (alias: `viz`)
+
+Create and manage visualizations on saved queries.
+
+| Command | Description |
+|---------|-------------|
+| `viz create --query-id <id> --name <name> --options <json> [--type chart\|table\|counter\|...]` | Create a visualization on a saved query |
+| `viz get <visualization-id>` | Get a visualization's details and options |
+| `viz update <visualization-id> [--name] [--type] [--description] [--options]` | Update an existing visualization |
+| `viz delete <visualization-id>` | Permanently delete a visualization |
+| `viz list --query-id <id> [--limit] [--offset]` | List all visualizations for a query |
+
+Supported types: `chart`, `table`, `counter`, `pivot`, `cohort`, `funnel`, `choropleth`, `sankey`, `sunburst_sequence`, `word_cloud`.
+
+### `dune dashboard` (alias: `dash`)
+
+Create and manage dashboards.
+
+| Command | Description |
+|---------|-------------|
+| `dashboard create --name <name> [--visualization-ids 1,2,3] [--text-widgets <json>] [--columns-per-row 1\|2\|3] [--private]` | Create a new dashboard |
+| `dashboard get <dashboard-id>` or `dashboard get --owner <handle> --slug <slug>` | Get a dashboard's details and widgets |
+| `dashboard update <dashboard-id> [--name] [--slug] [--private] [--tags] [--visualization-widgets <json>] [--text-widgets <json>]` | Update an existing dashboard |
+| `dashboard archive <dashboard-id>` | Archive a dashboard |
 
 ### `dune docs`
 
