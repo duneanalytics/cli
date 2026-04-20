@@ -23,7 +23,6 @@ func NewDefiPositionsCmd() *cobra.Command {
 			"chains and protocols. Each position includes USD valuation and protocol-\n" +
 			"specific metadata. The response also includes aggregation summaries with\n" +
 			"total USD value and per-chain breakdowns.\n\n" +
-			"Note: This endpoint is in beta (served under /beta/evm/defi/positions/*).\n\n" +
 			"Supported position types:\n" +
 			"  - Erc4626: ERC-4626 vault positions (e.g. yield vaults, staking wrappers)\n" +
 			"  - Tokenized: lending protocol positions with receipt tokens (e.g. Aave\n" +
@@ -135,7 +134,7 @@ func runDefiPositions(cmd *cobra.Command, args []string) error {
 		params.Set("chain_ids", v)
 	}
 
-	data, err := client.Get(cmd.Context(), "/beta/evm/defi/positions/"+address, params)
+	data, err := client.Get(cmd.Context(), "/v1/evm/defi/positions/"+address, params)
 	if err != nil {
 		return err
 	}
