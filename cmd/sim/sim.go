@@ -27,7 +27,8 @@ func NewSimCmd() *cobra.Command {
 			"lookups.\n\n" +
 			"Available subcommands:\n" +
 			"  evm  - Query EVM chains: balances, activity, transactions, collectibles,\n" +
-			"         token-info, token-holders, defi-positions, supported-chains\n" +
+			"         token-info, token-holders, defi-positions, supported-chains,\n" +
+			"         supported-protocols\n" +
 			"  svm  - Query SVM chains (Solana, Eclipse): balances, transactions\n" +
 			"  auth - Save your Sim API key to the local config file\n\n" +
 			"Authentication:\n" +

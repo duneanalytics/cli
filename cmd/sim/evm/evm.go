@@ -46,7 +46,8 @@ func NewEvmCmd() *cobra.Command {
 			"  collectibles     - ERC721 and ERC1155 NFT holdings with spam filtering\n" +
 			"  token-info       - Token metadata, pricing, supply, and market cap\n" +
 			"  token-holders    - Top holders of an ERC20 token ranked by balance\n" +
-			"  defi-positions   - DeFi positions across lending, AMM, and vault protocols (beta)\n\n" +
+			"  defi-positions   - DeFi positions across lending, AMM, and vault protocols (beta)\n" +
+			"  supported-protocols - DeFi protocol families and chains covered by defi-positions\n\n" +
 			"Most commands support --chain-ids to restrict results to specific networks.\n" +
 			"Run 'dune sim evm supported-chains' to discover valid chain IDs, tags, and\n" +
 			"which endpoints are available per chain.\n\n" +
@@ -63,6 +64,7 @@ func NewEvmCmd() *cobra.Command {
 	cmd.AddCommand(NewTokenInfoCmd())
 	cmd.AddCommand(NewTokenHoldersCmd())
 	cmd.AddCommand(NewDefiPositionsCmd())
+	cmd.AddCommand(NewSupportedProtocolsCmd())
 
 	return cmd
 }
