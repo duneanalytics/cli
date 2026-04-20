@@ -116,6 +116,7 @@ func addBalanceFlags(cmd *cobra.Command) {
 	cmd.Flags().String("filters", "", "Filter by token standard: 'erc20' (only ERC20 tokens) or 'native' (only native chain assets like ETH)")
 	cmd.Flags().String("metadata", "", "Request additional metadata fields in the response (comma-separated): 'logo' (token icon URL), 'url' (project website), 'pools' (liquidity pool details)")
 	cmd.Flags().Bool("exclude-spam", false, "Exclude low-liquidity tokens (less than $100 USD pool size) commonly associated with spam airdrops")
+	cmd.Flags().Bool("exclude-unpriced", true, "Exclude tokens without a USD price (default: true); pass --exclude-unpriced=false to include them")
 	cmd.Flags().String("historical-prices", "", "Include historical USD prices at the specified hour offsets from now (comma-separated, e.g. '720,168,24' for 30d, 7d, 1d ago)")
 	cmd.Flags().Int("limit", 0, "Maximum number of balance entries to return per page (1-1000, default: server-determined)")
 	cmd.Flags().String("offset", "", "Pagination cursor returned as next_offset in a previous response; use to fetch the next page of results")
@@ -154,6 +155,11 @@ func runBalancesEndpoint(cmd *cobra.Command, args []string, pathPrefix, pathSuff
 	}
 	if v, _ := cmd.Flags().GetBool("exclude-spam"); v {
 		params.Set("exclude_spam_tokens", "true")
+	}
+	if v, _ := cmd.Flags().GetBool("exclude-unpriced"); v {
+		params.Set("exclude_unpriced", "true")
+	} else {
+		params.Set("exclude_unpriced", "false")
 	}
 	if v, _ := cmd.Flags().GetString("historical-prices"); v != "" {
 		params.Set("historical_prices", v)
