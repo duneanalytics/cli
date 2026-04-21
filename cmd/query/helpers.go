@@ -23,11 +23,11 @@ func parseQueryID(arg string) (int, error) {
 func parsePerformance(cmd *cobra.Command) (string, error) {
 	performance, _ := cmd.Flags().GetString("performance")
 	switch performance {
-	case "small", "medium", "large", "free":
+	case "", "free", "medium", "large":
 		return performance, nil
 	default:
 		return "", fmt.Errorf(
-			"invalid performance tier %q: must be \"free\", \"small\", \"medium\" or \"large\"",
+			"invalid performance tier %q: must be \"free\", \"medium\" or \"large\"",
 			performance,
 		)
 	}
