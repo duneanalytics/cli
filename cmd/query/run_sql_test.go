@@ -112,6 +112,27 @@ func TestRunSQLWithPerformance(t *testing.T) {
 	assert.Equal(t, "large", captured.Performance)
 }
 
+func TestRunSQLWithPerformanceFree(t *testing.T) {
+	var captured models.ExecuteSQLRequest
+	mock := &mockClient{
+		runSQLFn: func(req models.ExecuteSQLRequest) (dune.Execution, error) {
+			captured = req
+			return &mockExecution{
+				id: "01ABC",
+				waitGetResultsFn: func(_ time.Duration, _ int) (*models.ResultsResponse, error) {
+					return testResultsResponse, nil
+				},
+			}, nil
+		},
+	}
+
+	root, _ := newTestRoot(mock)
+	root.SetArgs([]string{"query", "run-sql", "--sql", "SELECT 1", "--performance", "free"})
+	require.NoError(t, root.Execute())
+
+	assert.Equal(t, "free", captured.Performance)
+}
+
 func TestRunSQLExecutionFailed(t *testing.T) {
 	failedResp := &models.ResultsResponse{
 		QueryID: 4125432,

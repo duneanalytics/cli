@@ -22,13 +22,15 @@ func parseQueryID(arg string) (int, error) {
 
 func parsePerformance(cmd *cobra.Command) (string, error) {
 	performance, _ := cmd.Flags().GetString("performance")
-	if performance != "small" && performance != "medium" && performance != "large" {
+	switch performance {
+	case "small", "medium", "large", "free":
+		return performance, nil
+	default:
 		return "", fmt.Errorf(
-			"invalid performance tier %q: must be \"small\", \"medium\" or \"large\"",
+			"invalid performance tier %q: must be \"free\", \"small\", \"medium\" or \"large\"",
 			performance,
 		)
 	}
-	return performance, nil
 }
 
 func waitAndDisplay(cmd *cobra.Command, exec dune.Execution, timeout int) error {
