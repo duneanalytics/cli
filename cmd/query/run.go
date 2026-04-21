@@ -35,7 +35,7 @@ func newRunCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringArray("param", nil, "typed query parameter in key=value format (repeatable); supported types: text, number (stringified, e.g. '30'), datetime (YYYY-MM-DD HH:mm:ss), enum")
-	cmd.Flags().String("performance", "medium", `engine size for the execution: "medium" (default) or "large"; credits are consumed based on actual compute resources used`)
+	cmd.Flags().String("performance", "medium", `engine size for the execution: "small", "medium" (default) or "large"; credits are consumed based on actual compute resources used`)
 	cmd.Flags().Int("limit", 0, "maximum number of result rows to return (0 = all available rows)")
 	cmd.Flags().Bool("no-wait", false, "submit the execution and exit immediately, printing only the execution ID and state")
 	cmd.Flags().Int("timeout", 300, "maximum seconds to wait for the execution to complete before timing out")
