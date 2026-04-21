@@ -35,8 +35,8 @@ Manage and execute Dune queries.
 | `query get <query-id>` | Get a saved query's details and SQL |
 | `query update <query-id> [--name] [--sql] [--description] [--private] [--tags]` | Update an existing query |
 | `query archive <query-id>` | Archive a saved query |
-| `query run <query-id> [--param key=value] [--performance small\|medium\|large] [--limit] [--timeout] [--no-wait]` | Execute a saved query and display results |
-| `query run-sql --sql <sql> [--param key=value] [--performance small\|medium\|large] [--limit] [--timeout] [--no-wait]` | Execute raw SQL directly |
+| `query run <query-id> [--param key=value] [--performance free\|small\|medium\|large] [--limit] [--timeout] [--no-wait]` | Execute a saved query and display results |
+| `query run-sql --sql <sql> [--param key=value] [--performance free\|small\|medium\|large] [--limit] [--timeout] [--no-wait]` | Execute raw SQL directly |
 
 ### `dune execution`
 
