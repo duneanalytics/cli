@@ -19,7 +19,7 @@ func newRunCmd() *cobra.Command {
 			"Use --no-wait to submit the execution and exit immediately with just the\n" +
 			"execution ID; then fetch results later with 'dune execution results <execution-id>'.\n\n" +
 			"Credits are consumed based on actual compute resources used. Use --performance\n" +
-			"with the tier name your plan exposes via the API (e.g. community plans often use \"free\").\n\n" +
+			"to override the tier; omit it to let the API auto-select based on your plan.\n\n" +
 			"Important: if the query targets tables with known partition columns (returned by\n" +
 			"'dune dataset search' or 'dune dataset search-by-contract'), ensure the SQL includes\n" +
 			"a WHERE filter on those partition columns (e.g. WHERE block_date >= CURRENT_DATE -\n" +
@@ -35,7 +35,7 @@ func newRunCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringArray("param", nil, "typed query parameter in key=value format (repeatable); supported types: text, number (stringified, e.g. '30'), datetime (YYYY-MM-DD HH:mm:ss), enum")
-	cmd.Flags().String("performance", "medium", `engine tier name (plan-specific; community often uses "free"): "free", "small", "medium" (default), or "large"; credits reflect actual compute`)
+	cmd.Flags().String("performance", "", `engine tier override: "free", "medium", or "large"; omit to let the API auto-select based on your plan`)
 	cmd.Flags().Int("limit", 0, "maximum number of result rows to return (0 = all available rows)")
 	cmd.Flags().Bool("no-wait", false, "submit the execution and exit immediately, printing only the execution ID and state")
 	cmd.Flags().Int("timeout", 300, "maximum seconds to wait for the execution to complete before timing out")

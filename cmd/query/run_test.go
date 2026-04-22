@@ -106,6 +106,27 @@ func TestRunWithParams(t *testing.T) {
 	assert.Equal(t, "30", captured.QueryParameters["days"])
 }
 
+func TestRunDefaultPerformance(t *testing.T) {
+	var captured models.ExecuteRequest
+	mock := &mockClient{
+		runQueryFn: func(req models.ExecuteRequest) (dune.Execution, error) {
+			captured = req
+			return &mockExecution{
+				id: "01ABC",
+				waitGetResultsFn: func(_ time.Duration, _ int) (*models.ResultsResponse, error) {
+					return testResultsResponse, nil
+				},
+			}, nil
+		},
+	}
+
+	root, _ := newTestRoot(mock)
+	root.SetArgs([]string{"query", "run", "4125432"})
+	require.NoError(t, root.Execute())
+
+	assert.Equal(t, "", captured.Performance)
+}
+
 func TestRunWithPerformance(t *testing.T) {
 	var captured models.ExecuteRequest
 	mock := &mockClient{

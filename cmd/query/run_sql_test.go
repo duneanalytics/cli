@@ -91,6 +91,27 @@ func TestRunSQLWithParams(t *testing.T) {
 	assert.Equal(t, "30", captured.QueryParameters["days"])
 }
 
+func TestRunSQLDefaultPerformance(t *testing.T) {
+	var captured models.ExecuteSQLRequest
+	mock := &mockClient{
+		runSQLFn: func(req models.ExecuteSQLRequest) (dune.Execution, error) {
+			captured = req
+			return &mockExecution{
+				id: "01ABC",
+				waitGetResultsFn: func(_ time.Duration, _ int) (*models.ResultsResponse, error) {
+					return testResultsResponse, nil
+				},
+			}, nil
+		},
+	}
+
+	root, _ := newTestRoot(mock)
+	root.SetArgs([]string{"query", "run-sql", "--sql", "SELECT 1"})
+	require.NoError(t, root.Execute())
+
+	assert.Equal(t, "", captured.Performance)
+}
+
 func TestRunSQLWithPerformance(t *testing.T) {
 	var captured models.ExecuteSQLRequest
 	mock := &mockClient{
