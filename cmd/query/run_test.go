@@ -272,3 +272,26 @@ func TestRunInvalidPerformance(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid performance tier")
 }
+
+// TestRunAcceptsLegacyFreePerformance pins backwards compatibility: "free" is no longer
+// advertised but must still be accepted and forwarded so existing scripts keep working.
+func TestRunAcceptsLegacyFreePerformance(t *testing.T) {
+	var captured models.ExecuteRequest
+	mock := &mockClient{
+		runQueryFn: func(req models.ExecuteRequest) (dune.Execution, error) {
+			captured = req
+			return &mockExecution{
+				id: "01ABC",
+				waitGetResultsFn: func(_ time.Duration, _ int) (*models.ResultsResponse, error) {
+					return testResultsResponse, nil
+				},
+			}, nil
+		},
+	}
+
+	root, _ := newTestRoot(mock)
+	root.SetArgs([]string{"query", "run", "4125432", "--performance", "free"})
+	require.NoError(t, root.Execute())
+
+	assert.Equal(t, "free", captured.Performance)
+}
