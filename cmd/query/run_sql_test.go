@@ -133,7 +133,7 @@ func TestRunSQLWithPerformance(t *testing.T) {
 	assert.Equal(t, "large", captured.Performance)
 }
 
-func TestRunSQLWithPerformanceFree(t *testing.T) {
+func TestRunSQLWithPerformanceSmall(t *testing.T) {
 	var captured models.ExecuteSQLRequest
 	mock := &mockClient{
 		runSQLFn: func(req models.ExecuteSQLRequest) (dune.Execution, error) {
@@ -148,10 +148,10 @@ func TestRunSQLWithPerformanceFree(t *testing.T) {
 	}
 
 	root, _ := newTestRoot(mock)
-	root.SetArgs([]string{"query", "run-sql", "--sql", "SELECT 1", "--performance", "free"})
+	root.SetArgs([]string{"query", "run-sql", "--sql", "SELECT 1", "--performance", "small"})
 	require.NoError(t, root.Execute())
 
-	assert.Equal(t, "free", captured.Performance)
+	assert.Equal(t, "small", captured.Performance)
 }
 
 func TestRunSQLExecutionFailed(t *testing.T) {
@@ -253,6 +253,29 @@ func TestRunSQLInvalidPerformance(t *testing.T) {
 	err := root.Execute()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid performance tier")
+}
+
+// TestRunSQLAcceptsLegacyFreePerformance pins backwards compatibility: "free" is no longer
+// advertised but must still be accepted and forwarded so existing scripts keep working.
+func TestRunSQLAcceptsLegacyFreePerformance(t *testing.T) {
+	var captured models.ExecuteSQLRequest
+	mock := &mockClient{
+		runSQLFn: func(req models.ExecuteSQLRequest) (dune.Execution, error) {
+			captured = req
+			return &mockExecution{
+				id: "01ABC",
+				waitGetResultsFn: func(_ time.Duration, _ int) (*models.ResultsResponse, error) {
+					return testResultsResponse, nil
+				},
+			}, nil
+		},
+	}
+
+	root, _ := newTestRoot(mock)
+	root.SetArgs([]string{"query", "run-sql", "--sql", "SELECT 1", "--performance", "free"})
+	require.NoError(t, root.Execute())
+
+	assert.Equal(t, "free", captured.Performance)
 }
 
 func TestRunSQLInvalidParam(t *testing.T) {

@@ -37,7 +37,7 @@ func newRunSQLCmd() *cobra.Command {
 	cmd.Flags().String("sql", "", "the SQL query text in DuneSQL dialect (required)")
 	_ = cmd.MarkFlagRequired("sql")
 	cmd.Flags().StringArray("param", nil, "typed query parameter in key=value format (repeatable); supported types: text, number (stringified, e.g. '30'), datetime (YYYY-MM-DD HH:mm:ss), enum")
-	cmd.Flags().String("performance", "", `engine tier override: "free", "medium", or "large"; omit to let the API auto-select based on your plan`)
+	cmd.Flags().String("performance", "", `engine tier override: "small", "medium", or "large"; omit to let the API auto-select based on your plan`)
 	cmd.Flags().Int("limit", 0, "maximum number of result rows to return (0 = all available rows)")
 	cmd.Flags().Bool("no-wait", false, "submit the execution and exit immediately, printing only the execution ID and state")
 	cmd.Flags().Int("timeout", 300, "maximum seconds to wait for the execution to complete before timing out")
