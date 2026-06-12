@@ -49,8 +49,10 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 
 	// Require at least one change flag. Updating re-executes the source query (consuming
 	// credits), so a no-op update must not silently trigger a refresh.
+	noSchedule, _ := cmd.Flags().GetBool("no-schedule")
+	noScheduleChanged := cmd.Flags().Changed("no-schedule") && noSchedule
 	if !cmd.Flags().Changed("private") && !cmd.Flags().Changed("performance") &&
-		!cmd.Flags().Changed("cron") && !cmd.Flags().Changed("no-schedule") &&
+		!cmd.Flags().Changed("cron") && !noScheduleChanged &&
 		!cmd.Flags().Changed("expires-at") {
 		return fmt.Errorf(
 			"at least one flag must be provided (--private, --performance, --cron, --no-schedule, or --expires-at)",
@@ -77,7 +79,6 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 	}
 
 	// Resolve the schedule, defaulting to preserving the current one.
-	noSchedule, _ := cmd.Flags().GetBool("no-schedule")
 	switch {
 	case noSchedule:
 		// leave CronExpression nil → removes the schedule
