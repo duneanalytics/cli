@@ -47,6 +47,18 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	changedFlags := []string{"private", "performance", "cron", "no-schedule", "expires-at"}
+	hasChange := false
+	for _, f := range changedFlags {
+		if cmd.Flags().Changed(f) {
+			hasChange = true
+			break
+		}
+	}
+	if !hasChange {
+		return fmt.Errorf("at least one flag must be provided (--private, --performance, --cron, --no-schedule, or --expires-at)")
+	}
+
 	client := cmdutil.ClientFromCmd(cmd)
 
 	// Read-modify-write: fetch the current state so unspecified settings — especially the
