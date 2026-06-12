@@ -14,7 +14,8 @@ func newUpdateCmd() *cobra.Command {
 		Use:   "update <name>",
 		Short: "Update a materialized view's settings or refresh schedule",
 		Long: "Change a matview's privacy, performance tier, or refresh schedule. Updating\n" +
-			"re-executes the source query. The name and source query are immutable.\n\n" +
+			"re-executes the source query. The name and source query are immutable.\n" +
+			"At least one flag must be provided.\n\n" +
 			"Settings you don't pass are preserved (read-modify-write). In particular, the\n" +
 			"existing refresh schedule is kept unless you change it with --cron or remove it\n" +
 			"with --no-schedule — so a plain `update --private=false` will not silently drop\n" +
@@ -45,6 +46,12 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 	performance, err := parsePerformance(cmd)
 	if err != nil {
 		return err
+	}
+
+	if !cmd.Flags().Changed("private") && !cmd.Flags().Changed("performance") &&
+		!cmd.Flags().Changed("cron") && !cmd.Flags().Changed("no-schedule") &&
+		!cmd.Flags().Changed("expires-at") {
+		return fmt.Errorf("at least one flag must be provided (--private, --performance, --cron, --no-schedule, or --expires-at); use 'matview refresh' to rebuild without changing settings")
 	}
 
 	client := cmdutil.ClientFromCmd(cmd)
