@@ -38,6 +38,21 @@ Manage and execute Dune queries.
 | `query run <query-id> [--param key=value] [--performance small\|medium\|large] [--limit] [--timeout] [--no-wait]` | Execute a saved query and display results |
 | `query run-sql --sql <sql> [--param key=value] [--performance small\|medium\|large] [--limit] [--timeout] [--no-wait]` | Execute raw SQL directly |
 
+### `dune matview` (alias: `mv`)
+
+Create and manage materialized views — query results persisted into a queryable table, optionally refreshed on a schedule.
+
+| Command | Description |
+|---------|-------------|
+| `matview create --name <name> --query-id <id> [--private] [--performance small\|medium\|large] [--cron <expr>] [--expires-at <RFC3339>]` | Materialize a saved query into a table |
+| `matview get <name>` | Get a matview's metadata, size, and refresh schedule |
+| `matview list [--limit] [--offset] [--all]` | List the materialized views you own |
+| `matview update <name> [--private] [--performance] [--cron <expr>] [--no-schedule] [--expires-at]` | Update settings or the schedule (preserves the schedule unless changed) |
+| `matview refresh <name> [--performance small\|medium\|large]` | Trigger an on-demand refresh |
+| `matview delete <name>` | Permanently delete a matview and its schedule |
+
+`create` takes a bare name (e.g. `result_token_summary`); `get`, `update`, `refresh`, and `delete` take the fully-qualified SQL name (e.g. `dune.my_team.result_token_summary`).
+
 ### `dune execution`
 
 Manage query executions.
