@@ -4,8 +4,14 @@ A command-line interface for interacting with the [Dune](https://dune.com/) API 
 
 ## Installation
 
+### Install Script
 ```bash
 curl -sSfL https://github.com/duneanalytics/cli/raw/main/install.sh | bash
+```
+
+### [AUR](https://aur.archlinux.org/packages/dune-cli)
+```bash
+yay -S dune-cli # -bin | -git
 ```
 
 ## Authentication
