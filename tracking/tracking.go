@@ -76,8 +76,7 @@ func toAmplitudeUserID(customerID string) string {
 }
 
 // Track sends a "CLI Command Executed" event to Amplitude.
-// Set isSim to true for commands under `dune sim`.
-func (t *Tracker) Track(commandPath, status, errMsg string, durationMs int64, isSim bool) {
+func (t *Tracker) Track(commandPath, status, errMsg string, durationMs int64) {
 	if !t.enabled || t.client == nil {
 		return
 	}
@@ -95,7 +94,6 @@ func (t *Tracker) Track(commandPath, status, errMsg string, durationMs int64, is
 			"cli_version":   t.version,
 			"os":            runtime.GOOS,
 			"arch":          runtime.GOARCH,
-			"is_sim":        isSim,
 		},
 	})
 }
