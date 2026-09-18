@@ -22,7 +22,6 @@ import (
 	"github.com/duneanalytics/cli/cmd/execution"
 	"github.com/duneanalytics/cli/cmd/matview"
 	"github.com/duneanalytics/cli/cmd/query"
-	"github.com/duneanalytics/cli/cmd/sim"
 	"github.com/duneanalytics/cli/cmd/usage"
 	"github.com/duneanalytics/cli/cmd/visualization"
 	"github.com/duneanalytics/cli/cmd/whoami"
@@ -45,7 +44,6 @@ var rootCmd = &cobra.Command{
 		"  - Create and manage visualizations (charts, tables, counters) on query results\n" +
 		"  - Create and manage dashboards with visualizations and text widgets\n" +
 		"  - Browse Dune documentation for DuneSQL syntax, API references, and guides\n" +
-		"  - Query real-time wallet and token data via the Sim API\n" +
 		"  - Monitor credit usage, storage consumption, and billing periods\n\n" +
 		"Authenticate with an API key via --api-key, the DUNE_API_KEY environment variable,\n" +
 		"or by running `dune auth`.",
@@ -110,8 +108,7 @@ var rootCmd = &cobra.Command{
 			commandPath = parts[1]
 		}
 
-		isSim := strings.HasPrefix(commandPath, "sim")
-		tr.Track(commandPath, tracking.StatusSuccess, "", durationMs, isSim)
+		tr.Track(commandPath, tracking.StatusSuccess, "", durationMs)
 		return nil
 	},
 }
@@ -127,7 +124,6 @@ func init() {
 	rootCmd.AddCommand(execution.NewExecutionCmd())
 	rootCmd.AddCommand(usage.NewUsageCmd())
 	rootCmd.AddCommand(whoami.NewWhoAmICmd())
-	rootCmd.AddCommand(sim.NewSimCmd())
 	rootCmd.AddCommand(visualization.NewVisualizationCmd())
 	rootCmd.AddCommand(dashboard.NewDashboardCmd())
 }
@@ -152,8 +148,7 @@ func Execute(version, commit, date, amplitudeKey string) {
 	); err != nil {
 		// Build best-effort command path from os.Args (strip flags).
 		commandPath := commandPathFromArgs(os.Args)
-		isSim := strings.HasPrefix(commandPath, "sim")
-		tracker.Track(commandPath, tracking.StatusError, err.Error(), 0, isSim)
+		tracker.Track(commandPath, tracking.StatusError, err.Error(), 0)
 		// Flush the event before exiting — os.Exit does not run deferred funcs,
 		// so defer tracker.Shutdown() above would never fire.
 		tracker.Shutdown()

@@ -32,8 +32,7 @@ func TestTracker_DisabledNoOp(t *testing.T) {
 	tr := New(Config{Enabled: false})
 	assert.False(t, tr.enabled)
 	// Should not panic.
-	tr.Track("test cmd", StatusSuccess, "", 100, false)
-	tr.Track("sim evm balances", StatusSuccess, "", 100, true)
+	tr.Track("test cmd", StatusSuccess, "", 100)
 	tr.Shutdown()
 }
 
@@ -80,31 +79,28 @@ func TestToAmplitudeUserID(t *testing.T) {
 func TestTracker_TrackWithoutSetUserID(t *testing.T) {
 	tr := New(Config{Enabled: true, AmplitudeKey: "test-key"})
 	// Should not panic — events are sent with "cli" UserID.
-	tr.Track("test cmd", StatusSuccess, "", 100, false)
+	tr.Track("test cmd", StatusSuccess, "", 100)
 	tr.Shutdown()
 }
 
-func TestTrack_IsSim(t *testing.T) {
+func TestTrack_EventProperties(t *testing.T) {
 	spy := &spyClient{}
 	tr := newTestTracker(spy)
 
-	tr.Track("query list", StatusSuccess, "", 42, false)
-	tr.Track("sim evm balances", StatusSuccess, "", 99, true)
+	tr.Track("query list", StatusSuccess, "boom", 42)
 
-	require.Len(t, spy.events, 2)
+	require.Len(t, spy.events, 1)
 
-	// Non-sim event
 	props0 := spy.events[0].EventProperties
 	assert.Equal(t, "CLI Command Executed", spy.events[0].EventType)
 	assert.Equal(t, "cli", spy.events[0].UserID)
 	assert.Equal(t, "query list", props0["command_path"])
-	assert.Equal(t, false, props0["is_sim"])
-
-	// Sim event
-	props1 := spy.events[1].EventProperties
-	assert.Equal(t, "CLI Command Executed", spy.events[1].EventType)
-	assert.Equal(t, "sim evm balances", props1["command_path"])
-	assert.Equal(t, true, props1["is_sim"])
+	assert.Equal(t, StatusSuccess, props0["status"])
+	assert.Equal(t, int64(42), props0["duration_ms"])
+	assert.Equal(t, "boom", props0["error_message"])
+	assert.Equal(t, "test", props0["cli_version"])
+	assert.NotEmpty(t, props0["os"])
+	assert.NotEmpty(t, props0["arch"])
 }
 
 func TestTrack_SetUserIDReflectedInEvents(t *testing.T) {
@@ -112,7 +108,7 @@ func TestTrack_SetUserIDReflectedInEvents(t *testing.T) {
 	tr := newTestTracker(spy)
 
 	tr.SetUserID("user_42")
-	tr.Track("query run", StatusSuccess, "", 10, false)
+	tr.Track("query run", StatusSuccess, "", 10)
 
 	require.Len(t, spy.events, 1)
 	assert.Equal(t, "42", spy.events[0].UserID)
