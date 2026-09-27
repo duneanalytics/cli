@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"strings"
@@ -30,19 +29,18 @@ func runAuth(cmd *cobra.Command, _ []string) error {
 	}
 
 	if key == "" {
-		if stdin, ok := cmd.InOrStdin().(*os.File); ok && !term.IsTerminal(int(stdin.Fd())) {
+		stdin, ok := cmd.InOrStdin().(*os.File)
+		if !ok || !term.IsTerminal(int(stdin.Fd())) {
 			return fmt.Errorf("no API key provided; pass --api-key, set DUNE_API_KEY, or run dune auth in an interactive terminal")
 		}
 
-		var (
-			reader = cmd.InOrStdin()
-		)
-
 		fmt.Fprint(cmd.ErrOrStderr(), "Enter your Dune API key: ")
-		scanner := bufio.NewScanner(reader)
-		if scanner.Scan() {
-			key = strings.TrimSpace(scanner.Text())
+		raw, err := term.ReadPassword(int(stdin.Fd()))
+		fmt.Fprintln(cmd.ErrOrStderr()) // newline after hidden input
+		if err != nil {
+			return fmt.Errorf("reading API key: %w", err)
 		}
+		key = strings.TrimSpace(string(raw))
 	}
 
 	if key == "" {
