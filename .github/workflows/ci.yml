@@ -15,3 +15,19 @@ jobs:
           go-version-file: go.mod
 
       - run: go test ./...
+
+  # Builds the Nix flake so a stale vendorHash (after go.mod or go.sum
+  # changes) fails here instead of for users. See flake.nix to update it.
+  nix:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: cachix/install-nix-action@v31
+
+      - run: nix flake check -L
+
+      - run: nix run . -- --version

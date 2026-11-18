@@ -10,6 +10,16 @@ A command-line interface for interacting with the [Dune](https://dune.com/) API 
 brew install duneanalytics/tap/dune-cli
 ```
 
+### Nix
+
+```bash
+# Run without installing
+nix run github:duneanalytics/cli
+
+# Install into your profile
+nix profile add github:duneanalytics/cli
+```
+
 ### Install script
 
 ```bash
