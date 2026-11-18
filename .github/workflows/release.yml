@@ -31,3 +31,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AMPLITUDE_KEY: ${{ secrets.AMPLITUDE_KEY }}
+          # Token with contents and pull-request write access to
+          # duneanalytics/homebrew-tap; the cask is skipped while it is unset.
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}

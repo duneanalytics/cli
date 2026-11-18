@@ -38,6 +38,39 @@ archives:
         formats:
           - zip
 
+homebrew_casks:
+  - name: dune-cli
+    binaries:
+      - dune
+    homepage: https://github.com/duneanalytics/cli
+    description: Command-line interface for the Dune API
+    directory: Casks
+    commit_msg_template: "Brew cask update for {{ .ProjectName }} version {{ .Tag }}"
+    # Publishing stays off until the tap token secret exists, so releases
+    # don't fail on it; prereleases are never published.
+    skip_upload: '{{ if index .Env "HOMEBREW_TAP_GITHUB_TOKEN" }}auto{{ else }}true{{ end }}'
+    # The binary is not signed or notarized, so clear the quarantine bit that
+    # Homebrew sets on download; otherwise macOS refuses to run it.
+    hooks:
+      post:
+        install_steps: |
+          on_macos do
+            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/dune"]
+          end
+    # The tap's main branch requires pull requests, so push a release branch
+    # and open a PR instead of committing to main.
+    repository:
+      owner: duneanalytics
+      name: homebrew-tap
+      branch: "dune-cli-{{ .Version }}"
+      token: '{{ if index .Env "HOMEBREW_TAP_GITHUB_TOKEN" }}{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}{{ end }}'
+      pull_request:
+        enabled: true
+        base:
+          owner: duneanalytics
+          name: homebrew-tap
+          branch: main
+
 checksum:
   name_template: "checksums.txt"
 
