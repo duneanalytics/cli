@@ -68,48 +68,6 @@ func TestCreateToolError(t *testing.T) {
 	assert.EqualError(t, root.Execute(), "folder_ambiguous: pick a folder_id")
 }
 
-func TestUpdateSendsFalseValues(t *testing.T) {
-	fake := &dunemcptest.Fake{Results: map[string]string{"updateDuneQuery": `{"queryId":7}`}}
-	root, buf := newMCPRoot(fake)
-	root.SetArgs([]string{"query", "update", "7", "--private=false", "--archived=false"})
-	require.NoError(t, root.Execute())
-
-	assert.Equal(t, "Updated query 7\n", buf.String())
-	assert.JSONEq(t, `{"queryId":7,"is_private":false,"is_archived":false}`, fake.Last().Args)
-}
-
-func TestUpdateEmptyDescriptionClearsIt(t *testing.T) {
-	fake := &dunemcptest.Fake{Results: map[string]string{"updateDuneQuery": `{"queryId":7}`}}
-	root, _ := newMCPRoot(fake)
-	root.SetArgs([]string{"query", "update", "7", "--description", "", "--tags", "defi,uniswap"})
-	require.NoError(t, root.Execute())
-	assert.JSONEq(t, `{"queryId":7,"description":null,"tags":["defi","uniswap"]}`, fake.Last().Args)
-}
-
-func TestUpdateNoFlags(t *testing.T) {
-	root, _ := newMCPRoot(&dunemcptest.Fake{})
-	root.SetArgs([]string{"query", "update", "1"})
-	err := root.Execute()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "at least one flag")
-}
-
-func TestUpdateNonIntegerID(t *testing.T) {
-	root, _ := newMCPRoot(&dunemcptest.Fake{})
-	root.SetArgs([]string{"query", "update", "abc", "--name", "X"})
-	err := root.Execute()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid query ID")
-}
-
-func TestUpdateJSONOutput(t *testing.T) {
-	fake := &dunemcptest.Fake{Results: map[string]string{"updateDuneQuery": `{"queryId":7}`}}
-	root, buf := newMCPRoot(fake)
-	root.SetArgs([]string{"query", "update", "7", "--name", "New", "-o", "json"})
-	require.NoError(t, root.Execute())
-	assert.JSONEq(t, `{"query_id":7}`, buf.String())
-}
-
 const createAndRunResult = `{
 	"query":{"query_id":11,"url":"https://dune.com/queries/11"},
 	"execution":{"execution_id":"01EXEC","state":"COMPLETED","engine_used":"small"},

@@ -5,6 +5,7 @@ import (
 
 	"github.com/duneanalytics/cli/cmdutil"
 	"github.com/duneanalytics/cli/output"
+	"github.com/duneanalytics/duneapi-client-go/models"
 	"github.com/spf13/cobra"
 )
 
@@ -28,23 +29,25 @@ func newListCmd() *cobra.Command {
 }
 
 func runList(cmd *cobra.Command, _ []string) error {
-	args := cmdutil.ToolArgs(cmd, map[string]string{"limit": "limit", "offset": "offset"})
-	var res struct {
-		Schedules []schedule `json:"schedules"`
-		Total     int        `json:"total"`
+	var opts models.ListSchedulesOptions
+	if cmd.Flags().Changed("limit") {
+		opts.Limit, _ = cmd.Flags().GetInt("limit")
 	}
-	raw, err := cmdutil.CallTool(cmd, "listSchedules", args, &res)
+	if cmd.Flags().Changed("offset") {
+		opts.Offset, _ = cmd.Flags().GetInt("offset")
+	}
+	res, err := cmdutil.ClientFromCmd(cmd).ListSchedules(opts)
 	if err != nil {
 		return err
 	}
 	w := cmd.OutOrStdout()
 	if output.FormatFromCmd(cmd) == output.FormatJSON {
-		return output.PrintRawJSON(w, raw)
+		return output.PrintJSON(w, res)
 	}
 	rows := make([][]string, len(res.Schedules))
 	for i, s := range res.Schedules {
 		rows[i] = []string{
-			s.Type, s.target(), s.CronExpression, s.Performance, orDash(s.NextExecutionTime), orDash(s.ExpiresAt),
+			s.Type, target(s), s.CronExpression, s.Performance, orDash(s.NextExecutionTime), orDash(s.ExpiresAt),
 		}
 	}
 	output.PrintTable(w, []string{"TYPE", "TARGET", "CRON", "PERFORMANCE", "NEXT_RUN", "EXPIRES_AT"}, rows)

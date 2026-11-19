@@ -6,6 +6,7 @@ import (
 
 	"github.com/duneanalytics/cli/cmdutil"
 	"github.com/duneanalytics/cli/output"
+	"github.com/duneanalytics/duneapi-client-go/models"
 	"github.com/spf13/cobra"
 )
 
@@ -31,27 +32,22 @@ func newMoveContentCmd() *cobra.Command {
 }
 
 func runMoveContent(cmd *cobra.Command, _ []string) error {
-	args := cmdutil.ToolArgs(cmd, map[string]string{
-		"query-ids":     "query_ids",
-		"dashboard-ids": "dashboard_ids",
-	})
-	if len(args) == 0 {
+	queryIDs, _ := cmd.Flags().GetInt64Slice("query-ids")
+	dashboardIDs, _ := cmd.Flags().GetInt64Slice("dashboard-ids")
+	if len(queryIDs) == 0 && len(dashboardIDs) == 0 {
 		return errors.New("provide --query-ids, --dashboard-ids, or both")
 	}
-	args["target_folder_id"] = destination(cmd)
-
-	var res struct {
-		MovedQueryIDs     []int64        `json:"moved_query_ids"`
-		MovedDashboardIDs []int64        `json:"moved_dashboard_ids"`
-		TargetFolder      *folderDetails `json:"target_folder"`
-	}
-	raw, err := cmdutil.CallTool(cmd, "moveContentToFolder", args, &res)
+	res, err := cmdutil.ClientFromCmd(cmd).MoveContent(models.MoveContentRequest{
+		QueryIDs:       queryIDs,
+		DashboardIDs:   dashboardIDs,
+		TargetFolderID: destination(cmd),
+	})
 	if err != nil {
 		return err
 	}
 	w := cmd.OutOrStdout()
 	if output.FormatFromCmd(cmd) == output.FormatJSON {
-		return output.PrintRawJSON(w, raw)
+		return output.PrintJSON(w, res)
 	}
 	where := "out of folders"
 	if res.TargetFolder != nil {

@@ -1,11 +1,14 @@
 package folder
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 
-	"github.com/duneanalytics/cli/cmdutil"
 	"github.com/duneanalytics/cli/output"
+	"github.com/duneanalytics/duneapi-client-go/dune"
+	"github.com/duneanalytics/duneapi-client-go/models"
 	"github.com/spf13/cobra"
 )
 
@@ -37,43 +40,49 @@ func NewFolderCmd() *cobra.Command {
 	return cmd
 }
 
-type folderSummary struct {
-	FolderID  string `json:"folder_id"`
-	Name      string `json:"name"`
-	Path      string `json:"path"`
-	ItemCount int    `json:"item_count"`
-}
-
-type folderDetails struct {
-	FolderID       string  `json:"folder_id"`
-	Name           string  `json:"name"`
-	Path           string  `json:"path"`
-	ParentFolderID *string `json:"parent_folder_id"`
-	Description    *string `json:"description"`
-	Icon           string  `json:"icon"`
-	Color          string  `json:"color"`
-}
-
-type folderResult struct {
-	Folder folderDetails `json:"folder"`
-}
-
-// runFolderTool calls a tool that returns {folder} and prints "<verb> folder <path> (<id>)".
-func runFolderTool(cmd *cobra.Command, tool string, args map[string]any, verb string) error {
-	var res folderResult
-	raw, err := cmdutil.CallTool(cmd, tool, args, &res)
-	if err != nil {
-		return err
-	}
+// printFolder prints a folder returned by a create, update, or move as "<verb> folder <path> (<id>)".
+func printFolder(cmd *cobra.Command, f *models.Folder, verb string) error {
 	w := cmd.OutOrStdout()
 	if output.FormatFromCmd(cmd) == output.FormatJSON {
-		return output.PrintRawJSON(w, raw)
+		return output.PrintJSON(w, f)
 	}
-	fmt.Fprintf(w, "%s folder %s (%s)\n", verb, res.Folder.Path, res.Folder.FolderID)
+	fmt.Fprintf(w, "%s folder %s (%s)\n", verb, f.Path, f.FolderID)
 	return nil
 }
 
-func printFolderSummaries(w io.Writer, folders []folderSummary) {
+// folderAPIError returns the API error in err with its folder error details, or nil when err
+// is not an API error.
+func folderAPIError(err error) (*dune.APIError, models.FolderErrorDetails) {
+	var details models.FolderErrorDetails
+	var apiErr *dune.APIError
+	if !errors.As(err, &apiErr) {
+		return nil, details
+	}
+	if len(apiErr.Details) > 0 {
+		_ = json.Unmarshal(apiErr.Details, &details)
+	}
+	return apiErr, details
+}
+
+// changedInt returns an int flag's value, or 0 (left to the server default) when it was not set.
+func changedInt(cmd *cobra.Command, name string) int {
+	if !cmd.Flags().Changed(name) {
+		return 0
+	}
+	v, _ := cmd.Flags().GetInt(name)
+	return v
+}
+
+// changedString returns a string flag's value, or nil when it was not set.
+func changedString(cmd *cobra.Command, name string) *string {
+	if !cmd.Flags().Changed(name) {
+		return nil
+	}
+	v, _ := cmd.Flags().GetString(name)
+	return &v
+}
+
+func printFolderSummaries(w io.Writer, folders []models.FolderSummary) {
 	rows := make([][]string, len(folders))
 	for i, f := range folders {
 		rows[i] = []string{f.FolderID, f.Path, fmt.Sprintf("%d", f.ItemCount)}
@@ -90,10 +99,10 @@ func addDestinationFlags(cmd *cobra.Command, what string) {
 }
 
 // destination returns the folder ID from --to, or nil for --to-root.
-func destination(cmd *cobra.Command) any {
+func destination(cmd *cobra.Command) *string {
 	if root, _ := cmd.Flags().GetBool("to-root"); root {
 		return nil
 	}
 	to, _ := cmd.Flags().GetString("to")
-	return to
+	return &to
 }

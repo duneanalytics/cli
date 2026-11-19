@@ -5,6 +5,7 @@ import (
 
 	"github.com/duneanalytics/cli/cmdutil"
 	"github.com/duneanalytics/cli/output"
+	"github.com/duneanalytics/duneapi-client-go/models"
 	"github.com/spf13/cobra"
 )
 
@@ -31,18 +32,18 @@ func newUpdateCmd() *cobra.Command {
 }
 
 func runUpdate(cmd *cobra.Command, posArgs []string) error {
-	args := cmdutil.ToolArgs(cmd, map[string]string{
-		"name":        "name",
-		"description": "description",
-		"icon":        "icon",
-		"color":       "color",
-	})
-	if len(args) == 0 {
+	req := models.UpdateFolderRequest{
+		Name:        changedString(cmd, "name"),
+		Description: changedString(cmd, "description"),
+		Icon:        changedString(cmd, "icon"),
+		Color:       changedString(cmd, "color"),
+	}
+	if req == (models.UpdateFolderRequest{}) {
 		return errors.New("at least one flag must be provided (--name, --description, --icon, or --color)")
 	}
-	if d, ok := args["description"]; ok && d == "" {
-		args["description"] = nil
+	f, err := cmdutil.ClientFromCmd(cmd).UpdateFolder(posArgs[0], req)
+	if err != nil {
+		return err
 	}
-	args["folder_id"] = posArgs[0]
-	return runFolderTool(cmd, "updateDuneFolder", args, "Updated")
+	return printFolder(cmd, f, "Updated")
 }

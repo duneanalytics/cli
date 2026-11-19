@@ -87,6 +87,8 @@ func runChartTool(cmd *cobra.Command, tool string, args map[string]any, verb str
 	}
 	fmt.Fprintf(w, "%s visualization %d on query %d\n", verb, res.VisualizationID, res.QueryID)
 	fmt.Fprintf(w, "Chart: %s\n", res.InteractiveChartURL)
-	fmt.Fprintf(w, "Image: %s\n", res.ChartJpegURL)
+	if res.ChartJpegURL != "" {
+		fmt.Fprintf(w, "Image: %s\n", res.ChartJpegURL)
+	}
 	return nil
 }

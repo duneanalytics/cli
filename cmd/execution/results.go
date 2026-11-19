@@ -35,8 +35,6 @@ func newResultsCmd() *cobra.Command {
 			"  --sort-by   ORDER BY fragments in priority order, e.g. '\"amount\" DESC' (repeatable)\n" +
 			"  --sample    a random sample of about N rows; the count varies from call to call, and\n" +
 			"              --sample cannot be combined with --limit or --offset\n" +
-			"With any of these, -o json prints the result as the Dune MCP's getExecutionResults\n" +
-			"returns it, and one call returns at most 32,000 rows.\n\n" +
 			"Use this after submitting a query with --no-wait, or to re-fetch results from\n" +
 			"a completed execution.\n\n" +
 			"Examples:\n" +
@@ -80,12 +78,6 @@ func runResults(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("offset must be non-negative, got %d", offset)
 	}
 
-	for _, f := range []string{"columns", "filter", "sort-by", "sample"} {
-		if cmd.Flags().Changed(f) {
-			return runShapedResults(cmd, executionID)
-		}
-	}
-
 	opts := models.ResultOptions{}
 	if limit > 0 || offset > 0 {
 		opts.Page = &models.ResultPageOption{
@@ -93,18 +85,46 @@ func runResults(cmd *cobra.Command, args []string) error {
 			Limit:  uint32(limit),
 		}
 	}
+	fs := cmd.Flags()
+	if fs.Changed("columns") {
+		opts.Columns, _ = fs.GetStringSlice("columns")
+	}
+	opts.Filters, _ = fs.GetString("filter")
+	if fs.Changed("sort-by") {
+		opts.SortBy, _ = fs.GetStringArray("sort-by")
+	}
+	if fs.Changed("sample") {
+		sample, _ := fs.GetInt("sample")
+		if sample <= 0 {
+			return fmt.Errorf("sample must be positive, got %d", sample)
+		}
+		opts.SampleCount = uint32(sample)
+	}
 
 	client := cmdutil.ClientFromCmd(cmd)
 
-	if noWait {
-		resp, err := client.QueryResultsV2(executionID, opts)
-		if err != nil {
+	if !noWait {
+		timeout, _ := cmd.Flags().GetInt("timeout")
+		if len(opts.Columns) > 0 || opts.Filters != "" || len(opts.SortBy) > 0 || opts.SampleCount > 0 {
+			// WaitGetResults downloads every unshaped row once the execution finishes,
+			// which shaping exists to avoid; poll the status instead.
+			if err := waitForExecution(client, executionID, timeout); err != nil {
+				return err
+			}
+		} else if err := waitGetResults(client, executionID, timeout); err != nil {
 			return err
 		}
-		return handleResultsResponse(cmd, executionID, resp)
 	}
 
-	timeout, _ := cmd.Flags().GetInt("timeout")
+	// Fetch final results with any paging and shaping options.
+	resp, err := client.QueryResultsV2(executionID, opts)
+	if err != nil {
+		return err
+	}
+	return handleResultsResponse(cmd, executionID, resp)
+}
+
+func waitGetResults(client dune.DuneClient, executionID string, timeout int) error {
 	intervalSec := int(PollInterval.Seconds())
 	maxRetries := timeout
 	if intervalSec > 0 {
@@ -115,16 +135,8 @@ func runResults(cmd *cobra.Command, args []string) error {
 	}
 
 	exec := dune.NewExecution(client, executionID)
-	if _, err := exec.WaitGetResults(PollInterval, maxRetries); err != nil {
-		return err
-	}
-
-	// Fetch final results with any limit/offset options.
-	resp, err := client.QueryResultsV2(executionID, opts)
-	if err != nil {
-		return err
-	}
-	return handleResultsResponse(cmd, executionID, resp)
+	_, err := exec.WaitGetResults(PollInterval, maxRetries)
+	return err
 }
 
 func handleResultsResponse(cmd *cobra.Command, executionID string, resp *models.ResultsResponse) error {
@@ -152,47 +164,6 @@ func handleResultsResponse(cmd *cobra.Command, executionID string, resp *models.
 	default:
 		return fmt.Errorf("unexpected execution state: %s", resp.State)
 	}
-}
-
-// runShapedResults reads results through the Dune MCP's getExecutionResults,
-// which filters, sorts, projects, and samples rows on the server.
-func runShapedResults(cmd *cobra.Command, executionID string) error {
-	if noWait, _ := cmd.Flags().GetBool("no-wait"); !noWait {
-		timeout, _ := cmd.Flags().GetInt("timeout")
-		if err := waitForExecution(cmdutil.ClientFromCmd(cmd), executionID, timeout); err != nil {
-			return err
-		}
-	}
-
-	args := cmdutil.ToolArgs(cmd, map[string]string{
-		"columns": "outputColumns",
-		"filter":  "whereClause",
-		"sort-by": "orderByClauses",
-		"sample":  "sampleSize",
-		"limit":   "limit",
-		"offset":  "offset",
-	})
-	args["executionId"] = executionID
-	args["timeout"] = 0
-	// --limit 0 means all rows, as many as one call returns. A sample has no limit.
-	if limit, _ := cmd.Flags().GetInt("limit"); limit == 0 && !cmd.Flags().Changed("sample") {
-		args["limit"] = models.LimitRows
-	}
-
-	var res output.ExecutionResult
-	raw, err := cmdutil.CallTool(cmd, "getExecutionResults", args, &res)
-	if err != nil {
-		return err
-	}
-	if err := res.Err(); err != nil {
-		return err
-	}
-	w := cmd.OutOrStdout()
-	if output.FormatFromCmd(cmd) == output.FormatJSON {
-		return output.PrintRawJSON(w, raw)
-	}
-	output.PrintExecutionResult(w, res)
-	return nil
 }
 
 // waitForExecution polls the execution's status, without downloading rows, until

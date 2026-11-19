@@ -1,7 +1,9 @@
 package folder
 
 import (
+	"github.com/duneanalytics/cli/cmdutil"
 	"github.com/duneanalytics/cli/output"
+	"github.com/duneanalytics/duneapi-client-go/models"
 	"github.com/spf13/cobra"
 )
 
@@ -25,9 +27,10 @@ func newMoveCmd() *cobra.Command {
 }
 
 func runMove(cmd *cobra.Command, posArgs []string) error {
-	args := map[string]any{
-		"folder_id":        posArgs[0],
-		"parent_folder_id": destination(cmd),
+	req := models.MoveFolderRequest{ParentFolderID: destination(cmd)}
+	f, err := cmdutil.ClientFromCmd(cmd).MoveFolder(posArgs[0], req)
+	if err != nil {
+		return err
 	}
-	return runFolderTool(cmd, "moveDuneFolder", args, "Moved")
+	return printFolder(cmd, f, "Moved")
 }

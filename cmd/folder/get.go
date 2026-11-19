@@ -5,6 +5,7 @@ import (
 
 	"github.com/duneanalytics/cli/cmdutil"
 	"github.com/duneanalytics/cli/output"
+	"github.com/duneanalytics/duneapi-client-go/models"
 	"github.com/spf13/cobra"
 )
 
@@ -28,29 +29,14 @@ func newGetCmd() *cobra.Command {
 }
 
 func runGet(cmd *cobra.Command, posArgs []string) error {
-	args := cmdutil.ToolArgs(cmd, map[string]string{"limit": "limit", "offset": "offset"})
-	args["folder_id"] = posArgs[0]
-
-	var res struct {
-		Folder            folderDetails   `json:"folder"`
-		Subfolders        []folderSummary `json:"subfolders"`
-		HasMoreSubfolders bool            `json:"has_more_subfolders"`
-		Items             []struct {
-			Type      string `json:"type"`
-			ID        int64  `json:"id"`
-			Name      string `json:"name"`
-			IsPrivate bool   `json:"is_private"`
-		} `json:"items"`
-		TotalItems int  `json:"total_items"`
-		NextOffset *int `json:"next_offset"`
-	}
-	raw, err := cmdutil.CallTool(cmd, "getDuneFolder", args, &res)
+	opts := models.GetFolderOptions{Limit: changedInt(cmd, "limit"), Offset: changedInt(cmd, "offset")}
+	res, err := cmdutil.ClientFromCmd(cmd).GetFolder(posArgs[0], opts)
 	if err != nil {
 		return err
 	}
 	w := cmd.OutOrStdout()
 	if output.FormatFromCmd(cmd) == output.FormatJSON {
-		return output.PrintRawJSON(w, raw)
+		return output.PrintJSON(w, res)
 	}
 
 	f := res.Folder

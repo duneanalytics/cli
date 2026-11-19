@@ -46,33 +46,78 @@ func runUpdate(cmd *cobra.Command, posArgs []string) error {
 		return err
 	}
 
-	args := cmdutil.ToolArgs(cmd, map[string]string{
-		"name":        "name",
-		"sql":         "query",
-		"description": "description",
-		"private":     "is_private",
-		"archived":    "is_archived",
-		"temp":        "is_temp",
-		"tags":        "tags",
-	})
-	if cmd.Flags().Changed("parameters") {
-		var params []any
-		if err := cmdutil.JSONFlag(cmd, "parameters", &params); err != nil {
-			return err
-		}
-		args["parameters"] = params
+	fs := cmd.Flags()
+	changed := false
+	for _, f := range []string{"name", "sql", "description", "private", "archived", "temp", "tags", "parameters"} {
+		changed = changed || fs.Changed(f)
 	}
-	if len(args) == 0 {
+	if !changed {
 		return fmt.Errorf("at least one flag must be provided " +
 			"(--name, --sql, --description, --private, --archived, --temp, --tags, or --parameters)")
 	}
-	if d, ok := args["description"]; ok && d == "" {
-		args["description"] = nil
-	}
-	args["queryId"] = queryID
 
-	if _, err := cmdutil.CallTool(cmd, "updateDuneQuery", args, nil); err != nil {
-		return err
+	var req models.UpdateQueryRequest
+	patch := false
+	stringFlag := func(name string) *string {
+		if !fs.Changed(name) {
+			return nil
+		}
+		v, _ := fs.GetString(name)
+		patch = true
+		return &v
+	}
+	req.Name = stringFlag("name")
+	req.QuerySQL = stringFlag("sql")
+	req.Description = stringFlag("description")
+	if fs.Changed("tags") {
+		// An empty --tags gives an empty, non-nil slice, which the SDK sends to clear the tags.
+		req.Tags, _ = fs.GetStringSlice("tags")
+		patch = true
+	}
+	if fs.Changed("parameters") {
+		if err := cmdutil.JSONFlag(cmd, "parameters", &req.Parameters); err != nil {
+			return err
+		}
+		patch = true
+	}
+
+	client := cmdutil.ClientFromCmd(cmd)
+	archived, _ := fs.GetBool("archived")
+	// Restore an archived query before editing it, and archive one only after.
+	if fs.Changed("archived") && !archived {
+		if _, err := client.UnarchiveQuery(queryID); err != nil {
+			return err
+		}
+	}
+	if patch {
+		if _, err := client.UpdateQuery(queryID, req); err != nil {
+			return err
+		}
+	}
+	// The PATCH endpoint ignores privacy and archive state, so they have their own calls.
+	if fs.Changed("private") {
+		private, _ := fs.GetBool("private")
+		if private {
+			_, err = client.MakeQueryPrivate(queryID)
+		} else {
+			_, err = client.MakeQueryPublic(queryID)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	if fs.Changed("temp") {
+		// The REST API has no endpoint for the temp flag, so it alone still goes through the Dune MCP.
+		temp, _ := fs.GetBool("temp")
+		args := map[string]any{"queryId": queryID, "is_temp": temp}
+		if _, err := cmdutil.CallTool(cmd, "updateDuneQuery", args, nil); err != nil {
+			return err
+		}
+	}
+	if fs.Changed("archived") && archived {
+		if _, err := client.ArchiveQuery(queryID); err != nil {
+			return err
+		}
 	}
 	resp := models.UpdateQueryResponse{QueryID: queryID}
 

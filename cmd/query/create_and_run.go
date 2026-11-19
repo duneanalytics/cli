@@ -125,7 +125,9 @@ func runCreateAndRun(cmd *cobra.Command, _ []string) error {
 	}
 	if v := res.Visualization; v != nil {
 		fmt.Fprintf(w, "Visualization %d: %s\n", v.VisualizationID, v.InteractiveChartURL)
-		fmt.Fprintf(w, "Image: %s\n", v.ChartJpegURL)
+		if v.ChartJpegURL != "" {
+			fmt.Fprintf(w, "Image: %s\n", v.ChartJpegURL)
+		}
 	}
 	if p := res.ResultPreview; p != nil && p.Err() == nil {
 		fmt.Fprintln(w)

@@ -2,9 +2,11 @@ package schedule
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/duneanalytics/cli/cmdutil"
 	"github.com/duneanalytics/cli/output"
+	"github.com/duneanalytics/duneapi-client-go/models"
 	"github.com/spf13/cobra"
 )
 
@@ -45,32 +47,43 @@ func newSetCmd() *cobra.Command {
 }
 
 func runSet(cmd *cobra.Command, _ []string) error {
-	args := targetArgs(cmd)
-	for k, v := range cmdutil.ToolArgs(cmd, map[string]string{
-		"cron":        "cron_expression",
-		"performance": "performance",
-		"expires-at":  "expires_at",
-	}) {
-		args[k] = v
+	req := models.SetScheduleRequest{}
+	req.CronExpression, _ = cmd.Flags().GetString("cron")
+	req.Performance, _ = cmd.Flags().GetString("performance")
+	if cmd.Flags().Changed("expires-at") {
+		s, _ := cmd.Flags().GetString("expires-at")
+		t, err := time.Parse(time.RFC3339, s)
+		if err != nil {
+			return fmt.Errorf("invalid --expires-at %q: must be an RFC 3339 time such as 2027-01-01T00:00:00Z", s)
+		}
+		req.ExpiresAt = &t
 	}
 
-	var res struct {
-		schedule
-		Created bool `json:"created"`
+	client := cmdutil.ClientFromCmd(cmd)
+	var (
+		res  *models.SetScheduleResponse
+		err  error
+		what string
+	)
+	if isDashboard, id := dashboardTarget(cmd); isDashboard {
+		what = fmt.Sprintf("dashboard %d", id)
+		res, err = client.SetDashboardSchedule(id, req)
+	} else {
+		what = fmt.Sprintf("query %d", id)
+		res, err = client.SetQuerySchedule(id, req)
 	}
-	raw, err := cmdutil.CallTool(cmd, "setSchedule", args, &res)
 	if err != nil {
 		return err
 	}
 	w := cmd.OutOrStdout()
 	if output.FormatFromCmd(cmd) == output.FormatJSON {
-		return output.PrintRawJSON(w, raw)
+		return output.PrintJSON(w, res)
 	}
 	verb := "Replaced"
 	if res.Created {
 		verb = "Created"
 	}
-	fmt.Fprintf(w, "%s schedule for %s: %q on %s\n", verb, res.target(), res.CronExpression, res.Performance)
+	fmt.Fprintf(w, "%s schedule for %s: %q on %s\n", verb, what, res.CronExpression, res.Performance)
 	fmt.Fprintf(w, "Next run:   %s\n", orDash(res.NextExecutionTime))
 	fmt.Fprintf(w, "Expires at: %s\n", orDash(res.ExpiresAt))
 	return nil

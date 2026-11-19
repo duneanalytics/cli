@@ -2,8 +2,9 @@ package schedule
 
 import (
 	"fmt"
+	"time"
 
-	"github.com/duneanalytics/cli/cmdutil"
+	"github.com/duneanalytics/duneapi-client-go/models"
 	"github.com/spf13/cobra"
 )
 
@@ -27,18 +28,8 @@ func NewScheduleCmd() *cobra.Command {
 	return cmd
 }
 
-type schedule struct {
-	Type              string  `json:"type"`
-	QueryID           *int64  `json:"query_id"`
-	DashboardID       *int64  `json:"dashboard_id"`
-	CronExpression    string  `json:"cron_expression"`
-	Performance       string  `json:"performance"`
-	NextExecutionTime *string `json:"next_execution_time"`
-	ExpiresAt         *string `json:"expires_at"`
-}
-
 // target describes what a schedule runs, e.g. "query 123".
-func (s schedule) target() string {
+func target(s models.Schedule) string {
 	switch {
 	case s.DashboardID != nil:
 		return fmt.Sprintf("dashboard %d", *s.DashboardID)
@@ -56,13 +47,20 @@ func addTargetFlags(cmd *cobra.Command) {
 	cmd.MarkFlagsOneRequired("query-id", "dashboard-id")
 }
 
-func targetArgs(cmd *cobra.Command) map[string]any {
-	return cmdutil.ToolArgs(cmd, map[string]string{"query-id": "query_id", "dashboard-id": "dashboard_id"})
+// dashboardTarget reports whether the command targets a dashboard rather than a
+// query, and the ID of the target.
+func dashboardTarget(cmd *cobra.Command) (bool, int) {
+	if cmd.Flags().Changed("dashboard-id") {
+		id, _ := cmd.Flags().GetInt("dashboard-id")
+		return true, id
+	}
+	id, _ := cmd.Flags().GetInt("query-id")
+	return false, id
 }
 
-func orDash(s *string) string {
-	if s == nil || *s == "" {
+func orDash(t *time.Time) string {
+	if t == nil {
 		return "-"
 	}
-	return *s
+	return t.Format(time.RFC3339)
 }

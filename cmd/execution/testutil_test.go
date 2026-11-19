@@ -14,6 +14,11 @@ import (
 type mockClient struct {
 	dune.DuneClient
 	queryResultsV2Fn func(string, models.ResultOptions) (*models.ResultsResponse, error)
+	queryStatusFn    func(string) (*models.StatusResponse, error)
+}
+
+func (m *mockClient) QueryStatus(executionID string) (*models.StatusResponse, error) {
+	return m.queryStatusFn(executionID)
 }
 
 func (m *mockClient) QueryResultsV2(executionID string, options models.ResultOptions) (*models.ResultsResponse, error) {

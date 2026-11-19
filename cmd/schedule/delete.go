@@ -5,6 +5,7 @@ import (
 
 	"github.com/duneanalytics/cli/cmdutil"
 	"github.com/duneanalytics/cli/output"
+	"github.com/duneanalytics/duneapi-client-go/models"
 	"github.com/spf13/cobra"
 )
 
@@ -28,16 +29,22 @@ func newDeleteCmd() *cobra.Command {
 }
 
 func runDelete(cmd *cobra.Command, _ []string) error {
-	var res struct {
-		Deleted bool `json:"deleted"`
+	client := cmdutil.ClientFromCmd(cmd)
+	var (
+		res *models.DeleteScheduleResponse
+		err error
+	)
+	if isDashboard, id := dashboardTarget(cmd); isDashboard {
+		res, err = client.DeleteDashboardSchedule(id)
+	} else {
+		res, err = client.DeleteQuerySchedule(id)
 	}
-	raw, err := cmdutil.CallTool(cmd, "deleteSchedule", targetArgs(cmd), &res)
 	if err != nil {
 		return err
 	}
 	w := cmd.OutOrStdout()
 	if output.FormatFromCmd(cmd) == output.FormatJSON {
-		return output.PrintRawJSON(w, raw)
+		return output.PrintJSON(w, res)
 	}
 	if res.Deleted {
 		fmt.Fprintln(w, "Deleted the schedule")

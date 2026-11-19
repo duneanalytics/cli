@@ -35,6 +35,35 @@ type mockClient struct {
 	queryExecuteFn func(models.ExecuteRequest) (*models.ExecuteResponse, error)
 	runSQLFn       func(models.ExecuteSQLRequest) (dune.Execution, error)
 	sqlExecuteFn   func(models.ExecuteSQLRequest) (*models.ExecuteResponse, error)
+	// calls records the query-update methods called, in order, when set.
+	calls *[]string
+	// updateReqs records the requests passed to UpdateQuery.
+	updateReqs []models.UpdateQueryRequest
+}
+
+func (m *mockClient) record(method string, queryID int) (*models.UpdateQueryResponse, error) {
+	if m.calls == nil {
+		panic("unexpected call to " + method)
+	}
+	*m.calls = append(*m.calls, method)
+	return &models.UpdateQueryResponse{QueryID: queryID}, nil
+}
+
+func (m *mockClient) UpdateQuery(queryID int, req models.UpdateQueryRequest) (*models.UpdateQueryResponse, error) {
+	m.updateReqs = append(m.updateReqs, req)
+	return m.record("UpdateQuery", queryID)
+}
+
+func (m *mockClient) MakeQueryPrivate(queryID int) (*models.UpdateQueryResponse, error) {
+	return m.record("MakeQueryPrivate", queryID)
+}
+
+func (m *mockClient) MakeQueryPublic(queryID int) (*models.UpdateQueryResponse, error) {
+	return m.record("MakeQueryPublic", queryID)
+}
+
+func (m *mockClient) UnarchiveQuery(queryID int) (*models.UpdateQueryResponse, error) {
+	return m.record("UnarchiveQuery", queryID)
 }
 
 func (m *mockClient) GetQuery(queryID int) (*models.GetQueryResponse, error) {

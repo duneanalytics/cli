@@ -2,9 +2,11 @@ package contract
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/duneanalytics/cli/cmdutil"
 	"github.com/duneanalytics/cli/output"
+	"github.com/duneanalytics/duneapi-client-go/models"
 	"github.com/spf13/cobra"
 )
 
@@ -40,36 +42,24 @@ func newSubmissionsCmd() *cobra.Command {
 }
 
 func runSubmissions(cmd *cobra.Command, _ []string) error {
-	args := cmdutil.ToolArgs(cmd, map[string]string{
-		"blockchain":    "blockchain_name",
-		"address":       "address",
-		"project":       "project_name",
-		"contract-name": "contract_name",
-		"status":        "status",
-		"limit":         "limit",
-		"cursor":        "cursor",
-	})
-	var res struct {
-		Submissions []struct {
-			ID             string `json:"id"`
-			BlockchainName string `json:"blockchain_name"`
-			Address        string `json:"address"`
-			ProjectName    string `json:"project_name"`
-			ContractName   string `json:"contract_name"`
-			Status         string `json:"status"`
-			SubmissionType string `json:"submission_type"`
-			CreatedAt      string `json:"created_at"`
-		} `json:"submissions"`
-		Total      int    `json:"total"`
-		NextCursor string `json:"next_cursor"`
+	fs := cmd.Flags()
+	var opts models.ListContractSubmissionsOptions
+	opts.BlockchainName, _ = fs.GetString("blockchain")
+	opts.Address, _ = fs.GetString("address")
+	opts.ProjectName, _ = fs.GetString("project")
+	opts.ContractName, _ = fs.GetString("contract-name")
+	opts.Status, _ = fs.GetString("status")
+	opts.Cursor, _ = fs.GetString("cursor")
+	if fs.Changed("limit") {
+		opts.Limit, _ = fs.GetInt("limit")
 	}
-	raw, err := cmdutil.CallTool(cmd, "listContractSubmissions", args, &res)
+	res, err := cmdutil.ClientFromCmd(cmd).ListContractSubmissions(opts)
 	if err != nil {
 		return err
 	}
 	w := cmd.OutOrStdout()
 	if output.FormatFromCmd(cmd) == output.FormatJSON {
-		return output.PrintRawJSON(w, raw)
+		return output.PrintJSON(w, res)
 	}
 	if len(res.Submissions) == 0 {
 		fmt.Fprintln(w, "No submissions found.")
@@ -78,12 +68,12 @@ func runSubmissions(cmd *cobra.Command, _ []string) error {
 	rows := make([][]string, len(res.Submissions))
 	for i, s := range res.Submissions {
 		rows[i] = []string{s.ID, s.BlockchainName, s.Address, s.ProjectName + "." + s.ContractName,
-			s.SubmissionType, s.Status, s.CreatedAt}
+			s.SubmissionType, s.Status, s.CreatedAt.Format(time.RFC3339)}
 	}
 	output.PrintTable(w, []string{"ID", "BLOCKCHAIN", "ADDRESS", "CONTRACT", "TYPE", "STATUS", "CREATED"}, rows)
 	fmt.Fprintf(w, "\n%d of %d submissions\n", len(res.Submissions), res.Total)
-	if res.NextCursor != "" {
-		fmt.Fprintf(w, "More submissions: --cursor %s\n", res.NextCursor)
+	if res.NextCursor != nil && *res.NextCursor != "" {
+		fmt.Fprintf(w, "More submissions: --cursor %s\n", *res.NextCursor)
 	}
 	return nil
 }

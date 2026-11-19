@@ -2,10 +2,10 @@ package folder
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/duneanalytics/cli/cmdutil"
 	"github.com/duneanalytics/cli/output"
+	"github.com/duneanalytics/duneapi-client-go/models"
 	"github.com/spf13/cobra"
 )
 
@@ -31,28 +31,35 @@ func newDeleteCmd() *cobra.Command {
 }
 
 func runDelete(cmd *cobra.Command, posArgs []string) error {
-	args := cmdutil.ToolArgs(cmd, map[string]string{"recursive": "recursive"})
-	args["folder_id"] = posArgs[0]
-
-	var res struct {
-		Path                   string `json:"path"`
-		DeletedFolderCount     int    `json:"deleted_folder_count"`
-		ArchivedQueryCount     int    `json:"archived_query_count"`
-		ArchivedDashboardCount int    `json:"archived_dashboard_count"`
-	}
-	raw, err := cmdutil.CallTool(cmd, "deleteDuneFolder", args, &res)
+	recursive, _ := cmd.Flags().GetBool("recursive")
+	res, err := cmdutil.ClientFromCmd(cmd).DeleteFolder(posArgs[0], recursive)
 	if err != nil {
-		// The server's refusal names the MCP argument's effect, not the CLI flag.
-		if args["recursive"] != true && strings.Contains(err.Error(), "is not empty") {
-			return fmt.Errorf("%w\nTo delete it anyway, pass --recursive", err)
+		if apiErr, details := folderAPIError(err); apiErr != nil && apiErr.Code == "folder_not_empty" && !recursive {
+			return fmt.Errorf("%w%s\nTo delete it anyway, pass --recursive", err, notEmptyCounts(details))
 		}
 		return err
 	}
 	w := cmd.OutOrStdout()
 	if output.FormatFromCmd(cmd) == output.FormatJSON {
-		return output.PrintRawJSON(w, raw)
+		return output.PrintJSON(w, res)
 	}
 	fmt.Fprintf(w, "Deleted folder %s: %d folders deleted, %d queries and %d dashboards archived\n",
 		res.Path, res.DeletedFolderCount, res.ArchivedQueryCount, res.ArchivedDashboardCount)
 	return nil
+}
+
+// notEmptyCounts describes what a folder_not_empty refusal says the folder holds, or returns ""
+// when the error carries no counts.
+func notEmptyCounts(d models.FolderErrorDetails) string {
+	if d.SubfolderCount == nil && d.QueryCount == nil && d.DashboardCount == nil {
+		return ""
+	}
+	count := func(n *int) int {
+		if n == nil {
+			return 0
+		}
+		return *n
+	}
+	return fmt.Sprintf("\nIt holds %d subfolders, %d queries and %d dashboards.",
+		count(d.SubfolderCount), count(d.QueryCount), count(d.DashboardCount))
 }

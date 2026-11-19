@@ -5,24 +5,14 @@ import (
 
 	"github.com/duneanalytics/cli/cmdutil"
 	"github.com/duneanalytics/cli/output"
+	"github.com/duneanalytics/duneapi-client-go/models"
 	"github.com/spf13/cobra"
 )
 
-// singleFlags maps the flags that describe one contract to its submission fields.
-var singleFlags = map[string]string{
-	"blockchain":         "blockchain_name",
-	"address":            "address",
-	"project":            "project_name",
-	"contract-name":      "contract_name",
-	"proxy":              "is_proxy",
-	"multiple-instances": "has_multiple_instances",
-	"factory":            "is_created_by_factory",
-	"manual-abi":         "is_manual_abi",
-	"type":               "submission_type",
-	"reason":             "resubmission_reason",
-	"old-project":        "old_project_name",
-	"old-contract-name":  "old_contract_name",
-	"idempotency-key":    "idempotency_key",
+// singleFlags are the flags that describe one contract, which --batch replaces.
+var singleFlags = []string{
+	"blockchain", "address", "project", "contract-name", "abi", "proxy", "multiple-instances", "factory",
+	"manual-abi", "type", "reason", "old-project", "old-contract-name", "idempotency-key",
 }
 
 func newSubmitCmd() *cobra.Command {
@@ -71,77 +61,102 @@ func newSubmitCmd() *cobra.Command {
 	cmd.Flags().String("idempotency-key", "", "key, unique per account, that makes a retry return the existing submission")
 	cmd.Flags().String("batch", "",
 		"JSON array of up to 100 submissions, @path, or @-, instead of the single-contract flags")
-	for name := range singleFlags {
+	for _, name := range singleFlags {
 		cmd.MarkFlagsMutuallyExclusive("batch", name)
 	}
-	cmd.MarkFlagsMutuallyExclusive("batch", "abi")
 	output.AddFormatFlag(cmd, "text")
 	return cmd
 }
 
 func runSubmit(cmd *cobra.Command, _ []string) error {
-	var submissions []any
+	var req models.SubmitContractsRequest
 	if cmd.Flags().Changed("batch") {
-		if err := cmdutil.JSONFlag(cmd, "batch", &submissions); err != nil {
+		if err := cmdutil.JSONFlag(cmd, "batch", &req.Submissions); err != nil {
 			return err
 		}
 	} else {
-		for _, f := range []string{"blockchain", "address", "project", "contract-name", "abi"} {
-			if !cmd.Flags().Changed(f) {
-				return fmt.Errorf("--%s is required unless you pass --batch", f)
-			}
-		}
-		item := cmdutil.ToolArgs(cmd, singleFlags)
-		var abi any
-		if err := cmdutil.JSONFlag(cmd, "abi", &abi); err != nil {
+		item, err := singleSubmission(cmd)
+		if err != nil {
 			return err
 		}
-		item["abi"] = abi
-		submissions = []any{item}
+		req.Submissions = []models.ContractSubmissionInput{item}
 	}
 
-	var res struct {
-		Results []struct {
-			Index        int    `json:"index"`
-			SubmissionID string `json:"submission_id"`
-			Status       string `json:"status"`
-			Replayed     bool   `json:"replayed"`
-			Error        string `json:"error"`
-		} `json:"results"`
-		StatusURL string `json:"status_url"`
-	}
-	raw, err := cmdutil.CallTool(cmd, "submitContractsForDecoding", map[string]any{"submissions": submissions}, &res)
+	res, err := cmdutil.ClientFromCmd(cmd).SubmitContracts(req)
 	if err != nil {
 		return err
 	}
 
 	failed := 0
 	for _, r := range res.Results {
-		if r.Error != "" {
+		if r.Error != nil {
 			failed++
 		}
 	}
 	w := cmd.OutOrStdout()
 	if output.FormatFromCmd(cmd) == output.FormatJSON {
-		if err := output.PrintRawJSON(w, raw); err != nil {
+		if err := output.PrintJSON(w, res); err != nil {
 			return err
 		}
 	} else {
 		rows := make([][]string, len(res.Results))
 		for i, r := range res.Results {
-			status := r.Status
+			status := deref(r.Status)
 			if r.Replayed {
 				status += " (existing)"
 			}
-			rows[i] = []string{fmt.Sprintf("%d", r.Index), r.SubmissionID, status, r.Error}
+			rows[i] = []string{fmt.Sprintf("%d", r.Index), deref(r.SubmissionID), status, deref(r.Error)}
 		}
 		output.PrintTable(w, []string{"INDEX", "SUBMISSION_ID", "STATUS", "ERROR"}, rows)
-		if res.StatusURL != "" {
-			fmt.Fprintf(w, "\nTrack progress at %s or with 'dune contract submissions'\n", res.StatusURL)
-		}
+		fmt.Fprintln(w, "\nTrack progress with 'dune contract submissions'")
 	}
 	if failed > 0 {
 		return fmt.Errorf("%d of %d submissions failed", failed, len(res.Results))
 	}
 	return nil
+}
+
+// singleSubmission builds one submission from the single-contract flags, leaving
+// the optional fields the user did not set empty.
+func singleSubmission(cmd *cobra.Command) (models.ContractSubmissionInput, error) {
+	var item models.ContractSubmissionInput
+	for _, f := range []string{"blockchain", "address", "project", "contract-name", "abi"} {
+		if !cmd.Flags().Changed(f) {
+			return item, fmt.Errorf("--%s is required unless you pass --batch", f)
+		}
+	}
+	if err := cmdutil.JSONFlag(cmd, "abi", &item.ABI); err != nil {
+		return item, err
+	}
+	fs := cmd.Flags()
+	item.BlockchainName, _ = fs.GetString("blockchain")
+	item.Address, _ = fs.GetString("address")
+	item.ProjectName, _ = fs.GetString("project")
+	item.ContractName, _ = fs.GetString("contract-name")
+	item.IsProxy, _ = fs.GetBool("proxy")
+	item.HasMultipleInstances, _ = fs.GetBool("multiple-instances")
+	item.IsCreatedByFactory, _ = fs.GetBool("factory")
+	item.IsManualABI, _ = fs.GetBool("manual-abi")
+	item.SubmissionType = optionalString(cmd, "type")
+	item.ResubmissionReason = optionalString(cmd, "reason")
+	item.OldProjectName = optionalString(cmd, "old-project")
+	item.OldContractName = optionalString(cmd, "old-contract-name")
+	item.IdempotencyKey = optionalString(cmd, "idempotency-key")
+	return item, nil
+}
+
+// optionalString returns the value of a string flag, or nil when the user did not set it.
+func optionalString(cmd *cobra.Command, name string) *string {
+	if !cmd.Flags().Changed(name) {
+		return nil
+	}
+	v, _ := cmd.Flags().GetString(name)
+	return &v
+}
+
+func deref(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }

@@ -2,9 +2,12 @@ package folder
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/duneanalytics/cli/cmdutil"
 	"github.com/duneanalytics/cli/output"
+	"github.com/duneanalytics/duneapi-client-go/dune"
+	"github.com/duneanalytics/duneapi-client-go/models"
 	"github.com/spf13/cobra"
 )
 
@@ -31,23 +34,25 @@ func newListCmd() *cobra.Command {
 }
 
 func runList(cmd *cobra.Command, _ []string) error {
-	args := cmdutil.ToolArgs(cmd, map[string]string{
-		"parent-path":   "parent_path",
-		"name-contains": "name_contains",
-		"limit":         "limit",
-		"offset":        "offset",
-	})
-	var res struct {
-		Folders    []folderSummary `json:"folders"`
-		NextOffset *int            `json:"next_offset"`
+	client := cmdutil.ClientFromCmd(cmd)
+	parentPath, _ := cmd.Flags().GetString("parent-path")
+	parentID, err := resolvePath(client, parentPath)
+	if err != nil {
+		return err
 	}
-	raw, err := cmdutil.CallTool(cmd, "listDuneFolders", args, &res)
+	nameContains, _ := cmd.Flags().GetString("name-contains")
+	res, err := client.ListFolders(models.ListFoldersOptions{
+		ParentFolderID: parentID,
+		NameContains:   nameContains,
+		Limit:          changedInt(cmd, "limit"),
+		Offset:         changedInt(cmd, "offset"),
+	})
 	if err != nil {
 		return err
 	}
 	w := cmd.OutOrStdout()
 	if output.FormatFromCmd(cmd) == output.FormatJSON {
-		return output.PrintRawJSON(w, raw)
+		return output.PrintJSON(w, res)
 	}
 	if len(res.Folders) == 0 {
 		fmt.Fprintln(w, "No folders found.")
@@ -58,4 +63,47 @@ func runList(cmd *cobra.Command, _ []string) error {
 		fmt.Fprintf(w, "\nMore folders: --offset %d\n", *res.NextOffset)
 	}
 	return nil
+}
+
+// resolvePath returns the ID of the folder at path, or "" for the library root ("/"). The API
+// lists folders by parent ID only, so it walks the path one segment at a time.
+func resolvePath(client dune.DuneClient, path string) (string, error) {
+	parentID := ""
+	walked := ""
+	for _, name := range strings.Split(path, "/") {
+		if name == "" {
+			continue
+		}
+		walked += "/" + name
+		id, err := findChild(client, parentID, name)
+		if err != nil {
+			return "", fmt.Errorf("resolving %s: %w", walked, err)
+		}
+		if id == "" {
+			return "", fmt.Errorf("no folder at %s", walked)
+		}
+		parentID = id
+	}
+	return parentID, nil
+}
+
+// findChild returns the ID of the folder under parentID whose name is exactly name, or "" when
+// there is none. The name filter is a substring match, so it pages until it finds the exact name.
+func findChild(client dune.DuneClient, parentID, name string) (string, error) {
+	opts := models.ListFoldersOptions{ParentFolderID: parentID, NameContains: name, Limit: 100}
+	for {
+		res, err := client.ListFolders(opts)
+		if err != nil {
+			return "", err
+		}
+		for _, f := range res.Folders {
+			if f.Name == name {
+				return f.FolderID, nil
+			}
+		}
+		if res.NextOffset == nil {
+			return "", nil
+		}
+		opts.Offset = *res.NextOffset
+	}
 }

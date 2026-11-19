@@ -1,8 +1,11 @@
 package folder
 
 import (
+	"fmt"
+
 	"github.com/duneanalytics/cli/cmdutil"
 	"github.com/duneanalytics/cli/output"
+	"github.com/duneanalytics/duneapi-client-go/models"
 	"github.com/spf13/cobra"
 )
 
@@ -40,12 +43,21 @@ func newCreateCmd() *cobra.Command {
 }
 
 func runCreate(cmd *cobra.Command, _ []string) error {
-	args := cmdutil.ToolArgs(cmd, map[string]string{
-		"name":        "name",
-		"parent-id":   "parent_folder_id",
-		"description": "description",
-		"icon":        "icon",
-		"color":       "color",
-	})
-	return runFolderTool(cmd, "createDuneFolder", args, "Created")
+	name, _ := cmd.Flags().GetString("name")
+	req := models.CreateFolderRequest{
+		Name:           name,
+		ParentFolderID: changedString(cmd, "parent-id"),
+		Description:    changedString(cmd, "description"),
+		Icon:           changedString(cmd, "icon"),
+		Color:          changedString(cmd, "color"),
+	}
+	f, err := cmdutil.ClientFromCmd(cmd).CreateFolder(req)
+	if err != nil {
+		if apiErr, details := folderAPIError(err); apiErr != nil && apiErr.Code == "folder_already_exists" &&
+			details.ExistingFolderID != nil {
+			return fmt.Errorf("%w\nThe existing folder's ID is %s", err, *details.ExistingFolderID)
+		}
+		return err
+	}
+	return printFolder(cmd, f, "Created")
 }
