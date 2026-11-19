@@ -63,7 +63,9 @@ homebrew_casks:
       owner: duneanalytics
       name: homebrew-tap
       branch: "dune-cli-{{ .Version }}"
-      token: '{{ if index .Env "HOMEBREW_TAP_GITHUB_TOKEN" }}{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}{{ end }}'
+      # GoReleaser only accepts a bare env reference here. release.yml always
+      # sets this variable (empty while the app is not configured).
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
       pull_request:
         enabled: true
         base:
