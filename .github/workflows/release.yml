@@ -11,6 +11,8 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      HAS_TAP_APP: ${{ secrets.HOMEBREW_TAP_WRITER_APP_CLIENT_ID != '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,6 +24,19 @@ jobs:
         with:
           go-version-file: go.mod
 
+      # Short-lived token for the homebrew-tap-writer GitHub App, which opens the
+      # cask PR on duneanalytics/homebrew-tap. Skipped until the app secrets
+      # exist; GoReleaser then skips the cask.
+      - name: Generate token for homebrew-tap
+        id: tap-token
+        if: env.HAS_TAP_APP == 'true'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.HOMEBREW_TAP_WRITER_APP_CLIENT_ID }}
+          private-key: ${{ secrets.HOMEBREW_TAP_WRITER_APP_PRIVATE_KEY }}
+          owner: duneanalytics
+          repositories: homebrew-tap
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
@@ -31,6 +46,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AMPLITUDE_KEY: ${{ secrets.AMPLITUDE_KEY }}
-          # Token with contents and pull-request write access to
-          # duneanalytics/homebrew-tap; the cask is skipped while it is unset.
-          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ steps.tap-token.outputs.token }}
