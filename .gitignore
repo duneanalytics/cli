@@ -16,3 +16,6 @@
 
 # CLI binary
 dune-cli
+
+# GoReleaser output
+/dist/

@@ -4,6 +4,14 @@ A command-line interface for interacting with the [Dune](https://dune.com/) API 
 
 ## Installation
 
+### Homebrew (macOS and Linux)
+
+```bash
+brew install duneanalytics/tap/dune-cli
+```
+
+### Install script
+
 ```bash
 curl -sSfL https://github.com/duneanalytics/cli/raw/main/install.sh | bash
 ```
