@@ -21,7 +21,11 @@ func newUpdateCmd() *cobra.Command {
 			"At least one flag must be provided.\n\n" +
 			"Examples:\n" +
 			"  dune viz update 12345 --name \"New Name\"\n" +
-			"  dune viz update 12345 --type counter --options '{\"counterColName\":\"count\"}'",
+			"  dune viz update 12345 --type counter --options '{\"counterColName\":\"count\"}'\n" +
+			"  dune viz update 12345 --chart-type counter --config @counter.json\n\n" +
+			"--chart-type and --config replace --type and --options with a compact chart\n" +
+			"description. When the chart type stays the same, options the config does not\n" +
+			"cover (such as custom colors) are kept.\n\n" + ChartConfigHelp,
 		Args: cobra.ExactArgs(1),
 		RunE: runUpdate,
 	}
@@ -29,7 +33,11 @@ func newUpdateCmd() *cobra.Command {
 	cmd.Flags().String("name", "", "new name for the visualization")
 	cmd.Flags().String("type", "", "new visualization type")
 	cmd.Flags().String("description", "", "new description for the visualization")
-	cmd.Flags().String("options", "", "new visualization options JSON")
+	cmd.Flags().String("options", "", "new raw visualization options JSON")
+	AddChartFlags(cmd)
+	cmd.MarkFlagsMutuallyExclusive("options", "config")
+	cmd.MarkFlagsMutuallyExclusive("type", "chart-type")
+	cmd.MarkFlagsMutuallyExclusive("description", "config")
 	output.AddFormatFlag(cmd, "text")
 
 	return cmd
@@ -41,9 +49,22 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid visualization ID %q: must be an integer", args[0])
 	}
 
+	chart, err := ChartArgs(cmd)
+	if err != nil {
+		return err
+	}
+	if chart != nil {
+		chart["visualizationId"] = vizID
+		if cmd.Flags().Changed("name") {
+			chart["visualizationName"], _ = cmd.Flags().GetString("name")
+		}
+		return runChartTool(cmd, "updateVisualization", chart, "Updated")
+	}
+
 	if !cmd.Flags().Changed("name") && !cmd.Flags().Changed("type") &&
 		!cmd.Flags().Changed("description") && !cmd.Flags().Changed("options") {
-		return fmt.Errorf("at least one flag must be provided (--name, --type, --description, or --options)")
+		return fmt.Errorf("at least one flag must be provided " +
+			"(--name, --type, --description, --options, or --chart-type with --config)")
 	}
 
 	client := cmdutil.ClientFromCmd(cmd)

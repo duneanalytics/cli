@@ -7,6 +7,7 @@ import (
 
 	"github.com/duneanalytics/cli/cmd/query"
 	"github.com/duneanalytics/cli/cmdutil"
+	"github.com/duneanalytics/cli/dunemcp/dunemcptest"
 	"github.com/duneanalytics/duneapi-client-go/dune"
 	"github.com/duneanalytics/duneapi-client-go/models"
 	"github.com/spf13/cobra"
@@ -28,9 +29,7 @@ func (m *mockExecution) GetID() string { return m.id }
 // mockClient embeds the interface so unimplemented methods panic.
 type mockClient struct {
 	dune.DuneClient
-	createQueryFn  func(models.CreateQueryRequest) (*models.CreateQueryResponse, error)
 	getQueryFn     func(int) (*models.GetQueryResponse, error)
-	updateQueryFn  func(int, models.UpdateQueryRequest) (*models.UpdateQueryResponse, error)
 	archiveQueryFn func(int) (*models.UpdateQueryResponse, error)
 	runQueryFn     func(models.ExecuteRequest) (dune.Execution, error)
 	queryExecuteFn func(models.ExecuteRequest) (*models.ExecuteResponse, error)
@@ -38,16 +37,8 @@ type mockClient struct {
 	sqlExecuteFn   func(models.ExecuteSQLRequest) (*models.ExecuteResponse, error)
 }
 
-func (m *mockClient) CreateQuery(req models.CreateQueryRequest) (*models.CreateQueryResponse, error) {
-	return m.createQueryFn(req)
-}
-
 func (m *mockClient) GetQuery(queryID int) (*models.GetQueryResponse, error) {
 	return m.getQueryFn(queryID)
-}
-
-func (m *mockClient) UpdateQuery(queryID int, req models.UpdateQueryRequest) (*models.UpdateQueryResponse, error) {
-	return m.updateQueryFn(queryID, req)
 }
 
 func (m *mockClient) ArchiveQuery(queryID int) (*models.UpdateQueryResponse, error) {
@@ -70,12 +61,21 @@ func (m *mockClient) SQLExecute(req models.ExecuteSQLRequest) (*models.ExecuteRe
 	return m.sqlExecuteFn(req)
 }
 
+// neverRun is the getDuneQuery result for a query that has never been executed.
+const neverRun = `{"query_id":1,"latest_execution_id":null,"latest_execution_state":null}`
+
 // newTestRoot builds a root → query command tree with the mock injected.
 func newTestRoot(mock dune.DuneClient) (*cobra.Command, *bytes.Buffer) {
+	return newTestRootWithMCP(mock, &dunemcptest.Fake{Results: map[string]string{"getDuneQuery": neverRun}})
+}
+
+// newTestRootWithMCP is newTestRoot with fake as the Dune MCP server.
+func newTestRootWithMCP(mock dune.DuneClient, fake *dunemcptest.Fake) (*cobra.Command, *bytes.Buffer) {
 	root := &cobra.Command{
 		Use: "dune",
 		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
 			cmdutil.SetClient(cmd, mock)
+			cmdutil.SetMCP(cmd, fake)
 		},
 	}
 	root.SetContext(context.Background())

@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/duneanalytics/duneapi-client-go/dune"
 	"github.com/spf13/cobra"
 )
 
@@ -42,6 +43,45 @@ func parsePerformance(cmd *cobra.Command) (string, error) {
 			performance,
 		)
 	}
+}
+
+// privacyNote explains why --private is deprecated; cobra prints it whenever the flag is used.
+const privacyNote = "a materialized view always has its source query's privacy; " +
+	"change it with 'dune query update <query-id> --private'"
+
+// addPrivateFlag registers the deprecated --private flag, which scripts may still pass.
+func addPrivateFlag(cmd *cobra.Command) {
+	cmd.Flags().Bool("private", false, "no longer settable: "+privacyNote)
+	_ = cmd.Flags().MarkDeprecated("private", privacyNote)
+}
+
+// checkPrivacy fails when --private asks for a privacy the source query does not have. The
+// server ignores is_private and copies the query's privacy, so without this check
+// --private on a public query would quietly create a public matview.
+func checkPrivacy(cmd *cobra.Command, client dune.DuneClient, queryID int) error {
+	if !cmd.Flags().Changed("private") {
+		return nil
+	}
+	want, _ := cmd.Flags().GetBool("private")
+	query, err := client.GetQuery(queryID)
+	if err != nil {
+		return fmt.Errorf("checking the privacy of query %d: %w", queryID, err)
+	}
+	if query.IsPrivate == want {
+		return nil
+	}
+	return fmt.Errorf(
+		"query %d is %s, and a materialized view always has its source query's privacy; "+
+			"to make it %s, run 'dune query update %d --private=%t' first",
+		queryID, privacyName(query.IsPrivate), privacyName(want), queryID, want,
+	)
+}
+
+func privacyName(private bool) string {
+	if private {
+		return "private"
+	}
+	return "public"
 }
 
 // bareName returns the table segment of a fully-qualified SQL name

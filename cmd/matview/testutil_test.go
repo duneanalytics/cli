@@ -6,6 +6,7 @@ import (
 
 	"github.com/duneanalytics/cli/cmd/matview"
 	"github.com/duneanalytics/cli/cmdutil"
+	"github.com/duneanalytics/cli/dunemcp/dunemcptest"
 	"github.com/duneanalytics/duneapi-client-go/dune"
 	"github.com/duneanalytics/duneapi-client-go/models"
 	"github.com/spf13/cobra"
@@ -19,6 +20,12 @@ type mockClient struct {
 	listFn    func(int, int) (*models.ListMaterializedViewsResponse, error)
 	refreshFn func(string, models.RefreshMaterializedViewRequest) (*models.RefreshMaterializedViewResponse, error)
 	deleteFn  func(string) (*models.DeleteMaterializedViewResponse, error)
+	// private is the privacy GetQuery reports for every query.
+	private bool
+}
+
+func (m *mockClient) GetQuery(queryID int) (*models.GetQueryResponse, error) {
+	return &models.GetQueryResponse{QueryID: queryID, IsPrivate: m.private}, nil
 }
 
 func (m *mockClient) UpsertMaterializedView(
@@ -48,10 +55,16 @@ func (m *mockClient) DeleteMaterializedView(name string) (*models.DeleteMaterial
 
 // newTestRoot builds a root → matview command tree with the mock injected.
 func newTestRoot(mock dune.DuneClient) (*cobra.Command, *bytes.Buffer) {
+	return newTestRootWithMCP(mock, &dunemcptest.Fake{})
+}
+
+// newTestRootWithMCP is newTestRoot with fake as the Dune MCP server.
+func newTestRootWithMCP(mock dune.DuneClient, fake *dunemcptest.Fake) (*cobra.Command, *bytes.Buffer) {
 	root := &cobra.Command{
 		Use: "dune",
 		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
 			cmdutil.SetClient(cmd, mock)
+			cmdutil.SetMCP(cmd, fake)
 		},
 	}
 	root.SetContext(context.Background())

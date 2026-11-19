@@ -16,20 +16,28 @@ import (
 	"github.com/duneanalytics/cli/authconfig"
 	"github.com/duneanalytics/cli/cmd/auth"
 	duneconfig "github.com/duneanalytics/cli/cmd/config"
+	"github.com/duneanalytics/cli/cmd/contract"
 	"github.com/duneanalytics/cli/cmd/dashboard"
 	"github.com/duneanalytics/cli/cmd/dataset"
 	"github.com/duneanalytics/cli/cmd/docs"
 	"github.com/duneanalytics/cli/cmd/execution"
+	"github.com/duneanalytics/cli/cmd/folder"
 	"github.com/duneanalytics/cli/cmd/matview"
 	"github.com/duneanalytics/cli/cmd/query"
+	"github.com/duneanalytics/cli/cmd/schedule"
 	"github.com/duneanalytics/cli/cmd/usage"
 	"github.com/duneanalytics/cli/cmd/visualization"
 	"github.com/duneanalytics/cli/cmd/whoami"
 	"github.com/duneanalytics/cli/cmdutil"
+	"github.com/duneanalytics/cli/dunemcp"
 	"github.com/duneanalytics/cli/tracking"
 )
 
-var apiKeyFlag string
+var (
+	apiKeyFlag string
+	// cliVersion identifies the CLI to the Dune MCP server.
+	cliVersion = "dev"
+)
 
 var rootCmd = &cobra.Command{
 	Use:   "dune",
@@ -39,10 +47,12 @@ var rootCmd = &cobra.Command{
 		"retrieve execution results, and manage your saved queries — all from the terminal.\n\n" +
 		"Capabilities:\n" +
 		"  - Search datasets by keyword, contract address, category, or blockchain\n" +
-		"  - Create, update, archive, and retrieve saved DuneSQL queries\n" +
+		"  - Create, find, update, archive, and retrieve saved DuneSQL queries\n" +
 		"  - Execute saved queries or raw DuneSQL and display results\n" +
 		"  - Create and manage visualizations (charts, tables, counters) on query results\n" +
 		"  - Create and manage dashboards with visualizations and text widgets\n" +
+		"  - Organize queries and dashboards into folders, and schedule them to run\n" +
+		"  - Submit smart contracts for decoding and track the submissions\n" +
 		"  - Browse Dune documentation for DuneSQL syntax, API references, and guides\n" +
 		"  - Monitor credit usage, storage consumption, and billing periods\n\n" +
 		"Authenticate with an API key via --api-key, the DUNE_API_KEY environment variable,\n" +
@@ -84,6 +94,7 @@ var rootCmd = &cobra.Command{
 		}
 		client := dune.NewDuneClient(env)
 		cmdutil.SetClient(cmd, client)
+		cmdutil.SetMCP(cmd, dunemcp.New(env.Host, env.APIKey, env.Headers, cliVersion))
 
 		// Resolve customer identity for analytics (best-effort, never blocks the CLI).
 		if tr := cmdutil.TrackerFromCmd(cmd); tr != nil {
@@ -126,11 +137,15 @@ func init() {
 	rootCmd.AddCommand(whoami.NewWhoAmICmd())
 	rootCmd.AddCommand(visualization.NewVisualizationCmd())
 	rootCmd.AddCommand(dashboard.NewDashboardCmd())
+	rootCmd.AddCommand(folder.NewFolderCmd())
+	rootCmd.AddCommand(schedule.NewScheduleCmd())
+	rootCmd.AddCommand(contract.NewContractCmd())
 }
 
 // Execute runs the root command via Fang.
 func Execute(version, commit, date, amplitudeKey string) {
 	versionStr := fmt.Sprintf("%s (commit: %s, built: %s)", version, commit, date)
+	cliVersion = version
 
 	telemetryEnabled := duneconfig.IsTelemetryEnabled()
 	tracker := tracking.New(tracking.Config{

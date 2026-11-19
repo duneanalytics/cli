@@ -33,7 +33,6 @@ func TestCreateSuccess(t *testing.T) {
 
 	assert.Equal(t, "result_token_summary", got.Name)
 	assert.Equal(t, 12345, got.QueryID)
-	assert.False(t, got.IsPrivate, "private should default to false (public)")
 	assert.Equal(t, "medium", got.Performance)
 	assert.Nil(t, got.CronExpression)
 
@@ -57,13 +56,44 @@ func TestCreateWithCron(t *testing.T) {
 		"--name", "result_scheduled",
 		"--query-id", "7",
 		"--cron", "0 */6 * * *",
-		"--private=false",
 	})
 	require.NoError(t, root.Execute())
 
 	require.NotNil(t, got.CronExpression)
 	assert.Equal(t, "0 */6 * * *", *got.CronExpression)
-	assert.False(t, got.IsPrivate)
+}
+
+// The server gives a matview its source query's privacy and ignores is_private, so --private
+// on a public query must fail instead of quietly creating a public matview.
+func TestCreatePrivateOnPublicQueryFails(t *testing.T) {
+	mock := &mockClient{
+		private: false,
+		upsertFn: func(models.UpsertMaterializedViewRequest) (*models.UpsertMaterializedViewResponse, error) {
+			t.Fatal("the matview must not be created")
+			return nil, nil
+		},
+	}
+	root, _ := newTestRoot(mock)
+	root.SetArgs([]string{"matview", "create", "--name", "result_secret", "--query-id", "7", "--private"})
+	err := root.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "query 7 is public")
+	assert.Contains(t, err.Error(), "dune query update 7 --private=true")
+}
+
+func TestCreatePrivateOnPrivateQuerySucceeds(t *testing.T) {
+	created := false
+	mock := &mockClient{
+		private: true,
+		upsertFn: func(models.UpsertMaterializedViewRequest) (*models.UpsertMaterializedViewResponse, error) {
+			created = true
+			return &models.UpsertMaterializedViewResponse{SQLID: "dune.t.result_secret", ExecutionID: "e1"}, nil
+		},
+	}
+	root, _ := newTestRoot(mock)
+	root.SetArgs([]string{"matview", "create", "--name", "result_secret", "--query-id", "7", "--private"})
+	require.NoError(t, root.Execute())
+	assert.True(t, created)
 }
 
 func TestCreateInvalidName(t *testing.T) {

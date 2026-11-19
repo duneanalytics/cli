@@ -1,12 +1,12 @@
 package dataset
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/duneanalytics/cli/cmdutil"
 	"github.com/duneanalytics/cli/output"
-	"github.com/duneanalytics/duneapi-client-go/models"
 	"github.com/spf13/cobra"
 )
 
@@ -21,14 +21,16 @@ func newSearchCmd() *cobra.Command {
 			"  - decoded: ABI-level events and function calls parsed from contract interactions\n" +
 			"  - spell: curated Spellbook transformation datasets (e.g. dex.trades)\n" +
 			"  - community: user-contributed tables and uploads\n\n" +
-			"Filter by category, blockchain, schema, dataset type, or ownership scope.\n" +
-			"Use --include-schema to get column names and types for SQL generation.\n\n" +
+			"Filter by category, blockchain, schema, or dataset type. Each result lists the\n" +
+			"columns the table is partitioned by: filter on them in SQL (e.g. WHERE block_month\n" +
+			">= DATE '2026-01-01') to cut query cost. With -o json the top 3 hits also carry\n" +
+			"their columns and types; --include-schema adds the schema of every result.\n\n" +
 			"For contract-specific lookup, use 'dune dataset search-by-contract' instead.\n\n" +
 			"Examples:\n" +
 			"  dune dataset search --query \"uniswap swaps\"\n" +
 			"  dune dataset search --query \"transfers\" --categories decoded --blockchains ethereum\n" +
 			"  dune dataset search --query \"dex trades\" --categories spell --include-schema --output json\n" +
-			"  dune dataset search --query \"*\" --owner-scope me",
+			"  dune dataset search --query \"*\" --dataset-types uploaded_table",
 		RunE: runSearch,
 	}
 
@@ -38,9 +40,12 @@ func newSearchCmd() *cobra.Command {
 	cmd.Flags().StringArray("dataset-types", nil,
 		"fine-grained dataset type filter: dune_table, decoded_table, spell, uploaded_table, transformation_table, transformation_view")
 	cmd.Flags().StringArray("schemas", nil, "schema/namespace constraint for high precision (e.g. dex, uniswap_v3_ethereum)")
-	cmd.Flags().String("owner-scope", "", "ownership filter: all (default), me, or team; does NOT automatically include private datasets")
-	cmd.Flags().Bool("include-private", false, "widen results to include private datasets visible to the authenticated user/team alongside public ones")
-	cmd.Flags().Bool("include-schema", false, "include column-level schema (name, type, nullable) for every result; useful when preparing SQL")
+	cmd.Flags().String("owner-scope", "", "no longer used")
+	cmd.Flags().Bool("include-private", false, "no longer used")
+	_ = cmd.Flags().MarkDeprecated("owner-scope", "it has no effect and will be removed")
+	_ = cmd.Flags().MarkDeprecated("include-private", "it has no effect and will be removed")
+	cmd.Flags().Bool("include-schema", false,
+		"include column-level schema (name, type, nullable) for every result; the top 3 hits always include their columns")
 	cmd.Flags().Bool("include-metadata", false, "include category-specific metadata (page_rank_score, description, abi_type, contract_name, project_name, etc.)")
 	cmd.Flags().Int32("limit", 20, "number of results per page; use 5-15 for quick checks, 20-50 for deeper exploration")
 	cmd.Flags().Int32("offset", 0, "pagination offset; combine with limit to page through large result sets")
@@ -49,77 +54,76 @@ func newSearchCmd() *cobra.Command {
 	return cmd
 }
 
+// searchResult is a search hit in the shape the Dune API's dataset search uses,
+// plus the partition and column details only the Dune MCP's searchTables returns.
+type searchResult struct {
+	FullName         string          `json:"full_name"`
+	Category         string          `json:"category"`
+	DatasetType      string          `json:"dataset_type,omitempty"`
+	Blockchains      []string        `json:"blockchains,omitempty"`
+	PartitionColumns []string        `json:"partition_columns,omitempty"`
+	Visibility       string          `json:"visibility,omitempty"`
+	Description      string          `json:"description,omitempty"`
+	Columns          json.RawMessage `json:"columns,omitempty"`
+	Schema           json.RawMessage `json:"schema,omitempty"`
+	Metadata         json.RawMessage `json:"metadata,omitempty"`
+}
+
+type searchResponse struct {
+	Total      int            `json:"total"`
+	Results    []searchResult `json:"results"`
+	Pagination struct {
+		Limit      int  `json:"limit"`
+		Offset     int  `json:"offset"`
+		NextOffset *int `json:"next_offset,omitempty"`
+		HasMore    bool `json:"has_more"`
+	} `json:"pagination"`
+}
+
 func runSearch(cmd *cobra.Command, _ []string) error {
-	client := cmdutil.ClientFromCmd(cmd)
-
-	req := models.SearchDatasetsRequest{}
-
-	if cmd.Flags().Changed("query") {
-		v, _ := cmd.Flags().GetString("query")
-		req.Query = &v
+	args := cmdutil.ToolArgs(cmd, map[string]string{
+		"query":            "query",
+		"categories":       "categories",
+		"blockchains":      "blockchains",
+		"dataset-types":    "datasetTypes",
+		"schemas":          "schemas",
+		"include-schema":   "includeSchema",
+		"include-metadata": "includeMetadata",
+		"limit":            "limit",
+		"offset":           "offset",
+	})
+	var res struct {
+		Total      int            `json:"total"`
+		Results    []searchResult `json:"results"`
+		Pagination struct {
+			Limit      int  `json:"limit"`
+			Offset     int  `json:"offset"`
+			NextOffset *int `json:"nextOffset"`
+			HasMore    bool `json:"hasMore"`
+		} `json:"pagination"`
 	}
-	if cmd.Flags().Changed("categories") {
-		v, _ := cmd.Flags().GetStringArray("categories")
-		req.Categories = v
-	}
-	if cmd.Flags().Changed("blockchains") {
-		v, _ := cmd.Flags().GetStringArray("blockchains")
-		req.Blockchains = v
-	}
-	if cmd.Flags().Changed("dataset-types") {
-		v, _ := cmd.Flags().GetStringArray("dataset-types")
-		req.DatasetTypes = v
-	}
-	if cmd.Flags().Changed("schemas") {
-		v, _ := cmd.Flags().GetStringArray("schemas")
-		req.Schemas = v
-	}
-	if cmd.Flags().Changed("owner-scope") {
-		v, _ := cmd.Flags().GetString("owner-scope")
-		req.OwnerScope = &v
-	}
-	if cmd.Flags().Changed("include-private") {
-		v, _ := cmd.Flags().GetBool("include-private")
-		req.IncludePrivate = &v
-	}
-	if cmd.Flags().Changed("include-schema") {
-		v, _ := cmd.Flags().GetBool("include-schema")
-		req.IncludeSchema = &v
-	}
-	if cmd.Flags().Changed("include-metadata") {
-		v, _ := cmd.Flags().GetBool("include-metadata")
-		req.IncludeMetadata = &v
-	}
-	if cmd.Flags().Changed("limit") {
-		v, _ := cmd.Flags().GetInt32("limit")
-		req.Limit = &v
-	}
-	if cmd.Flags().Changed("offset") {
-		v, _ := cmd.Flags().GetInt32("offset")
-		req.Offset = &v
-	}
-
-	resp, err := client.SearchDatasets(req)
-	if err != nil {
+	if _, err := cmdutil.CallTool(cmd, "searchTables", args, &res); err != nil {
 		return err
 	}
+	resp := searchResponse{Total: res.Total, Results: res.Results}
+	resp.Pagination.Limit = res.Pagination.Limit
+	resp.Pagination.Offset = res.Pagination.Offset
+	resp.Pagination.NextOffset = res.Pagination.NextOffset
+	resp.Pagination.HasMore = res.Pagination.HasMore
 
 	w := cmd.OutOrStdout()
 	switch output.FormatFromCmd(cmd) {
 	case output.FormatJSON:
 		return output.PrintJSON(w, resp)
 	default:
-		columns := []string{"FULL_NAME", "CATEGORY", "DATASET_TYPE", "BLOCKCHAINS"}
+		columns := []string{"FULL_NAME", "CATEGORY", "DATASET_TYPE", "PARTITIONED_BY", "BLOCKCHAINS"}
 		rows := make([][]string, len(resp.Results))
 		for i, r := range resp.Results {
-			dt := ""
-			if r.DatasetType != nil {
-				dt = *r.DatasetType
-			}
 			rows[i] = []string{
 				r.FullName,
 				r.Category,
-				dt,
+				r.DatasetType,
+				strings.Join(r.PartitionColumns, ", "),
 				strings.Join(r.Blockchains, ", "),
 			}
 		}

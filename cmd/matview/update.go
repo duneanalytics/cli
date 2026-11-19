@@ -13,23 +13,23 @@ func newUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update <name>",
 		Short: "Update a materialized view's settings or refresh schedule",
-		Long: "Change a matview's privacy, performance tier, or refresh schedule. Updating\n" +
-			"re-executes the source query. The name and source query are immutable.\n\n" +
+		Long: "Change a matview's performance tier or refresh schedule. Updating re-executes the\n" +
+			"source query. The name and source query are immutable, and the privacy always follows\n" +
+			"the source query (change it with 'dune query update <query-id> --private').\n\n" +
 			"Settings you don't pass are preserved (read-modify-write). In particular, the\n" +
 			"existing refresh schedule is kept unless you change it with --cron or remove it\n" +
-			"with --no-schedule — so a plain `update --private=false` will not silently drop\n" +
+			"with --no-schedule — so a plain `update --performance large` will not silently drop\n" +
 			"a schedule.\n\n" +
 			"The name must be fully qualified, e.g. dune.my_team.result_token_summary.\n\n" +
 			"Examples:\n" +
 			"  dune matview update dune.my_team.result_x --performance large\n" +
 			"  dune matview update dune.my_team.result_x --cron \"0 0 * * *\"\n" +
-			"  dune matview update dune.my_team.result_x --no-schedule\n" +
-			"  dune matview update dune.my_team.result_x --private=false",
+			"  dune matview update dune.my_team.result_x --no-schedule",
 		Args: cobra.ExactArgs(1),
 		RunE: runUpdate,
 	}
 
-	cmd.Flags().Bool("private", false, "set the matview's privacy")
+	addPrivateFlag(cmd)
 	cmd.Flags().String("performance", "", "execution tier: \"small\", \"medium\", or \"large\"")
 	cmd.Flags().String("cron", "", "set or replace the refresh schedule (5-field cron, min 15-minute interval)")
 	cmd.Flags().Bool("no-schedule", false, "remove the refresh schedule")
@@ -53,12 +53,9 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 
 	// Require at least one change flag. Updating re-executes the source query (consuming
 	// credits), so a no-op update must not silently trigger a refresh.
-	if !cmd.Flags().Changed("private") && !cmd.Flags().Changed("performance") &&
-		!cmd.Flags().Changed("cron") && !noSchedule &&
+	if !cmd.Flags().Changed("performance") && !cmd.Flags().Changed("cron") && !noSchedule &&
 		!cmd.Flags().Changed("expires-at") {
-		return fmt.Errorf(
-			"at least one flag must be provided (--private, --performance, --cron, --no-schedule, or --expires-at)",
-		)
+		return fmt.Errorf("at least one flag must be provided (--performance, --cron, --no-schedule, or --expires-at)")
 	}
 
 	client := cmdutil.ClientFromCmd(cmd)
@@ -70,14 +67,14 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	if err := checkPrivacy(cmd, client, current.QueryID); err != nil {
+		return err
+	}
 
 	req := models.UpsertMaterializedViewRequest{
 		Name:      bareName(current.SQLID),
 		QueryID:   current.QueryID,
 		IsPrivate: current.IsPrivate,
-	}
-	if cmd.Flags().Changed("private") {
-		req.IsPrivate, _ = cmd.Flags().GetBool("private")
 	}
 
 	// Resolve the schedule, defaulting to preserving the current one.

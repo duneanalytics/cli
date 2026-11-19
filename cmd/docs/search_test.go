@@ -15,14 +15,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// searchArgs mirrors the tool input for SearchDuneDocs.
+// searchArgs mirrors the tool input for search_dune_docs.
 type searchArgs struct {
 	Query            string `json:"query"`
 	APIReferenceOnly bool   `json:"apiReferenceOnly,omitempty"`
 	CodeOnly         bool   `json:"codeOnly,omitempty"`
 }
 
-func startMCPServer(t *testing.T, results []map[string]string) *httptest.Server {
+func startMCPServer(t *testing.T, results []string) *httptest.Server {
 	t.Helper()
 
 	server := mcp.NewServer(&mcp.Implementation{
@@ -31,13 +31,12 @@ func startMCPServer(t *testing.T, results []map[string]string) *httptest.Server 
 	}, nil)
 
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        "SearchDuneDocs",
+		Name:        "search_dune_docs",
 		Description: "Search Dune docs",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args searchArgs) (*mcp.CallToolResult, any, error) {
 		var content []mcp.Content
 		for _, r := range results {
-			b, _ := json.Marshal(r)
-			content = append(content, &mcp.TextContent{Text: string(b)})
+			content = append(content, &mcp.TextContent{Text: r})
 		}
 		return &mcp.CallToolResult{Content: content}, nil, nil
 	})
@@ -62,9 +61,9 @@ func newTestRoot() (*cobra.Command, *bytes.Buffer) {
 }
 
 func TestSearchTextOutput(t *testing.T) {
-	ts := startMCPServer(t, []map[string]string{
-		{"title": "Decoded Tables", "url": "https://docs.dune.com/decoded", "description": "How decoded tables work"},
-		{"title": "Raw Tables", "url": "https://docs.dune.com/raw", "description": "Raw blockchain data"},
+	ts := startMCPServer(t, []string{
+		"Title: Decoded Tables\nLink: https://docs.dune.com/decoded\nPage: decoded\nContent: How decoded tables work",
+		"Title: Raw Tables\nLink: https://docs.dune.com/raw\nPage: raw\nContent: Raw blockchain data",
 	})
 
 	root, buf := newTestRoot()
@@ -80,8 +79,9 @@ func TestSearchTextOutput(t *testing.T) {
 }
 
 func TestSearchJSONOutput(t *testing.T) {
-	ts := startMCPServer(t, []map[string]string{
-		{"title": "API Pagination", "url": "https://docs.dune.com/api/pagination"},
+	ts := startMCPServer(t, []string{
+		"Title: API Pagination\nLink: https://docs.dune.com/api/pagination\nPage: api/pagination\n" +
+			"Content: ## Pagination\n\nUse `limit` and `offset`.\nLink: not a header here",
 	})
 
 	root, buf := newTestRoot()
@@ -92,14 +92,18 @@ func TestSearchJSONOutput(t *testing.T) {
 	var resp struct {
 		Query   string `json:"query"`
 		Results []struct {
-			Title string `json:"title"`
-			URL   string `json:"url"`
+			Title       string `json:"title"`
+			URL         string `json:"url"`
+			Description string `json:"description"`
 		} `json:"results"`
 	}
 	require.NoError(t, json.Unmarshal(buf.Bytes(), &resp))
 	assert.Equal(t, "pagination", resp.Query)
 	require.Len(t, resp.Results, 1)
 	assert.Equal(t, "API Pagination", resp.Results[0].Title)
+	assert.Equal(t, "https://docs.dune.com/api/pagination", resp.Results[0].URL)
+	// Content runs to the end of the block, even when a content line looks like a header.
+	assert.Equal(t, "## Pagination\n\nUse `limit` and `offset`.\nLink: not a header here", resp.Results[0].Description)
 }
 
 func TestSearchEmptyResults(t *testing.T) {

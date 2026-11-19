@@ -27,13 +27,26 @@ func newResultsCmd() *cobra.Command {
 			"  4. If failed/cancelled: returns the error details\n\n" +
 			"Use --no-wait to return the current state immediately without polling.\n" +
 			"Use --limit and --offset to paginate through large result sets.\n\n" +
+			"Shape the rows on the server instead of downloading them all:\n" +
+			"  --columns   return only these columns, in this order\n" +
+			"  --filter    keep rows matching a WHERE-like expression: <column> <operator> <literal>,\n" +
+			"              combined with AND/OR and parentheses; operators =, <, <=, >, >=, LIKE,\n" +
+			"              IN (...), IS NOT NULL; dates as strings, e.g. block_time > '2026-03-01'\n" +
+			"  --sort-by   ORDER BY fragments in priority order, e.g. '\"amount\" DESC' (repeatable)\n" +
+			"  --sample    a random sample of about N rows; the count varies from call to call, and\n" +
+			"              --sample cannot be combined with --limit or --offset\n" +
+			"With any of these, -o json prints the result as the Dune MCP's getExecutionResults\n" +
+			"returns it, and one call returns at most 32,000 rows.\n\n" +
 			"Use this after submitting a query with --no-wait, or to re-fetch results from\n" +
 			"a completed execution.\n\n" +
 			"Examples:\n" +
 			"  dune execution results 01JXYZ...\n" +
 			"  dune execution results 01JXYZ... --limit 100 --offset 200\n" +
 			"  dune execution results 01JXYZ... --no-wait\n" +
-			"  dune execution results 01JXYZ... --output json",
+			"  dune execution results 01JXYZ... --output json\n" +
+			"  dune execution results 01JXYZ... --columns block_time,amount --filter '\"amount\" > 0' \\\n" +
+			"    --sort-by '\"amount\" DESC' --limit 10\n" +
+			"  dune execution results 01JXYZ... --sample 1000 -o json",
 		Args: cobra.ExactArgs(1),
 		RunE: runResults,
 	}
@@ -42,6 +55,12 @@ func newResultsCmd() *cobra.Command {
 	cmd.Flags().Int("offset", 0, "number of rows to skip before starting to return results; use with --limit for pagination through large result sets")
 	cmd.Flags().Bool("no-wait", false, "return the current execution state immediately without waiting for completion; useful for checking status of long-running queries")
 	cmd.Flags().Int("timeout", 300, "maximum seconds to wait for the execution to complete before timing out (default 300s = 5 minutes)")
+	cmd.Flags().StringSlice("columns", nil, "return only these columns, in this order (comma-separated)")
+	cmd.Flags().String("filter", "", `keep only rows matching this WHERE-like expression, e.g. '"amount" > 0'`)
+	cmd.Flags().StringArray("sort-by", nil, `sort by this ORDER BY fragment, e.g. '"block_time" DESC' (repeatable)`)
+	cmd.Flags().Int("sample", 0, "return a random sample of about this many rows; the count varies")
+	cmd.MarkFlagsMutuallyExclusive("sample", "limit")
+	cmd.MarkFlagsMutuallyExclusive("sample", "offset")
 	output.AddFormatFlag(cmd, "text")
 
 	return cmd
@@ -59,6 +78,12 @@ func runResults(cmd *cobra.Command, args []string) error {
 	}
 	if offset < 0 {
 		return fmt.Errorf("offset must be non-negative, got %d", offset)
+	}
+
+	for _, f := range []string{"columns", "filter", "sort-by", "sample"} {
+		if cmd.Flags().Changed(f) {
+			return runShapedResults(cmd, executionID)
+		}
 	}
 
 	opts := models.ResultOptions{}
@@ -126,5 +151,65 @@ func handleResultsResponse(cmd *cobra.Command, executionID string, resp *models.
 		return fmt.Errorf("execution was cancelled")
 	default:
 		return fmt.Errorf("unexpected execution state: %s", resp.State)
+	}
+}
+
+// runShapedResults reads results through the Dune MCP's getExecutionResults,
+// which filters, sorts, projects, and samples rows on the server.
+func runShapedResults(cmd *cobra.Command, executionID string) error {
+	if noWait, _ := cmd.Flags().GetBool("no-wait"); !noWait {
+		timeout, _ := cmd.Flags().GetInt("timeout")
+		if err := waitForExecution(cmdutil.ClientFromCmd(cmd), executionID, timeout); err != nil {
+			return err
+		}
+	}
+
+	args := cmdutil.ToolArgs(cmd, map[string]string{
+		"columns": "outputColumns",
+		"filter":  "whereClause",
+		"sort-by": "orderByClauses",
+		"sample":  "sampleSize",
+		"limit":   "limit",
+		"offset":  "offset",
+	})
+	args["executionId"] = executionID
+	args["timeout"] = 0
+	// --limit 0 means all rows, as many as one call returns. A sample has no limit.
+	if limit, _ := cmd.Flags().GetInt("limit"); limit == 0 && !cmd.Flags().Changed("sample") {
+		args["limit"] = models.LimitRows
+	}
+
+	var res output.ExecutionResult
+	raw, err := cmdutil.CallTool(cmd, "getExecutionResults", args, &res)
+	if err != nil {
+		return err
+	}
+	if err := res.Err(); err != nil {
+		return err
+	}
+	w := cmd.OutOrStdout()
+	if output.FormatFromCmd(cmd) == output.FormatJSON {
+		return output.PrintRawJSON(w, raw)
+	}
+	output.PrintExecutionResult(w, res)
+	return nil
+}
+
+// waitForExecution polls the execution's status, without downloading rows, until
+// it stops running or the timeout passes.
+func waitForExecution(client dune.DuneClient, executionID string, timeout int) error {
+	deadline := time.Now().Add(time.Duration(timeout) * time.Second)
+	for {
+		status, err := client.QueryStatus(executionID)
+		if err != nil {
+			return err
+		}
+		if status.State != "QUERY_STATE_PENDING" && status.State != "QUERY_STATE_EXECUTING" {
+			return nil
+		}
+		if !time.Now().Add(PollInterval).Before(deadline) {
+			return nil
+		}
+		time.Sleep(PollInterval)
 	}
 }
