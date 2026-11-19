@@ -12,7 +12,8 @@ jobs:
   release:
     runs-on: ubuntu-latest
     env:
-      HAS_TAP_APP: ${{ secrets.HOMEBREW_TAP_WRITER_APP_CLIENT_ID != '' }}
+      # infra creates repo secrets with the value PLACEHOLDER until set by hand.
+      HAS_TAP_APP: ${{ secrets.HOMEBREW_TAP_WRITER_APP_CLIENT_ID != '' && secrets.HOMEBREW_TAP_WRITER_APP_CLIENT_ID != 'PLACEHOLDER' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
