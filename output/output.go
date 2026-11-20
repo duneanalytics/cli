@@ -1,6 +1,7 @@
 package output
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -29,7 +30,21 @@ func FormatFromCmd(cmd *cobra.Command) string {
 func PrintJSON(w io.Writer, v any) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
+	// Keep URLs and SQL readable: write & < > as they are, not as \u0026 \u003c \u003e.
+	enc.SetEscapeHTML(false)
 	return enc.Encode(v)
+}
+
+// PrintRawJSON writes JSON that is already encoded, such as a Dune MCP tool
+// result, indented the same way as PrintJSON.
+func PrintRawJSON(w io.Writer, raw json.RawMessage) error {
+	var buf bytes.Buffer
+	if err := json.Indent(&buf, raw, "", "  "); err != nil {
+		return err
+	}
+	buf.WriteByte('\n')
+	_, err := buf.WriteTo(w)
+	return err
 }
 
 // PrintTable writes columns and rows as aligned text using tabwriter.

@@ -1,10 +1,12 @@
 package query_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"testing"
 
+	"github.com/duneanalytics/cli/dunemcp/dunemcptest"
 	"github.com/duneanalytics/duneapi-client-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -122,4 +124,51 @@ func TestGetEmptyDescriptionAndTags(t *testing.T) {
 	assert.NotContains(t, out, "Tags:")
 	assert.Contains(t, out, "ID:          1")
 	assert.Contains(t, out, "Name:        Minimal")
+}
+
+func TestGetShowsTheLatestExecution(t *testing.T) {
+	mock := &mockClient{getQueryFn: func(int) (*models.GetQueryResponse, error) { return testQueryResponse, nil }}
+	fake := &dunemcptest.Fake{Results: map[string]string{"getDuneQuery": `{"query_id":4125432,
+		"latest_execution_id":"01EXEC","latest_execution_state":"QUERY_STATE_COMPLETED"}`}}
+
+	root, buf := newTestRootWithMCP(mock, fake)
+	root.SetArgs([]string{"query", "get", "4125432"})
+	require.NoError(t, root.Execute())
+	assert.JSONEq(t, `{"query_id":4125432}`, fake.Last().Args)
+	assert.Contains(t, buf.String(), "Last run:    01EXEC (COMPLETED)")
+
+	// JSON keeps every REST field and adds the latest execution.
+	root, buf = newTestRootWithMCP(mock, fake)
+	root.SetArgs([]string{"query", "get", "4125432", "-o", "json"})
+	require.NoError(t, root.Execute())
+	var got map[string]any
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &got))
+	assert.Equal(t, "SELECT 1", got["query_sql"])
+	assert.Equal(t, "01EXEC", got["latest_execution_id"])
+	assert.Equal(t, "QUERY_STATE_COMPLETED", got["latest_execution_state"])
+}
+
+func TestGetNeverRun(t *testing.T) {
+	mock := &mockClient{getQueryFn: func(int) (*models.GetQueryResponse, error) { return testQueryResponse, nil }}
+	root, buf := newTestRoot(mock)
+	root.SetArgs([]string{"query", "get", "4125432", "-o", "json"})
+	require.NoError(t, root.Execute())
+	var got map[string]any
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &got))
+	assert.Contains(t, got, "latest_execution_id")
+	assert.Nil(t, got["latest_execution_id"])
+}
+
+func TestGetPrintsTheQueryWhenTheLatestExecutionIsUnavailable(t *testing.T) {
+	mock := &mockClient{getQueryFn: func(int) (*models.GetQueryResponse, error) { return testQueryResponse, nil }}
+	fake := &dunemcptest.Fake{Errors: map[string]error{"getDuneQuery": errors.New("mcp unavailable")}}
+	root, buf := newTestRootWithMCP(mock, fake)
+	var stderr bytes.Buffer
+	root.SetErr(&stderr)
+	root.SetArgs([]string{"query", "get", "4125432"})
+
+	require.NoError(t, root.Execute())
+	assert.Contains(t, buf.String(), "SELECT 1")
+	assert.Contains(t, buf.String(), "Last run:    unknown")
+	assert.Equal(t, "warning: could not read the latest execution: mcp unavailable\n", stderr.String())
 }

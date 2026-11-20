@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/duneanalytics/cli/dunemcp/dunemcptest"
 	"github.com/duneanalytics/duneapi-client-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -101,4 +102,24 @@ func TestGetAPIError(t *testing.T) {
 	err := root.Execute()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
+}
+
+// A matview ID is resolved to its name on the MCP server, then fetched like a name.
+func TestGetByID(t *testing.T) {
+	const id = "01M7T4DTEJ2A3S86NKAMXV50D8"
+	fake := &dunemcptest.Fake{Results: map[string]string{
+		"getMaterializedView": `{"matview_id":"` + id + `","query_id":7,"sql_names":["dune.t.result_x"],"is_private":false}`,
+	}}
+	mock := &mockClient{
+		getFn: func(name string) (*models.GetMaterializedViewResponse, error) {
+			assert.Equal(t, "dune.t.result_x", name)
+			return &models.GetMaterializedViewResponse{SQLID: name, QueryID: 7}, nil
+		},
+	}
+	root, buf := newTestRootWithMCP(mock, fake)
+	root.SetArgs([]string{"matview", "get", id})
+	require.NoError(t, root.Execute())
+
+	assert.JSONEq(t, `{"matview_id":"`+id+`"}`, fake.Last().Args)
+	assert.Contains(t, buf.String(), "Name:        dune.t.result_x")
 }

@@ -14,6 +14,12 @@ func TestPrintJSON(t *testing.T) {
 	err := PrintJSON(&buf, map[string]int{"query_id": 42})
 	require.NoError(t, err)
 	assert.JSONEq(t, `{"query_id": 42}`, buf.String())
+
+	// URLs and SQL stay readable instead of turning & < > into \u0026 \u003c \u003e.
+	buf.Reset()
+	require.NoError(t, PrintJSON(&buf, map[string]string{"url": "https://x/?a=1&b=2", "sql": "SELECT 1 WHERE 1 < 2"}))
+	assert.Contains(t, buf.String(), `"https://x/?a=1&b=2"`)
+	assert.Contains(t, buf.String(), `"SELECT 1 WHERE 1 < 2"`)
 }
 
 func TestPrintTable(t *testing.T) {

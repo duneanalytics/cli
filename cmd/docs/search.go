@@ -1,8 +1,8 @@
 package docs
 
 import (
-	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/duneanalytics/cli/output"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -86,9 +86,8 @@ func runSearch(cmd *cobra.Command, _ []string) error {
 	}
 	defer session.Close()
 
-	// Call the SearchDuneDocs tool.
 	result, err := session.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "SearchDuneDocs",
+		Name:      "search_dune_docs",
 		Arguments: args,
 	})
 	if err != nil {
@@ -121,8 +120,10 @@ func runSearch(cmd *cobra.Command, _ []string) error {
 			if r.URL != "" {
 				fmt.Fprintf(w, "  %s\n", r.URL)
 			}
-			if r.Description != "" {
-				fmt.Fprintf(w, "  %s\n", r.Description)
+			for _, line := range strings.Split(r.Description, "\n") {
+				if line != "" {
+					fmt.Fprintf(w, "  %s\n", line)
+				}
 			}
 		}
 		fmt.Fprintf(w, "\n%d result(s)\n", len(results))
@@ -130,7 +131,13 @@ func runSearch(cmd *cobra.Command, _ []string) error {
 	}
 }
 
-// parseResults extracts doc results from MCP tool response content blocks.
+// parseResults extracts doc results from MCP tool response content blocks. The
+// docs server returns one text block per page section:
+//
+//	Title: <title>
+//	Link: <url>
+//	Page: <path>
+//	Content: <markdown, possibly several lines>
 func parseResults(result *mcp.CallToolResult) []docResult {
 	var results []docResult
 	for _, c := range result.Content {
@@ -138,19 +145,33 @@ func parseResults(result *mcp.CallToolResult) []docResult {
 		if !ok {
 			continue
 		}
-		// Try to parse as JSON (single result or array).
-		var single docResult
-		if err := json.Unmarshal([]byte(tc.Text), &single); err == nil {
-			results = append(results, single)
-			continue
-		}
-		var arr []docResult
-		if err := json.Unmarshal([]byte(tc.Text), &arr); err == nil {
-			results = append(results, arr...)
-			continue
-		}
-		// Fallback: treat raw text as a description-only result.
-		results = append(results, docResult{Description: tc.Text})
+		results = append(results, parseResult(tc.Text))
 	}
 	return results
+}
+
+func parseResult(text string) docResult {
+	var r docResult
+	rest := text
+	for {
+		line, after, _ := strings.Cut(rest, "\n")
+		key, value, ok := strings.Cut(line, ": ")
+		switch {
+		case ok && key == "Title":
+			r.Title = value
+		case ok && key == "Link":
+			r.URL = value
+		case ok && key == "Page":
+		case ok && key == "Content":
+			r.Description = strings.TrimSpace(value + "\n" + after)
+			return r
+		default:
+			// Not in the expected format: keep the whole text.
+			return docResult{Description: text}
+		}
+		if after == "" {
+			return r
+		}
+		rest = after
+	}
 }

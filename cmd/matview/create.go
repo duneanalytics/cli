@@ -24,19 +24,19 @@ func newCreateCmd() *cobra.Command {
 			"team-owned matview, a personal key a personal one.\n\n" +
 			"If a matview with this name already exists for the same query it is replaced\n" +
 			"(re-run). To change settings on an existing matview, use `dune matview update`.\n\n" +
-			"Matviews are public by default; pass --private to restrict access (private matviews\n" +
-			"require a supporting plan). With --cron the matview is refreshed periodically (5-field\n" +
-			"cron, minimum 15-minute interval).\n\n" +
+			"The matview has the privacy of its source query: it is private exactly when the query\n" +
+			"is. To change it, change the query with 'dune query update <query-id> --private'.\n\n" +
+			"With --cron the matview is refreshed periodically (5-field cron, minimum 15-minute\n" +
+			"interval).\n\n" +
 			"Examples:\n" +
 			"  dune matview create --name result_token_summary --query-id 12345 --performance medium\n" +
-			"  dune matview create --name result_daily --query-id 12345 --cron \"0 */6 * * *\"\n" +
-			"  dune matview create --name result_private --query-id 12345 --private",
+			"  dune matview create --name result_daily --query-id 12345 --cron \"0 */6 * * *\"",
 		RunE: runCreate,
 	}
 
 	cmd.Flags().String("name", "", "SQL-safe matview name, e.g. \"result_token_summary\" (required)")
 	cmd.Flags().Int("query-id", 0, "ID of the source query to materialize (required)")
-	cmd.Flags().Bool("private", false, "make the matview private (requires a supporting plan); defaults to public")
+	addPrivateFlag(cmd)
 	cmd.Flags().String("performance", "", "execution tier: \"small\", \"medium\", or \"large\" (default: account default)")
 	cmd.Flags().String("cron", "", "5-field cron for periodic refresh, min 15-minute interval (default: none)")
 	cmd.Flags().String("expires-at", "", "RFC3339 time when the refresh schedule expires (requires --cron)")
@@ -61,12 +61,14 @@ func runCreate(cmd *cobra.Command, _ []string) error {
 	}
 
 	queryID, _ := cmd.Flags().GetInt("query-id")
-	private, _ := cmd.Flags().GetBool("private")
+	client := cmdutil.ClientFromCmd(cmd)
+	if err := checkPrivacy(cmd, client, queryID); err != nil {
+		return err
+	}
 
 	req := models.UpsertMaterializedViewRequest{
 		Name:        name,
 		QueryID:     queryID,
-		IsPrivate:   private,
 		Performance: performance,
 	}
 	if cmd.Flags().Changed("cron") {
@@ -78,7 +80,6 @@ func runCreate(cmd *cobra.Command, _ []string) error {
 		req.ExpiresAt = &expiresAt
 	}
 
-	client := cmdutil.ClientFromCmd(cmd)
 	resp, err := client.UpsertMaterializedView(req)
 	if err != nil {
 		return err

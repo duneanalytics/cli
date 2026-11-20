@@ -35,15 +35,14 @@ func TestUpdatePreservesSchedule(t *testing.T) {
 	}
 
 	root, _ := newTestRoot(mock)
-	root.SetArgs([]string{"matview", "update", "dune.my_team.result_token_summary", "--private=false"})
+	root.SetArgs([]string{"matview", "update", "dune.my_team.result_token_summary", "--performance", "large"})
 	require.NoError(t, root.Execute())
 
 	assert.Equal(t, "result_token_summary", got.Name, "upsert uses the bare name")
 	assert.Equal(t, 12345, got.QueryID)
-	assert.False(t, got.IsPrivate, "private override applied")
 	require.NotNil(t, got.CronExpression, "existing schedule must be preserved")
 	assert.Equal(t, "0 */6 * * *", *got.CronExpression)
-	assert.Equal(t, "medium", got.Performance, "scheduled tier preserved")
+	assert.Equal(t, "large", got.Performance)
 	require.NotNil(t, got.ExpiresAt)
 	assert.Equal(t, "2026-09-11T23:59:59Z", *got.ExpiresAt)
 }
@@ -142,8 +141,35 @@ func TestUpdateNotFound(t *testing.T) {
 		},
 	}
 	root, _ := newTestRoot(mock)
-	root.SetArgs([]string{"matview", "update", "dune.t.result_missing", "--private=false"})
+	root.SetArgs([]string{"matview", "update", "dune.t.result_missing", "--performance", "large"})
 	err := root.Execute()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
+}
+
+// --private alone changes nothing: the matview's privacy follows its source query.
+func TestUpdatePrivateAloneIsNotAChange(t *testing.T) {
+	root, _ := newTestRoot(&mockClient{})
+	root.SetArgs([]string{"matview", "update", "dune.t.result_x", "--private=false"})
+	err := root.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "at least one flag must be provided")
+}
+
+func TestUpdatePrivateMismatchFails(t *testing.T) {
+	mock := &mockClient{
+		private: true,
+		getFn:   func(string) (*models.GetMaterializedViewResponse, error) { return scheduledMatview(), nil },
+		upsertFn: func(models.UpsertMaterializedViewRequest) (*models.UpsertMaterializedViewResponse, error) {
+			t.Fatal("the matview must not be updated")
+			return nil, nil
+		},
+	}
+	root, _ := newTestRoot(mock)
+	root.SetArgs([]string{
+		"matview", "update", "dune.my_team.result_token_summary", "--private=false", "--performance", "large",
+	})
+	err := root.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "query 12345 is private")
 }

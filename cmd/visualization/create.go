@@ -19,9 +19,10 @@ func newCreateCmd() *cobra.Command {
 IMPORTANT: Visualizations can only be attached to saved (non-temporary) queries.
 If you created the query with --temp, you must recreate it without --temp first.
 
-The --options flag is required for a working visualization. Without proper options,
-the visualization will fail to render. The options format depends on the
-visualization type.
+Describe the visualization in one of two ways:
+  --chart-type and --config  a compact chart description that Dune turns into full
+                             options (see CHART CONFIG below).
+  --type and --options       the raw Dune visualization options (see below).
 
 Visualization types: chart, table, counter, pivot, cohort, funnel, choropleth,
 sankey, sunburst_sequence, word_cloud.
@@ -76,7 +77,21 @@ PIE CHART:
 
 Column names in options must match actual query result columns exactly.
 
+` + ChartConfigHelp + `
+
+For a private query, the chart and image URLs carry an API key: do not share them.
+
 Examples:
+  # Line chart from a chart config
+  dune viz create --query-id 12345 --name "Daily Volume" --chart-type line --config '{
+    "x_axis": {"column": "day", "title": "Day"},
+    "y_axes": {
+      "left": {"label_format": "$0.0a", "series": [{"column": "volume", "title": "Volume"}]},
+      "right_enabled": false, "right_label_format": "", "right_series": []
+    },
+    "enable_legend": false, "stacked": false
+  }'
+
   # Counter showing row count
   dune viz create --query-id 12345 --name "Total Count" --type counter \
     --options '{"counterColName":"count","rowNumber":1,"stringDecimal":0}'
@@ -95,20 +110,33 @@ Examples:
 	cmd.Flags().String("name", "", "visualization name, max 300 characters (required)")
 	cmd.Flags().String("type", "table", "visualization type: chart, table, counter, pivot, cohort, funnel, choropleth, sankey, sunburst_sequence, word_cloud")
 	cmd.Flags().String("description", "", "visualization description, max 1000 characters")
-	cmd.Flags().String("options", "", `visualization options JSON (required for working visualizations, see --help for format per type)`)
+	cmd.Flags().String("options", "",
+		`raw visualization options JSON (see --help for the format per type); or use --chart-type and --config`)
 	_ = cmd.MarkFlagRequired("query-id")
 	_ = cmd.MarkFlagRequired("name")
-	_ = cmd.MarkFlagRequired("options")
+	AddChartFlags(cmd)
+	cmd.MarkFlagsOneRequired("options", "config")
+	cmd.MarkFlagsMutuallyExclusive("options", "config")
+	cmd.MarkFlagsMutuallyExclusive("type", "chart-type")
+	cmd.MarkFlagsMutuallyExclusive("description", "config")
 	output.AddFormatFlag(cmd, "text")
 
 	return cmd
 }
 
 func runCreate(cmd *cobra.Command, _ []string) error {
-	client := cmdutil.ClientFromCmd(cmd)
-
 	queryID, _ := cmd.Flags().GetInt("query-id")
 	name, _ := cmd.Flags().GetString("name")
+
+	chart, err := ChartArgs(cmd)
+	if err != nil {
+		return err
+	}
+	if chart != nil {
+		chart["queryId"] = queryID
+		chart["visualizationName"] = name
+		return runChartTool(cmd, "generateVisualization", chart, "Created")
+	}
 	vizType, _ := cmd.Flags().GetString("type")
 	description, _ := cmd.Flags().GetString("description")
 	optionsStr, _ := cmd.Flags().GetString("options")
@@ -118,6 +146,7 @@ func runCreate(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("invalid --options JSON: %w", err)
 	}
 
+	client := cmdutil.ClientFromCmd(cmd)
 	resp, err := client.CreateVisualization(models.CreateVisualizationRequest{
 		QueryID:     queryID,
 		Name:        name,
