@@ -1,0 +1,42 @@
+name: Claude
+
+# Review on every ready PR, then auto-approve when Claude rates the diff low risk
+# against "Review risk boundaries" in AGENTS.md. Approvals are submitted by the Claude
+# GitHub App, and only once duneanalytics/cli is on the allowlist in duneanalytics/actions.
+
+on:
+  pull_request:
+    types: [opened, ready_for_review, reopened]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: read
+  statuses: read
+  id-token: write
+
+jobs:
+  claude:
+    # Public repository: PRs from forks get no secrets or OIDC token, so they are skipped.
+    # Org members can still run "@claude review" on any PR.
+    if: github.event_name == 'issue_comment' || github.event.pull_request.head.repo.full_name == github.repository
+    uses: duneanalytics/actions/.github/workflows/claude.yml@main
+    with:
+      # The self-hosted runner group does not allow public repositories.
+      runs-on: '"ubuntu-latest"'
+      auto-approve: true
+      # Decision comments only, until they look right; then set to false.
+      dry-run: true
+      deny-paths: |
+        .github/*
+        install.sh
+        .goreleaser.yml
+        AGENTS.md
+        CLAUDE.md
+        authconfig/*
+        tracking/*
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      SIETCH_APP_PRIVATE_KEY: ${{ secrets.SIETCH_APP_PRIVATE_KEY }}
