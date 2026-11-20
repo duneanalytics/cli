@@ -142,6 +142,9 @@ func runCreate(cmd *cobra.Command, _ []string) error {
 	if err := cmdutil.JSONFlag(cmd, "options", &options); err != nil {
 		return err
 	}
+	if options == nil {
+		return fmt.Errorf("--options must be a JSON object")
+	}
 
 	client := cmdutil.ClientFromCmd(cmd)
 	resp, err := client.CreateVisualization(models.CreateVisualizationRequest{
