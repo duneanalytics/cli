@@ -3,7 +3,6 @@ package query_test
 import (
 	"bytes"
 	"context"
-	"time"
 
 	"github.com/duneanalytics/cli/cmd/query"
 	"github.com/duneanalytics/cli/cmdutil"
@@ -13,15 +12,24 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// mockExecution implements dune.Execution for testing.
+// mockExecution implements dune.Execution for testing. Its status is
+// completed unless getStatusFn is set.
 type mockExecution struct {
 	dune.Execution
-	id               string
-	waitGetResultsFn func(time.Duration, int) (*models.ResultsResponse, error)
+	id           string
+	getStatusFn  func() (*models.StatusResponse, error)
+	getResultsFn func() (*models.ResultsResponse, error)
 }
 
-func (m *mockExecution) WaitGetResults(poll time.Duration, maxRetries int) (*models.ResultsResponse, error) {
-	return m.waitGetResultsFn(poll, maxRetries)
+func (m *mockExecution) GetStatus() (*models.StatusResponse, error) {
+	if m.getStatusFn == nil {
+		return &models.StatusResponse{State: "QUERY_STATE_COMPLETED"}, nil
+	}
+	return m.getStatusFn()
+}
+
+func (m *mockExecution) GetResults() (*models.ResultsResponse, error) {
+	return m.getResultsFn()
 }
 
 func (m *mockExecution) GetID() string { return m.id }
