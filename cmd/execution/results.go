@@ -106,13 +106,7 @@ func runResults(cmd *cobra.Command, args []string) error {
 
 	if !noWait {
 		timeout, _ := cmd.Flags().GetInt("timeout")
-		if len(opts.Columns) > 0 || opts.Filters != "" || len(opts.SortBy) > 0 || opts.SampleCount > 0 {
-			// WaitGetResults downloads every unshaped row once the execution finishes,
-			// which shaping exists to avoid; poll the status instead.
-			if err := waitForExecution(client, executionID, timeout); err != nil {
-				return err
-			}
-		} else if err := waitGetResults(client, executionID, timeout); err != nil {
+		if err := waitForExecution(client, executionID, timeout); err != nil {
 			return err
 		}
 	}
@@ -123,21 +117,6 @@ func runResults(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	return handleResultsResponse(cmd, executionID, resp)
-}
-
-func waitGetResults(client dune.DuneClient, executionID string, timeout int) error {
-	intervalSec := int(PollInterval.Seconds())
-	maxRetries := timeout
-	if intervalSec > 0 {
-		maxRetries = timeout / intervalSec
-	}
-	if maxRetries < 1 {
-		maxRetries = 1
-	}
-
-	exec := dune.NewExecution(client, executionID)
-	_, err := exec.WaitGetResults(PollInterval, maxRetries)
-	return err
 }
 
 func handleResultsResponse(cmd *cobra.Command, executionID string, resp *models.ResultsResponse) error {
@@ -168,18 +147,19 @@ func handleResultsResponse(cmd *cobra.Command, executionID string, resp *models.
 }
 
 // waitForExecution polls the execution's status, without downloading rows, until
-// it stops running or the timeout passes.
+// it stops running or the timeout passes. It retries failed status calls until
+// the timeout, then returns the last error.
 func waitForExecution(client dune.DuneClient, executionID string, timeout int) error {
 	deadline := time.Now().Add(time.Duration(timeout) * time.Second)
 	for {
 		status, err := client.QueryStatus(executionID)
-		if err != nil {
-			return err
-		}
-		if status.State != "QUERY_STATE_PENDING" && status.State != "QUERY_STATE_EXECUTING" {
+		if err == nil && status.State != "QUERY_STATE_PENDING" && status.State != "QUERY_STATE_EXECUTING" {
 			return nil
 		}
 		if !time.Now().Add(PollInterval).Before(deadline) {
+			if err != nil {
+				return fmt.Errorf("%w: %w", dune.ErrorRetriesExhausted, err)
+			}
 			return fmt.Errorf("execution %s is still %s after %ds; rerun with a longer --timeout or --no-wait",
 				executionID, strings.TrimPrefix(status.State, "QUERY_STATE_"), timeout)
 		}

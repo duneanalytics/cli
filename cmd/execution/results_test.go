@@ -181,21 +181,27 @@ func TestResultsMissingArgument(t *testing.T) {
 	assert.Contains(t, err.Error(), "accepts 1 arg(s)")
 }
 
+// statusSequence returns a QueryStatus mock that walks through states, then
+// repeats the last one, and counts its calls.
+func statusSequence(calls *int, states ...string) func(string) (*models.StatusResponse, error) {
+	return func(string) (*models.StatusResponse, error) {
+		*calls++
+		return &models.StatusResponse{State: states[min(*calls, len(states))-1]}, nil
+	}
+}
+
 func TestResultsWaitPollsUntilComplete(t *testing.T) {
 	execution.PollInterval = 0
 	t.Cleanup(func() {
 		execution.PollInterval = 2 * time.Second
 	})
 
-	callCount := 0
+	statusCalls, resultCalls := 0, 0
 	mock := &mockClient{
+		queryStatusFn: statusSequence(&statusCalls,
+			"QUERY_STATE_PENDING", "QUERY_STATE_EXECUTING", "QUERY_STATE_COMPLETED"),
 		queryResultsV2Fn: func(_ string, _ models.ResultOptions) (*models.ResultsResponse, error) {
-			callCount++
-			if callCount < 3 {
-				return &models.ResultsResponse{
-					State: "QUERY_STATE_EXECUTING",
-				}, nil
-			}
+			resultCalls++
 			return testResultsResponse, nil
 		},
 	}
@@ -204,8 +210,9 @@ func TestResultsWaitPollsUntilComplete(t *testing.T) {
 	root.SetArgs([]string{"execution", "results", "--timeout", "10", "01ABC"})
 	require.NoError(t, root.Execute())
 
-	// 3 calls from WaitGetResults (2 executing + 1 completed) + 1 final fetch
-	assert.Equal(t, 4, callCount)
+	// Waiting polls the status; the rows are downloaded once, at the end.
+	assert.Equal(t, 3, statusCalls)
+	assert.Equal(t, 1, resultCalls)
 	out := buf.String()
 	assert.Contains(t, out, "block_number")
 	assert.Contains(t, out, "2 rows")
@@ -217,21 +224,14 @@ func TestResultsWaitPollsUntilFailed(t *testing.T) {
 		execution.PollInterval = 2 * time.Second
 	})
 
-	callCount := 0
+	statusCalls := 0
 	mock := &mockClient{
+		queryStatusFn: statusSequence(&statusCalls, "QUERY_STATE_PENDING", "QUERY_STATE_FAILED"),
 		queryResultsV2Fn: func(_ string, _ models.ResultOptions) (*models.ResultsResponse, error) {
-			callCount++
-			if callCount < 2 {
-				return &models.ResultsResponse{
-					State: "QUERY_STATE_PENDING",
-				}, nil
-			}
 			return &models.ResultsResponse{
 				State:               "QUERY_STATE_FAILED",
 				IsExecutionFinished: true,
-				Error: &models.ExecutionError{
-					Message: "out of memory",
-				},
+				Error:               &models.ExecutionError{Message: "out of memory"},
 			}, nil
 		},
 	}
@@ -241,19 +241,44 @@ func TestResultsWaitPollsUntilFailed(t *testing.T) {
 	err := root.Execute()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "out of memory")
-	// 2 calls from WaitGetResults (1 pending + 1 failed) + 1 final fetch
-	assert.Equal(t, 3, callCount)
+	assert.Equal(t, 2, statusCalls)
 }
 
-func TestResultsWaitRetriesExhausted(t *testing.T) {
-	execution.PollInterval = 0
+// A query that keeps running stops the wait at --timeout with an error.
+func TestResultsWaitStopsAtTheTimeout(t *testing.T) {
+	execution.PollInterval = 100 * time.Millisecond
 	t.Cleanup(func() {
 		execution.PollInterval = 2 * time.Second
 	})
 
+	statusCalls := 0
 	mock := &mockClient{
+		queryStatusFn: statusSequence(&statusCalls, "QUERY_STATE_EXECUTING"),
 		queryResultsV2Fn: func(_ string, _ models.ResultOptions) (*models.ResultsResponse, error) {
-			return nil, errors.New("server unavailable")
+			return &models.ResultsResponse{State: "QUERY_STATE_EXECUTING"}, nil
+		},
+	}
+
+	root, _ := newTestRoot(mock)
+	root.SetArgs([]string{"execution", "results", "--timeout", "1", "01ABC"})
+	start := time.Now()
+	err := root.Execute()
+	assert.EqualError(t, err, "execution 01ABC is still EXECUTING after 1s; rerun with a longer --timeout or --no-wait")
+	assert.Less(t, time.Since(start), 3*time.Second)
+	assert.Greater(t, statusCalls, 1)
+}
+
+func TestResultsWaitRetriesErrorsUntilTheTimeout(t *testing.T) {
+	execution.PollInterval = 100 * time.Millisecond
+	t.Cleanup(func() {
+		execution.PollInterval = 2 * time.Second
+	})
+
+	statusCalls := 0
+	mock := &mockClient{
+		queryStatusFn: func(string) (*models.StatusResponse, error) {
+			statusCalls++
+			return nil, errors.New("api: rate limited")
 		},
 	}
 
@@ -262,26 +287,33 @@ func TestResultsWaitRetriesExhausted(t *testing.T) {
 	err := root.Execute()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "retries have been exhausted")
+	assert.Contains(t, err.Error(), "api: rate limited")
+	assert.Greater(t, statusCalls, 1)
 }
 
-func TestResultsWaitAPIError(t *testing.T) {
+func TestResultsWaitRecoversFromAnError(t *testing.T) {
 	execution.PollInterval = 0
 	t.Cleanup(func() {
 		execution.PollInterval = 2 * time.Second
 	})
 
+	statusCalls := 0
 	mock := &mockClient{
+		queryStatusFn: func(string) (*models.StatusResponse, error) {
+			statusCalls++
+			if statusCalls == 1 {
+				return nil, errors.New("server unavailable")
+			}
+			return &models.StatusResponse{State: "QUERY_STATE_COMPLETED"}, nil
+		},
 		queryResultsV2Fn: func(_ string, _ models.ResultOptions) (*models.ResultsResponse, error) {
-			return nil, errors.New("api: rate limited")
+			return testResultsResponse, nil
 		},
 	}
 
-	root, _ := newTestRoot(mock)
-	// With --timeout=2 and PollInterval=0, maxRetries=2.
-	// The SDK retries on API errors until errCount > maxRetries.
-	root.SetArgs([]string{"execution", "results", "--timeout", "2", "01ABC"})
-	err := root.Execute()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "retries have been exhausted")
-	assert.Contains(t, err.Error(), "api: rate limited")
+	root, buf := newTestRoot(mock)
+	root.SetArgs([]string{"execution", "results", "--timeout", "10", "01ABC"})
+	require.NoError(t, root.Execute())
+	assert.Equal(t, 2, statusCalls)
+	assert.Contains(t, buf.String(), "2 rows")
 }
