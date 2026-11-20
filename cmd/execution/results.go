@@ -1,7 +1,10 @@
 package execution
 
 import (
+	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"strings"
 	"time"
 
@@ -106,7 +109,7 @@ func runResults(cmd *cobra.Command, args []string) error {
 
 	if !noWait {
 		timeout, _ := cmd.Flags().GetInt("timeout")
-		if err := waitForExecution(client, executionID, timeout); err != nil {
+		if err := waitForExecution(client, cmd.ErrOrStderr(), executionID, timeout); err != nil {
 			return err
 		}
 	}
@@ -147,14 +150,19 @@ func handleResultsResponse(cmd *cobra.Command, executionID string, resp *models.
 }
 
 // waitForExecution polls the execution's status, without downloading rows, until
-// it stops running or the timeout passes. It retries failed status calls until
-// the timeout, then returns the last error.
-func waitForExecution(client dune.DuneClient, executionID string, timeout int) error {
+// it stops running, and fails when it is still running at the timeout. It retries
+// a failed status call that may succeed later, with a note on stderr, until the
+// timeout; a client error such as an unknown execution ID or a bad API key fails
+// at once.
+func waitForExecution(client dune.DuneClient, stderr io.Writer, executionID string, timeout int) error {
 	deadline := time.Now().Add(time.Duration(timeout) * time.Second)
 	for {
 		status, err := client.QueryStatus(executionID)
 		if err == nil && status.State != "QUERY_STATE_PENDING" && status.State != "QUERY_STATE_EXECUTING" {
 			return nil
+		}
+		if err != nil && !retryable(err) {
+			return err
 		}
 		if !time.Now().Add(PollInterval).Before(deadline) {
 			if err != nil {
@@ -163,6 +171,19 @@ func waitForExecution(client dune.DuneClient, executionID string, timeout int) e
 			return fmt.Errorf("execution %s is still %s after %ds; rerun with a longer --timeout or --no-wait",
 				executionID, strings.TrimPrefix(status.State, "QUERY_STATE_"), timeout)
 		}
+		if err != nil {
+			fmt.Fprintf(stderr, "checking the execution status failed, retrying: %v\n", err)
+		}
 		time.Sleep(PollInterval)
 	}
+}
+
+// retryable reports whether a failed API call may succeed if repeated: every
+// failure except a 4xx response other than 429 Too Many Requests.
+func retryable(err error) bool {
+	var apiErr *dune.APIError
+	if !errors.As(err, &apiErr) {
+		return true
+	}
+	return apiErr.StatusCode < 400 || apiErr.StatusCode >= 500 || apiErr.StatusCode == http.StatusTooManyRequests
 }

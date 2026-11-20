@@ -1,12 +1,15 @@
 package execution_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"net/http"
 	"testing"
 	"time"
 
 	"github.com/duneanalytics/cli/cmd/execution"
+	"github.com/duneanalytics/duneapi-client-go/dune"
 	"github.com/duneanalytics/duneapi-client-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -278,17 +281,43 @@ func TestResultsWaitRetriesErrorsUntilTheTimeout(t *testing.T) {
 	mock := &mockClient{
 		queryStatusFn: func(string) (*models.StatusResponse, error) {
 			statusCalls++
-			return nil, errors.New("api: rate limited")
+			return nil, &dune.APIError{StatusCode: http.StatusTooManyRequests, Message: "api: rate limited"}
 		},
 	}
 
 	root, _ := newTestRoot(mock)
+	var stderr bytes.Buffer
+	root.SetErr(&stderr)
 	root.SetArgs([]string{"execution", "results", "--timeout", "1", "01ABC"})
 	err := root.Execute()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "retries have been exhausted")
 	assert.Contains(t, err.Error(), "api: rate limited")
 	assert.Greater(t, statusCalls, 1)
+	assert.Contains(t, stderr.String(), "checking the execution status failed, retrying")
+}
+
+func TestResultsWaitFailsAtOnceOnAClientError(t *testing.T) {
+	execution.PollInterval = 0
+	t.Cleanup(func() {
+		execution.PollInterval = 2 * time.Second
+	})
+
+	statusCalls := 0
+	mock := &mockClient{
+		queryStatusFn: func(string) (*models.StatusResponse, error) {
+			statusCalls++
+			return nil, &dune.APIError{StatusCode: http.StatusNotFound, Message: "execution not found"}
+		},
+	}
+
+	root, _ := newTestRoot(mock)
+	root.SetArgs([]string{"execution", "results", "--timeout", "300", "01ABC"})
+	err := root.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "execution not found")
+	assert.NotContains(t, err.Error(), "retries have been exhausted")
+	assert.Equal(t, 1, statusCalls)
 }
 
 func TestResultsWaitRecoversFromAnError(t *testing.T) {
