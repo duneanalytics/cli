@@ -1,6 +1,7 @@
 package query_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"testing"
@@ -156,4 +157,18 @@ func TestGetNeverRun(t *testing.T) {
 	require.NoError(t, json.Unmarshal(buf.Bytes(), &got))
 	assert.Contains(t, got, "latest_execution_id")
 	assert.Nil(t, got["latest_execution_id"])
+}
+
+func TestGetPrintsTheQueryWhenTheLatestExecutionIsUnavailable(t *testing.T) {
+	mock := &mockClient{getQueryFn: func(int) (*models.GetQueryResponse, error) { return testQueryResponse, nil }}
+	fake := &dunemcptest.Fake{Errors: map[string]error{"getDuneQuery": errors.New("mcp unavailable")}}
+	root, buf := newTestRootWithMCP(mock, fake)
+	var stderr bytes.Buffer
+	root.SetErr(&stderr)
+	root.SetArgs([]string{"query", "get", "4125432"})
+
+	require.NoError(t, root.Execute())
+	assert.Contains(t, buf.String(), "SELECT 1")
+	assert.Contains(t, buf.String(), "Last run:    unknown")
+	assert.Equal(t, "warning: could not read the latest execution: mcp unavailable\n", stderr.String())
 }

@@ -43,6 +43,24 @@ func TestCreateAllFlags(t *testing.T) {
 		"folder_name":"Research","parameters":[{"key":"n","type":"number","value":"10"}]}`, fake.Last().Args)
 }
 
+func TestCreateReadsSQLFromAFileOrStdin(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "volume.sql")
+	require.NoError(t, os.WriteFile(path, []byte("SELECT 1 AS volume"), 0o600))
+	fake := &dunemcptest.Fake{Results: map[string]string{"createDuneQuery": `{"query_id":1}`}}
+	root, _ := newMCPRoot(fake)
+	root.SetArgs([]string{"query", "create", "--name", "T", "--sql", "@" + path})
+	require.NoError(t, root.Execute())
+	assert.JSONEq(t, `{"name":"T","query":"SELECT 1 AS volume","is_temp":false}`, fake.Last().Args)
+
+	root, _ = newMCPRoot(fake)
+	root.SetIn(bytes.NewBufferString("SELECT 2"))
+	root.SetArgs([]string{"query", "create-and-run", "--name", "T", "--sql", "@-"})
+	_ = root.Execute()
+	var args map[string]any
+	require.NoError(t, json.Unmarshal([]byte(fake.Last().Args), &args))
+	assert.Equal(t, "SELECT 2", args["query"])
+}
+
 func TestCreateFolderFlagsConflict(t *testing.T) {
 	root, _ := newMCPRoot(&dunemcptest.Fake{})
 	root.SetArgs([]string{"query", "create", "--name", "T", "--sql", "S", "--folder-id", "a", "--folder-name", "b"})

@@ -2,6 +2,7 @@ package query_test
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -15,8 +16,16 @@ import (
 // runUpdate runs `dune query update` against a recording SDK mock and an MCP fake.
 func runUpdate(t *testing.T, args ...string) (*mockClient, *dunemcptest.Fake, string, error) {
 	t.Helper()
+	return runUpdateFailing(t, nil, args...)
+}
+
+// runUpdateFailing is runUpdate with the SDK methods in failures returning their errors.
+func runUpdateFailing(
+	t *testing.T, failures map[string]error, args ...string,
+) (*mockClient, *dunemcptest.Fake, string, error) {
+	t.Helper()
 	calls := []string{}
-	mock := &mockClient{calls: &calls}
+	mock := &mockClient{calls: &calls, failures: failures}
 	mock.archiveQueryFn = func(id int) (*models.UpdateQueryResponse, error) { return mock.record("ArchiveQuery", id) }
 	fake := &dunemcptest.Fake{Results: map[string]string{"updateDuneQuery": `{"queryId":7}`}}
 	root, buf := newTestRootWithMCP(mock, fake)
@@ -126,4 +135,28 @@ func TestUpdateJSONOutput(t *testing.T) {
 	_, _, out, err := runUpdate(t, "7", "--name", "New", "-o", "json")
 	require.NoError(t, err)
 	assert.JSONEq(t, `{"query_id":7}`, out)
+}
+
+func TestUpdateSaysWhatWasAppliedWhenALaterStepFails(t *testing.T) {
+	failures := map[string]error{"MakeQueryPrivate": errors.New("forbidden")}
+	mock, fake, out, err := runUpdateFailing(t, failures, "7", "--sql", "SELECT 2", "--private", "--temp")
+
+	require.EqualError(t, err, "could not make the query private; already applied: update the query's fields; "+
+		"later changes were skipped: forbidden")
+	assert.Equal(t, []string{"UpdateQuery", "MakeQueryPrivate"}, *mock.calls)
+	assert.Empty(t, fake.Calls, "the temp change after the failed step is not attempted")
+	assert.NotContains(t, out, "Updated query")
+
+	_, _, _, err = runUpdateFailing(t, map[string]error{"UnarchiveQuery": errors.New("not found")},
+		"7", "--archived=false", "--name", "N")
+	require.EqualError(t, err, "could not unarchive the query; nothing was changed: not found")
+}
+
+func TestUpdateReadsSQLFromAFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "q.sql")
+	require.NoError(t, os.WriteFile(path, []byte("SELECT 3"), 0o600))
+	mock, _, _, err := runUpdate(t, "7", "--sql", "@"+path)
+	require.NoError(t, err)
+	require.NotNil(t, mock.updateReqs[0].QuerySQL)
+	assert.Equal(t, "SELECT 3", *mock.updateReqs[0].QuerySQL)
 }

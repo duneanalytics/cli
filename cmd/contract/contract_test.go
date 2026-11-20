@@ -132,7 +132,7 @@ func TestSubmitRequiresContractFields(t *testing.T) {
 
 func TestSubmitReportsAPIError(t *testing.T) {
 	mock := &mockClient{submitFn: func(models.SubmitContractsRequest) (*models.SubmitContractsResponse, error) {
-		return nil, &dune.APIError{StatusCode: 400, ErrorResponse: dune.ErrorResponse{Error: "too many submissions"}}
+		return nil, &dune.APIError{StatusCode: 400, Message: "too many submissions"}
 	}}
 	_, err := run(mock, "submit", "--batch", "[{}]")
 	require.Error(t, err)

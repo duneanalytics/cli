@@ -39,6 +39,8 @@ type mockClient struct {
 	calls *[]string
 	// updateReqs records the requests passed to UpdateQuery.
 	updateReqs []models.UpdateQueryRequest
+	// failures maps a query-update method to the error it returns.
+	failures map[string]error
 }
 
 func (m *mockClient) record(method string, queryID int) (*models.UpdateQueryResponse, error) {
@@ -46,6 +48,9 @@ func (m *mockClient) record(method string, queryID int) (*models.UpdateQueryResp
 		panic("unexpected call to " + method)
 	}
 	*m.calls = append(*m.calls, method)
+	if err := m.failures[method]; err != nil {
+		return nil, err
+	}
 	return &models.UpdateQueryResponse{QueryID: queryID}, nil
 }
 

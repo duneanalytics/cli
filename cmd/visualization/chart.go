@@ -1,6 +1,7 @@
 package visualization
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/duneanalytics/cli/cmdutil"
@@ -55,6 +56,9 @@ func ChartArgs(cmd *cobra.Command) (map[string]any, error) {
 	var config map[string]any
 	if err := cmdutil.JSONFlag(cmd, "config", &config); err != nil {
 		return nil, err
+	}
+	if config == nil {
+		return nil, errors.New("--config must be a JSON object")
 	}
 	if ct, ok := config["chart_type"]; !ok {
 		config["chart_type"] = chartType

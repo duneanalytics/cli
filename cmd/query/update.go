@@ -2,6 +2,7 @@ package query
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/duneanalytics/cli/cmdutil"
 	"github.com/duneanalytics/cli/output"
@@ -28,7 +29,7 @@ func newUpdateCmd() *cobra.Command {
 	}
 
 	cmd.Flags().String("name", "", "new title for the query, max 600 characters")
-	cmd.Flags().String("sql", "", "new SQL content in DuneSQL dialect, max 500,000 characters")
+	cmd.Flags().String("sql", "", "new SQL content in DuneSQL dialect, @path, or @- (stdin); max 500,000 characters")
 	cmd.Flags().String("description", "", "new description for the query, max 1,000 characters; an empty value clears it")
 	cmd.Flags().Bool("private", false, "set to true to make the query private, false to make public")
 	cmd.Flags().Bool("archived", false, "set to true to archive the query, false to restore it from the archive")
@@ -67,7 +68,15 @@ func runUpdate(cmd *cobra.Command, posArgs []string) error {
 		return &v
 	}
 	req.Name = stringFlag("name")
-	req.QuerySQL = stringFlag("sql")
+	if fs.Changed("sql") {
+		sql, err := cmdutil.FileFlag(cmd, "sql")
+		if err != nil {
+			return err
+		}
+		v := string(sql)
+		req.QuerySQL = &v
+		patch = true
+	}
 	req.Description = stringFlag("description")
 	if fs.Changed("tags") {
 		// An empty --tags gives an empty, non-nil slice, which the SDK sends to clear the tags.
@@ -83,41 +92,62 @@ func runUpdate(cmd *cobra.Command, posArgs []string) error {
 
 	client := cmdutil.ClientFromCmd(cmd)
 	archived, _ := fs.GetBool("archived")
-	// Restore an archived query before editing it, and archive one only after.
+	private, _ := fs.GetBool("private")
+	temp, _ := fs.GetBool("temp")
+
+	// The changes take up to five calls, which are not atomic: unarchive first, so an
+	// archived query can be edited, and archive last. The PATCH endpoint ignores privacy and
+	// archive state, so they have their own endpoints, and the REST API has no endpoint for
+	// the temp flag, so it alone still goes through the Dune MCP.
+	type step struct {
+		change string
+		run    func() error
+	}
+	var steps []step
 	if fs.Changed("archived") && !archived {
-		if _, err := client.UnarchiveQuery(queryID); err != nil {
+		steps = append(steps, step{"unarchive the query", func() error {
+			_, err := client.UnarchiveQuery(queryID)
 			return err
-		}
+		}})
 	}
 	if patch {
-		if _, err := client.UpdateQuery(queryID, req); err != nil {
+		steps = append(steps, step{"update the query's fields", func() error {
+			_, err := client.UpdateQuery(queryID, req)
 			return err
-		}
+		}})
 	}
-	// The PATCH endpoint ignores privacy and archive state, so they have their own calls.
 	if fs.Changed("private") {
-		private, _ := fs.GetBool("private")
+		change, call := "make the query public", client.MakeQueryPublic
 		if private {
-			_, err = client.MakeQueryPrivate(queryID)
-		} else {
-			_, err = client.MakeQueryPublic(queryID)
+			change, call = "make the query private", client.MakeQueryPrivate
 		}
-		if err != nil {
+		steps = append(steps, step{change, func() error {
+			_, err := call(queryID)
 			return err
-		}
+		}})
 	}
 	if fs.Changed("temp") {
-		// The REST API has no endpoint for the temp flag, so it alone still goes through the Dune MCP.
-		temp, _ := fs.GetBool("temp")
-		args := map[string]any{"queryId": queryID, "is_temp": temp}
-		if _, err := cmdutil.CallTool(cmd, "updateDuneQuery", args, nil); err != nil {
+		steps = append(steps, step{fmt.Sprintf("set temp to %t", temp), func() error {
+			_, err := cmdutil.CallTool(cmd, "updateDuneQuery", map[string]any{"queryId": queryID, "is_temp": temp}, nil)
 			return err
-		}
+		}})
 	}
 	if fs.Changed("archived") && archived {
-		if _, err := client.ArchiveQuery(queryID); err != nil {
+		steps = append(steps, step{"archive the query", func() error {
+			_, err := client.ArchiveQuery(queryID)
 			return err
+		}})
+	}
+	var done []string
+	for _, st := range steps {
+		if err := st.run(); err != nil {
+			if len(done) == 0 {
+				return fmt.Errorf("could not %s; nothing was changed: %w", st.change, err)
+			}
+			return fmt.Errorf("could not %s; already applied: %s; later changes were skipped: %w",
+				st.change, strings.Join(done, ", "), err)
 		}
+		done = append(done, st.change)
 	}
 	resp := models.UpdateQueryResponse{QueryID: queryID}
 

@@ -31,8 +31,8 @@ github.com/clipperhouse/uax29/v2 v2.3.0/go.mod h1:Wn1g7MK6OoeDT0vL+Q0SQLDz/KpfsV
 github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6NIQQ7OS05n1F4g=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/duneanalytics/duneapi-client-go v0.6.1-0.20261119234607-53f207711d24 h1:g6iyRZ3Kzs8w8JW0hayzvyuApP4TXE3eIEvA4fNWRs4=
-github.com/duneanalytics/duneapi-client-go v0.6.1-0.20261119234607-53f207711d24/go.mod h1:7pXXufWvR/Mh2KOehdyBaunJXmHI+pzjUmyQTQhJjdE=
+github.com/duneanalytics/duneapi-client-go v0.6.1-0.20261120092108-d723b2cad4e1 h1:+SuzhOilb5wumKE6Icv+ndl0+01i1K+J59GtJ7sqI2U=
+github.com/duneanalytics/duneapi-client-go v0.6.1-0.20261120092108-d723b2cad4e1/go.mod h1:7pXXufWvR/Mh2KOehdyBaunJXmHI+pzjUmyQTQhJjdE=
 github.com/golang-jwt/jwt/v5 v5.3.0 h1:pv4AsKCKKZuqlgs5sUmn4x8UlGa0kEVt/puTpKx9vvo=
 github.com/golang-jwt/jwt/v5 v5.3.0/go.mod h1:fxCRLWMO43lRc8nhHWY6LGqRcf+1gQWArsqaEUEa5bE=
 github.com/google/go-cmp v0.7.0 h1:wk8382ETsv4JYUZwIsn6YpYiWiBsYLSJiTsyBybVuN8=

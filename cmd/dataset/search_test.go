@@ -57,34 +57,87 @@ const searchTablesResult = `{"total":144,"results":[{"full_name":"dex.trades","c
 	"columns":[{"name":"blockchain","type":"varchar"}]}],
 	"pagination":{"limit":1,"offset":0,"nextOffset":1,"hasMore":true}}`
 
-func TestSearchSendsMCPArguments(t *testing.T) {
-	fake := &dunemcptest.Fake{Results: map[string]string{"searchTables": searchTablesResult}}
-	buf, err := runMCP(fake, "search", "--query", "dex trades", "--categories", "spell", "--dataset-types", "spell",
-		"--include-schema", "--limit", "5", "--owner-scope", "me")
-	require.NoError(t, err)
+func strPtr(s string) *string { return &s }
 
-	// --owner-scope is deprecated and not sent.
-	assert.JSONEq(t, `{"query":"dex trades","categories":["spell"],"datasetTypes":["spell"],"includeSchema":true,
-		"limit":5}`, fake.Last().Args)
-	assert.Regexp(t, `dex.trades\s+spell\s+spell\s+blockchain, block_month\s+ethereum, arbitrum`, buf.String())
-	assert.Contains(t, buf.String(), "1 of 144 results")
+// runSearch runs `dune dataset search` against a REST mock that returns two
+// tables and an MCP fake.
+func runSearch(t *testing.T, fake *dunemcptest.Fake, args ...string) (models.SearchDatasetsRequest, string, string, error) {
+	t.Helper()
+	var got models.SearchDatasetsRequest
+	next := int32(2)
+	mock := &mockClient{searchDatasetsFn: func(req models.SearchDatasetsRequest) (*models.SearchDatasetsResponse, error) {
+		got = req
+		return &models.SearchDatasetsResponse{
+			Total: 144,
+			Results: []models.SearchDatasetResult{
+				{FullName: "dex.trades", Category: "spell", DatasetType: strPtr("spell"),
+					Blockchains: []string{"ethereum", "arbitrum"}},
+				{FullName: "my.private_table", Category: "community", Visibility: strPtr("private")},
+			},
+			Pagination: models.SearchDatasetsPagination{Limit: 2, NextOffset: &next, HasMore: true},
+		}, nil
+	}}
+	root, buf := newTestRoot(mock)
+	root.PersistentPreRun = func(cmd *cobra.Command, _ []string) {
+		cmdutil.SetClient(cmd, mock)
+		cmdutil.SetMCP(cmd, fake)
+	}
+	var stderr bytes.Buffer
+	root.SetErr(&stderr)
+	root.SetArgs(append([]string{"dataset", "search"}, args...))
+	err := root.Execute()
+	return got, buf.String(), stderr.String(), err
 }
 
-func TestSearchJSONKeepsTheAPIShape(t *testing.T) {
+func TestSearchSendsEveryFlagToTheAPI(t *testing.T) {
 	fake := &dunemcptest.Fake{Results: map[string]string{"searchTables": searchTablesResult}}
-	buf, err := runMCP(fake, "search", "--query", "dex", "-o", "json")
+	req, out, _, err := runSearch(t, fake, "--query", "dex trades", "--categories", "spell",
+		"--dataset-types", "spell", "--include-schema", "--limit", "5", "--owner-scope", "me", "--include-private")
+	require.NoError(t, err)
+
+	assert.Equal(t, "dex trades", *req.Query)
+	assert.Equal(t, []string{"spell"}, req.Categories)
+	assert.Equal(t, []string{"spell"}, req.DatasetTypes)
+	assert.Equal(t, "me", *req.OwnerScope)
+	assert.True(t, *req.IncludePrivate)
+	assert.True(t, *req.IncludeSchema)
+	assert.Equal(t, int32(5), *req.Limit)
+	// The MCP gets the same search without the flags it does not support.
+	assert.JSONEq(t, `{"query":"dex trades","categories":["spell"],"datasetTypes":["spell"],"limit":5}`,
+		fake.Last().Args)
+	assert.Regexp(t, `dex.trades\s+spell\s+spell\s+blockchain, block_month\s+ethereum, arbitrum`, out)
+	assert.Contains(t, out, "my.private_table")
+	assert.Contains(t, out, "2 of 144 results")
+}
+
+func TestSearchJSONIsTheAPIShapePlusColumns(t *testing.T) {
+	fake := &dunemcptest.Fake{Results: map[string]string{"searchTables": searchTablesResult}}
+	_, out, _, err := runSearch(t, fake, "--query", "dex", "-o", "json")
 	require.NoError(t, err)
 
 	assert.JSONEq(t, `{"total":144,"results":[{"full_name":"dex.trades","category":"spell","dataset_type":"spell",
 		"blockchains":["ethereum","arbitrum"],"partition_columns":["blockchain","block_month"],
-		"columns":[{"name":"blockchain","type":"varchar"}]}],
-		"pagination":{"limit":1,"offset":0,"next_offset":1,"has_more":true}}`, buf.String())
+		"columns":[{"name":"blockchain","type":"varchar"}]},
+		{"full_name":"my.private_table","category":"community","visibility":"private"}],
+		"pagination":{"limit":2,"offset":0,"next_offset":2,"has_more":true}}`, out)
+}
+
+func TestSearchWithoutTheMCPKeepsTheAPIResults(t *testing.T) {
+	fake := &dunemcptest.Fake{Errors: map[string]error{"searchTables": errors.New("mcp unavailable")}}
+	_, out, stderr, err := runSearch(t, fake, "--query", "dex")
+	require.NoError(t, err)
+	assert.Contains(t, out, "dex.trades")
+	assert.Contains(t, out, "2 of 144 results")
+	assert.Equal(t, "warning: could not read partition columns: mcp unavailable\n", stderr)
 }
 
 func TestSearchError(t *testing.T) {
-	fake := &dunemcptest.Fake{Errors: map[string]error{"searchTables": errors.New("unauthorized")}}
-	_, err := runMCP(fake, "search", "--query", "test")
-	assert.EqualError(t, err, "unauthorized")
+	mock := &mockClient{searchDatasetsFn: func(models.SearchDatasetsRequest) (*models.SearchDatasetsResponse, error) {
+		return nil, errors.New("unauthorized")
+	}}
+	root, _ := newTestRoot(mock)
+	root.SetArgs([]string{"dataset", "search", "--query", "test"})
+	assert.EqualError(t, root.Execute(), "unauthorized")
 }
 
 func TestBlockchains(t *testing.T) {

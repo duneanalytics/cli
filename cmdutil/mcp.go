@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/duneanalytics/cli/dunemcp"
@@ -47,35 +46,44 @@ func ToolArgs(cmd *cobra.Command, names map[string]string) map[string]any {
 			v, _ = fs.GetInt(name)
 		case "int32":
 			v, _ = fs.GetInt32(name)
-		case "stringSlice":
-			v, _ = fs.GetStringSlice(name)
+		case "string":
+			v, _ = fs.GetString(name)
 		case "stringArray":
 			v, _ = fs.GetStringArray(name)
-		case "int64Slice":
-			v, _ = fs.GetInt64Slice(name)
 		default:
-			v, _ = fs.GetString(name)
+			panic(fmt.Sprintf("cmdutil.ToolArgs: flag --%s has unsupported type %s", name, fs.Lookup(name).Value.Type()))
 		}
 		args[arg] = v
 	}
 	return args
 }
 
-// JSONFlag decodes a flag that holds JSON. A value that starts with @ names a
-// file to read the JSON from, and @- reads standard input.
-func JSONFlag(cmd *cobra.Command, name string, v any) error {
+// FileFlag returns the value of a string flag. A value that starts with @ names
+// a file to read the value from, and @- reads standard input.
+func FileFlag(cmd *cobra.Command, name string) ([]byte, error) {
 	s, _ := cmd.Flags().GetString(name)
-	data := []byte(s)
-	if path, ok := strings.CutPrefix(s, "@"); ok {
-		var err error
-		if path == "-" {
-			data, err = io.ReadAll(cmd.InOrStdin())
-		} else {
-			data, err = os.ReadFile(path)
-		}
-		if err != nil {
-			return fmt.Errorf("reading --%s: %w", name, err)
-		}
+	path, ok := strings.CutPrefix(s, "@")
+	if !ok {
+		return []byte(s), nil
+	}
+	var data []byte
+	var err error
+	if path == "-" {
+		data, err = io.ReadAll(cmd.InOrStdin())
+	} else {
+		data, err = os.ReadFile(path)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("reading --%s: %w", name, err)
+	}
+	return data, nil
+}
+
+// JSONFlag decodes a flag that holds JSON, read as FileFlag reads it.
+func JSONFlag(cmd *cobra.Command, name string, v any) error {
+	data, err := FileFlag(cmd, name)
+	if err != nil {
+		return err
 	}
 	if err := json.Unmarshal(data, v); err != nil {
 		return fmt.Errorf("invalid --%s JSON: %w", name, err)
@@ -96,14 +104,4 @@ func CallTool(cmd *cobra.Command, tool string, args map[string]any, view any) (j
 		}
 	}
 	return raw, nil
-}
-
-// ParseID parses a numeric query, dashboard, or visualization ID given as a
-// positional argument.
-func ParseID(kind, arg string) (int, error) {
-	id, err := strconv.Atoi(arg)
-	if err != nil || id <= 0 {
-		return 0, fmt.Errorf("invalid %s ID %q: must be a positive integer", kind, arg)
-	}
-	return id, nil
 }

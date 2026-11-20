@@ -38,6 +38,18 @@ func TestChartTypeMismatch(t *testing.T) {
 	assert.EqualError(t, err, `the chart_type in --config, "pie", does not match --chart-type "line"`)
 }
 
+func TestConfigMustBeAJSONObject(t *testing.T) {
+	for _, cmd := range [][]string{
+		{"create", "--query-id", "7", "--name", "T"},
+		{"update", "9"},
+	} {
+		fake := &dunemcptest.Fake{}
+		_, err := run(fake, append(cmd, "--chart-type", "counter", "--config", "null")...)
+		assert.EqualError(t, err, "--config must be a JSON object")
+		assert.Empty(t, fake.Calls)
+	}
+}
+
 func TestCreateNeedsOptionsOrConfig(t *testing.T) {
 	_, err := run(&dunemcptest.Fake{}, "create", "--query-id", "7", "--name", "T")
 	require.Error(t, err)

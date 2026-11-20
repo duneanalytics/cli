@@ -125,7 +125,7 @@ func TestSetNeedsExactlyOneTarget(t *testing.T) {
 }
 
 func TestSetReportsAPIError(t *testing.T) {
-	apiErr := &dune.APIError{StatusCode: 400, ErrorResponse: dune.ErrorResponse{Error: "unsupported cron"}}
+	apiErr := &dune.APIError{StatusCode: 400, Message: "unsupported cron"}
 	mock := &mockClient{setQueryFn: func(int, models.SetScheduleRequest) (*models.SetScheduleResponse, error) {
 		return nil, apiErr
 	}}

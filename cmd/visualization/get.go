@@ -47,14 +47,15 @@ func runGet(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	// The REST API does not return the chart type or links; the MCP tool getVisualization does.
+	// They are extras, so the command still prints the visualization without them.
 	var extra struct {
 		ChartType           *string `json:"chartType"`
-		IsPrivate           bool    `json:"isPrivate"`
+		IsPrivate           *bool   `json:"isPrivate"`
 		InteractiveChartURL string  `json:"interactiveChartUrl"`
 		ChartJpegURL        string  `json:"chartJpegUrl"`
 	}
 	if _, err := cmdutil.CallTool(cmd, "getVisualization", map[string]any{"visualizationId": vizID}, &extra); err != nil {
-		return err
+		fmt.Fprintf(cmd.ErrOrStderr(), "warning: could not read the chart type and links: %v\n", err)
 	}
 
 	w := cmd.OutOrStdout()
@@ -63,14 +64,17 @@ func runGet(cmd *cobra.Command, args []string) error {
 		return output.PrintJSON(w, struct {
 			*models.GetVisualizationResponse
 			ChartType           *string `json:"chart_type"`
-			IsPrivate           bool    `json:"is_private"`
+			IsPrivate           *bool   `json:"is_private"`
 			InteractiveChartURL string  `json:"interactive_chart_url"`
 			ChartJpegURL        string  `json:"chart_jpeg_url"`
 		}{resp, extra.ChartType, extra.IsPrivate, extra.InteractiveChartURL, extra.ChartJpegURL})
 	default:
-		chartType := "-"
+		chartType, private := "-", "-"
 		if extra.ChartType != nil {
 			chartType = *extra.ChartType
+		}
+		if extra.IsPrivate != nil {
+			private = strconv.FormatBool(*extra.IsPrivate)
 		}
 		output.PrintTable(w,
 			[]string{"Field", "Value"},
@@ -81,7 +85,7 @@ func runGet(cmd *cobra.Command, args []string) error {
 				{"Description", resp.Description},
 				{"Type", resp.Type},
 				{"Chart Type", chartType},
-				{"Private", strconv.FormatBool(extra.IsPrivate)},
+				{"Private", private},
 				{"Created At", resp.CreatedAt},
 				{"Updated At", resp.UpdatedAt},
 				{"Chart URL", extra.InteractiveChartURL},

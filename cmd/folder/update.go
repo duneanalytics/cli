@@ -19,7 +19,7 @@ func newUpdateCmd() *cobra.Command {
 			"Examples:\n" +
 			"  dune folder update dp180Cu3jW3L --name \"RWA (2026)\"\n" +
 			"  dune folder update dp180Cu3jW3L --description \"\"   # clears the description\n" +
-			"  dune folder update dp180Cu3jW3L --icon rocket --color #E5477D",
+			"  dune folder update dp180Cu3jW3L --icon rocket --color '#E5477D'",
 		Args: cobra.ExactArgs(1),
 		RunE: runUpdate,
 	}

@@ -79,9 +79,7 @@ func run(t *testing.T, mock *mockClient, args ...string) (*bytes.Buffer, error) 
 
 func apiError(status int, code string, details any) error {
 	raw, _ := json.Marshal(details)
-	return &dune.APIError{StatusCode: status, ErrorResponse: dune.ErrorResponse{
-		Error: "folder error", Code: code, Details: raw,
-	}}
+	return &dune.APIError{StatusCode: status, Message: "folder error", Code: code, Details: raw}
 }
 
 func TestListSendsOnlySetFlags(t *testing.T) {

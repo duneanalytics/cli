@@ -39,13 +39,16 @@ func runGet(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	// The REST API does not report executions; the MCP tool getDuneQuery does.
+	// The REST API does not report executions; the MCP tool getDuneQuery does. The
+	// latest execution is an extra, so the command still prints the query without it.
 	var latest struct {
 		ID    *string `json:"latest_execution_id"`
 		State *string `json:"latest_execution_state"`
 	}
+	latestKnown := true
 	if _, err := cmdutil.CallTool(cmd, "getDuneQuery", map[string]any{"query_id": queryID}, &latest); err != nil {
-		return err
+		latestKnown = false
+		fmt.Fprintf(cmd.ErrOrStderr(), "warning: could not read the latest execution: %v\n", err)
 	}
 
 	w := cmd.OutOrStdout()
@@ -71,6 +74,8 @@ func runGet(cmd *cobra.Command, args []string) error {
 			fmt.Fprintf(w, "Tags:        %s\n", strings.Join(resp.Tags, ", "))
 		}
 		switch {
+		case !latestKnown:
+			fmt.Fprintln(w, "Last run:    unknown")
 		case latest.ID == nil:
 			fmt.Fprintln(w, "Last run:    never")
 		case latest.State == nil:
