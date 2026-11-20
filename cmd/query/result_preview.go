@@ -1,14 +1,16 @@
-package output
+package query
 
 import (
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/duneanalytics/cli/output"
 )
 
-// ExecutionResult is a query execution result as the Dune MCP's
-// getExecutionResults tool returns it.
-type ExecutionResult struct {
+// executionResult is a query execution result as the Dune MCP's
+// getExecutionResults tool returns it, as in createAndExecuteQuery's result preview.
+type executionResult struct {
 	ExecutionID    string `json:"executionId"`
 	State          string `json:"state"`
 	ErrorMessage   string `json:"errorMessage"`
@@ -26,7 +28,7 @@ type ExecutionResult struct {
 }
 
 // Err returns an error when the execution failed, was cancelled, or expired.
-func (r ExecutionResult) Err() error {
+func (r executionResult) Err() error {
 	switch r.State {
 	case "FAILED", "CANCELLED", "EXPIRED":
 		msg := r.ErrorMessage
@@ -38,9 +40,9 @@ func (r ExecutionResult) Err() error {
 	return nil
 }
 
-// PrintExecutionResult writes the rows of a completed execution as a table, or
+// printExecutionResult writes the rows of a completed execution as a table, or
 // the execution's state while it is still running.
-func PrintExecutionResult(w io.Writer, r ExecutionResult) {
+func printExecutionResult(w io.Writer, r executionResult) {
 	if r.State != "COMPLETED" {
 		fmt.Fprintf(w, "Execution ID: %s\n", r.ExecutionID)
 		fmt.Fprintf(w, "State:        %s\n", r.State)
@@ -60,7 +62,7 @@ func PrintExecutionResult(w io.Writer, r ExecutionResult) {
 	if r.Data != nil {
 		rows = r.Data.Rows
 	}
-	PrintTable(w, columns, ResultRowsToStrings(rows, columns))
+	output.PrintTable(w, columns, output.ResultRowsToStrings(rows, columns))
 	fmt.Fprintf(w, "\n%d of %d rows\n", len(rows), total)
 	if credits != "" {
 		fmt.Fprintf(w, "Cost: %s credits\n", credits)

@@ -89,9 +89,9 @@ func runCreateAndRun(cmd *cobra.Command, _ []string) error {
 			InteractiveChartURL string `json:"interactiveChartUrl"`
 			ChartJpegURL        string `json:"chartJpegUrl"`
 		} `json:"visualization"`
-		VisualizationError *toolError              `json:"visualization_error"`
-		ResultPreview      *output.ExecutionResult `json:"result_preview"`
-		ResultPreviewError *toolError              `json:"result_preview_error"`
+		VisualizationError *toolError       `json:"visualization_error"`
+		ResultPreview      *executionResult `json:"result_preview"`
+		ResultPreviewError *toolError       `json:"result_preview_error"`
 	}
 	raw, err := cmdutil.CallTool(cmd, "createAndExecuteQuery", args, &res)
 	if err != nil {
@@ -131,7 +131,7 @@ func runCreateAndRun(cmd *cobra.Command, _ []string) error {
 	}
 	if p := res.ResultPreview; p != nil && p.Err() == nil {
 		fmt.Fprintln(w)
-		output.PrintExecutionResult(w, *p)
+		printExecutionResult(w, *p)
 		if p.State != "COMPLETED" {
 			fmt.Fprintf(w, "\nFetch the rows when it finishes: dune execution results %s\n", p.ExecutionID)
 		}
