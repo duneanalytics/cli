@@ -87,6 +87,9 @@ func runUpdate(cmd *cobra.Command, posArgs []string) error {
 		if err := cmdutil.JSONFlag(cmd, "parameters", &req.Parameters); err != nil {
 			return err
 		}
+		if req.Parameters == nil {
+			return fmt.Errorf("--parameters must be a JSON array; pass '[]' to clear the parameters")
+		}
 		patch = true
 	}
 
@@ -94,6 +97,10 @@ func runUpdate(cmd *cobra.Command, posArgs []string) error {
 	archived, _ := fs.GetBool("archived")
 	private, _ := fs.GetBool("private")
 	temp, _ := fs.GetBool("temp")
+	// Archiving clears the temp flag, so the query would end up archived but not temporary.
+	if temp && archived {
+		return fmt.Errorf("--temp and --archived cannot both be true: archiving a query clears its temp flag")
+	}
 
 	// The changes take up to five calls, which are not atomic: unarchive first, so an
 	// archived query can be edited, and archive last. The PATCH endpoint ignores privacy and

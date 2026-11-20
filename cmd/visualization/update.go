@@ -1,7 +1,6 @@
 package visualization
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
 
@@ -93,10 +92,9 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		req.Description, _ = cmd.Flags().GetString("description")
 	}
 	if cmd.Flags().Changed("options") {
-		optionsStr, _ := cmd.Flags().GetString("options")
 		var options map[string]any
-		if err := json.Unmarshal([]byte(optionsStr), &options); err != nil {
-			return fmt.Errorf("invalid --options JSON: %w", err)
+		if err := cmdutil.JSONFlag(cmd, "options", &options); err != nil {
+			return err
 		}
 		req.Options = options
 	}

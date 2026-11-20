@@ -108,7 +108,9 @@ func runSearch(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
-	resp := searchResponse{Total: found.Total, Pagination: found.Pagination}
+	// Non-nil, so no hits print "results": [] as before rather than null.
+	resp := searchResponse{Total: found.Total, Pagination: found.Pagination,
+		Results: make([]searchResult, 0, len(found.Results))}
 	for _, r := range found.Results {
 		resp.Results = append(resp.Results, searchResult{SearchDatasetResult: r})
 	}

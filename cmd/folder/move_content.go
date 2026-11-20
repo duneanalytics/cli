@@ -37,10 +37,14 @@ func runMoveContent(cmd *cobra.Command, _ []string) error {
 	if len(queryIDs) == 0 && len(dashboardIDs) == 0 {
 		return errors.New("provide --query-ids, --dashboard-ids, or both")
 	}
+	to, err := destination(cmd)
+	if err != nil {
+		return err
+	}
 	res, err := cmdutil.ClientFromCmd(cmd).MoveContent(models.MoveContentRequest{
 		QueryIDs:       queryIDs,
 		DashboardIDs:   dashboardIDs,
-		TargetFolderID: destination(cmd),
+		TargetFolderID: to,
 	})
 	if err != nil {
 		return err

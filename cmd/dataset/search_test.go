@@ -131,6 +131,21 @@ func TestSearchWithoutTheMCPKeepsTheAPIResults(t *testing.T) {
 	assert.Equal(t, "warning: could not read partition columns: mcp unavailable\n", stderr)
 }
 
+// Scripts iterate over .results, so no hits must print [] rather than null.
+func TestSearchWithNoHitsPrintsAnEmptyList(t *testing.T) {
+	mock := &mockClient{searchDatasetsFn: func(models.SearchDatasetsRequest) (*models.SearchDatasetsResponse, error) {
+		return &models.SearchDatasetsResponse{Results: []models.SearchDatasetResult{}}, nil
+	}}
+	root, buf := newTestRoot(mock)
+	root.PersistentPreRun = func(cmd *cobra.Command, _ []string) {
+		cmdutil.SetClient(cmd, mock)
+		cmdutil.SetMCP(cmd, &dunemcptest.Fake{Results: map[string]string{"searchTables": `{"results":[]}`}})
+	}
+	root.SetArgs([]string{"dataset", "search", "--query", "nothing", "-o", "json"})
+	require.NoError(t, root.Execute())
+	assert.JSONEq(t, `{"total":0,"results":[],"pagination":{"limit":0,"offset":0,"has_more":false}}`, buf.String())
+}
+
 func TestSearchError(t *testing.T) {
 	mock := &mockClient{searchDatasetsFn: func(models.SearchDatasetsRequest) (*models.SearchDatasetsResponse, error) {
 		return nil, errors.New("unauthorized")

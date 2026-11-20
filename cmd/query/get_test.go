@@ -171,4 +171,15 @@ func TestGetPrintsTheQueryWhenTheLatestExecutionIsUnavailable(t *testing.T) {
 	assert.Contains(t, buf.String(), "SELECT 1")
 	assert.Contains(t, buf.String(), "Last run:    unknown")
 	assert.Equal(t, "warning: could not read the latest execution: mcp unavailable\n", stderr.String())
+
+	// In JSON, null means "never run", so an unknown latest execution leaves the keys out.
+	root, buf = newTestRootWithMCP(mock, fake)
+	root.SetErr(&stderr)
+	root.SetArgs([]string{"query", "get", "4125432", "-o", "json"})
+	require.NoError(t, root.Execute())
+	var got map[string]any
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &got))
+	assert.Equal(t, "SELECT 1", got["query_sql"])
+	assert.NotContains(t, got, "latest_execution_id")
+	assert.NotContains(t, got, "latest_execution_state")
 }

@@ -88,6 +88,17 @@ func TestShapedResultsWaitPollsStatus(t *testing.T) {
 	assert.Equal(t, models.ResultOptions{SampleCount: 5}, got[0])
 }
 
+// A timeout must fail, so a script does not take a still-running execution for a result.
+func TestShapedResultsTimeoutFails(t *testing.T) {
+	mock := &mockClient{queryStatusFn: func(string) (*models.StatusResponse, error) {
+		return &models.StatusResponse{State: "QUERY_STATE_EXECUTING"}, nil
+	}}
+	got, _, err := runShaped(t, mock, "--filter", `"amount" > 1`, "--timeout", "0")
+	require.EqualError(t, err,
+		"execution 01EXEC is still EXECUTING after 0s; rerun with a longer --timeout or --no-wait")
+	assert.Empty(t, got, "no results are fetched")
+}
+
 func TestShapedResultsFailedExecution(t *testing.T) {
 	mock := &mockClient{queryResultsV2Fn: func(string, models.ResultOptions) (*models.ResultsResponse, error) {
 		return &models.ResultsResponse{State: "QUERY_STATE_FAILED",

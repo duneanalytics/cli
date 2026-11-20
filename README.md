@@ -91,12 +91,12 @@ Search the Dune dataset catalog.
 
 | Command | Description |
 |---------|-------------|
-| `dataset search [--query] [--categories] [--blockchains] [--schemas] [--dataset-types] [--include-schema] [--include-metadata] [--limit] [--offset]` | Search for datasets; the top 3 hits include their columns |
+| `dataset search [--query] [--categories] [--blockchains] [--schemas] [--dataset-types] [--owner-scope] [--include-private] [--include-schema] [--include-metadata] [--limit] [--offset]` | Search for datasets; the top 3 hits include their columns |
 | `dataset search-by-contract --contract-address <address> [--blockchains] [--include-schema] [--limit] [--offset]` | Search for decoded tables by contract address |
 | `dataset blockchains [--categories] [--query] [--limit] [--offset]` | List blockchains with the number of tables on each |
 | `dataset size <table>` | Show a table's storage size, e.g. `dataset size ethereum.blocks` |
 
-Categories: `canonical`, `decoded`, `spell`, `community`. The `--owner-scope` and `--include-private` flags of `dataset search` no longer have an effect and are deprecated.
+Categories: `canonical`, `decoded`, `spell`, `community`.
 
 ### `dune visualization` (alias: `viz`)
 

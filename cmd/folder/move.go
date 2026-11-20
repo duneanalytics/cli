@@ -27,8 +27,11 @@ func newMoveCmd() *cobra.Command {
 }
 
 func runMove(cmd *cobra.Command, posArgs []string) error {
-	req := models.MoveFolderRequest{ParentFolderID: destination(cmd)}
-	f, err := cmdutil.ClientFromCmd(cmd).MoveFolder(posArgs[0], req)
+	to, err := destination(cmd)
+	if err != nil {
+		return err
+	}
+	f, err := cmdutil.ClientFromCmd(cmd).MoveFolder(posArgs[0], models.MoveFolderRequest{ParentFolderID: to})
 	if err != nil {
 		return err
 	}

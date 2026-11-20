@@ -1,7 +1,6 @@
 package visualization
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/duneanalytics/cli/cmdutil"
@@ -139,11 +138,9 @@ func runCreate(cmd *cobra.Command, _ []string) error {
 	}
 	vizType, _ := cmd.Flags().GetString("type")
 	description, _ := cmd.Flags().GetString("description")
-	optionsStr, _ := cmd.Flags().GetString("options")
-
 	var options map[string]any
-	if err := json.Unmarshal([]byte(optionsStr), &options); err != nil {
-		return fmt.Errorf("invalid --options JSON: %w", err)
+	if err := cmdutil.JSONFlag(cmd, "options", &options); err != nil {
+		return err
 	}
 
 	client := cmdutil.ClientFromCmd(cmd)
