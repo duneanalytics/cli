@@ -300,8 +300,9 @@ func TestRunAcceptsLegacyFreePerformance(t *testing.T) {
 // A query that keeps running stops the wait at --timeout with an error,
 // without downloading any rows.
 func TestRunStopsAtTheTimeout(t *testing.T) {
+	original := execution.PollInterval
 	execution.PollInterval = 100 * time.Millisecond
-	t.Cleanup(func() { execution.PollInterval = 2 * time.Second })
+	t.Cleanup(func() { execution.PollInterval = original })
 
 	statusCalls := 0
 	mock := &mockClient{

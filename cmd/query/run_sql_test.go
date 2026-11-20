@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
+	"time"
 
+	"github.com/duneanalytics/cli/cmd/execution"
 	"github.com/duneanalytics/duneapi-client-go/dune"
 	"github.com/duneanalytics/duneapi-client-go/models"
 	"github.com/stretchr/testify/assert"
@@ -283,4 +285,28 @@ func TestRunSQLInvalidParam(t *testing.T) {
 	err := root.Execute()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "expected key=value")
+}
+
+// A query that keeps running stops the wait at --timeout with an error,
+// without downloading any rows.
+func TestRunSQLStopsAtTheTimeout(t *testing.T) {
+	original := execution.PollInterval
+	execution.PollInterval = 100 * time.Millisecond
+	t.Cleanup(func() { execution.PollInterval = original })
+
+	mock := &mockClient{
+		runSQLFn: func(models.ExecuteSQLRequest) (dune.Execution, error) {
+			return &mockExecution{
+				id: "01ABC",
+				getStatusFn: func() (*models.StatusResponse, error) {
+					return &models.StatusResponse{State: "QUERY_STATE_EXECUTING"}, nil
+				},
+			}, nil
+		},
+	}
+
+	root, _ := newTestRoot(mock)
+	root.SetArgs([]string{"query", "run-sql", "--sql", "SELECT 1", "--timeout", "1"})
+	err := root.Execute()
+	assert.EqualError(t, err, "execution 01ABC is still EXECUTING after 1s; rerun with a longer --timeout or --no-wait")
 }
