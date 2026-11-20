@@ -32,7 +32,7 @@
 
           # Update when go.mod or go.sum changes: set it to lib.fakeHash, run
           # `nix build`, and copy the hash from the error. CI fails while it is stale.
-          vendorHash = "sha256-7hB7LC+IJ/sQUDXPqZRcexFryPDffP1C1SRSaBnx3us=";
+          vendorHash = "sha256-m3epR82enXBIs0Q5fbJ6A7Kd6z5BwE0DeObWxIiYh2w=";
 
           subPackages = [ "cmd" ];
           env.CGO_ENABLED = 0;
