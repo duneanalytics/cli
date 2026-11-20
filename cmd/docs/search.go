@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/duneanalytics/cli/dunemcp"
 	"github.com/duneanalytics/cli/output"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
@@ -91,6 +92,9 @@ func runSearch(cmd *cobra.Command, _ []string) error {
 		Arguments: args,
 	})
 	if err != nil {
+		return fmt.Errorf("searching docs: %w", err)
+	}
+	if err := dunemcp.ToolError("search_dune_docs", result); err != nil {
 		return fmt.Errorf("searching docs: %w", err)
 	}
 

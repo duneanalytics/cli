@@ -80,13 +80,8 @@ func (c *Client) connect(ctx context.Context) (*mcp.ClientSession, error) {
 // the tool reported. A result without structured content falls back to its
 // first text block, which Dune tools fill with the same JSON.
 func Result(tool string, res *mcp.CallToolResult) (json.RawMessage, error) {
-	if res.IsError {
-		// Go error strings end without punctuation; the CLI's error printer adds a period.
-		msg := strings.TrimSuffix(strings.TrimSpace(text(res)), ".")
-		if msg == "" {
-			msg = tool + " failed without a message"
-		}
-		return nil, errors.New(msg)
+	if err := ToolError(tool, res); err != nil {
+		return nil, err
 	}
 	if res.StructuredContent != nil {
 		var buf bytes.Buffer
@@ -101,6 +96,19 @@ func Result(tool string, res *mcp.CallToolResult) (json.RawMessage, error) {
 		return json.RawMessage(t), nil
 	}
 	return nil, errors.New(tool + ": the tool returned no structured result")
+}
+
+// ToolError returns the error a tool result reports, or nil when it reports none.
+func ToolError(tool string, res *mcp.CallToolResult) error {
+	if !res.IsError {
+		return nil
+	}
+	// Go error strings end without punctuation; the CLI's error printer adds a period.
+	msg := strings.TrimSuffix(strings.TrimSpace(text(res)), ".")
+	if msg == "" {
+		msg = tool + " failed without a message"
+	}
+	return errors.New(msg)
 }
 
 func text(res *mcp.CallToolResult) string {
