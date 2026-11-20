@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"time"
 
+	"github.com/duneanalytics/cli/cmd/execution"
 	"github.com/duneanalytics/cli/output"
 	"github.com/duneanalytics/duneapi-client-go/dune"
 	"github.com/duneanalytics/duneapi-client-go/models"
@@ -35,12 +35,13 @@ func parsePerformance(cmd *cobra.Command) (string, error) {
 	}
 }
 
+// waitAndDisplay waits up to timeout seconds for the execution to finish, then
+// prints its results.
 func waitAndDisplay(cmd *cobra.Command, exec dune.Execution, timeout int) error {
-	maxRetries := timeout / 2
-	if maxRetries < 1 {
-		maxRetries = 1
+	if err := execution.WaitForExecution(exec.GetStatus, cmd.ErrOrStderr(), exec.GetID(), timeout); err != nil {
+		return err
 	}
-	resp, err := exec.WaitGetResults(2*time.Second, maxRetries)
+	resp, err := exec.GetResults()
 	if err != nil {
 		return err
 	}

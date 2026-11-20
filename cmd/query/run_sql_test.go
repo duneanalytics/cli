@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/duneanalytics/duneapi-client-go/dune"
 	"github.com/duneanalytics/duneapi-client-go/models"
@@ -18,7 +17,7 @@ func newSQLWaitMock(t *testing.T, resp *models.ResultsResponse, respErr error) *
 		runSQLFn: func(req models.ExecuteSQLRequest) (dune.Execution, error) {
 			return &mockExecution{
 				id: "01ABC",
-				waitGetResultsFn: func(_ time.Duration, _ int) (*models.ResultsResponse, error) {
+				getResultsFn: func() (*models.ResultsResponse, error) {
 					return resp, respErr
 				},
 			}, nil
@@ -76,7 +75,7 @@ func TestRunSQLWithParams(t *testing.T) {
 			captured = req
 			return &mockExecution{
 				id: "01ABC",
-				waitGetResultsFn: func(_ time.Duration, _ int) (*models.ResultsResponse, error) {
+				getResultsFn: func() (*models.ResultsResponse, error) {
 					return testResultsResponse, nil
 				},
 			}, nil
@@ -98,7 +97,7 @@ func TestRunSQLDefaultPerformance(t *testing.T) {
 			captured = req
 			return &mockExecution{
 				id: "01ABC",
-				waitGetResultsFn: func(_ time.Duration, _ int) (*models.ResultsResponse, error) {
+				getResultsFn: func() (*models.ResultsResponse, error) {
 					return testResultsResponse, nil
 				},
 			}, nil
@@ -119,7 +118,7 @@ func TestRunSQLWithPerformance(t *testing.T) {
 			captured = req
 			return &mockExecution{
 				id: "01ABC",
-				waitGetResultsFn: func(_ time.Duration, _ int) (*models.ResultsResponse, error) {
+				getResultsFn: func() (*models.ResultsResponse, error) {
 					return testResultsResponse, nil
 				},
 			}, nil
@@ -140,7 +139,7 @@ func TestRunSQLWithPerformanceSmall(t *testing.T) {
 			captured = req
 			return &mockExecution{
 				id: "01ABC",
-				waitGetResultsFn: func(_ time.Duration, _ int) (*models.ResultsResponse, error) {
+				getResultsFn: func() (*models.ResultsResponse, error) {
 					return testResultsResponse, nil
 				},
 			}, nil
@@ -264,7 +263,7 @@ func TestRunSQLAcceptsLegacyFreePerformance(t *testing.T) {
 			captured = req
 			return &mockExecution{
 				id: "01ABC",
-				waitGetResultsFn: func(_ time.Duration, _ int) (*models.ResultsResponse, error) {
+				getResultsFn: func() (*models.ResultsResponse, error) {
 					return testResultsResponse, nil
 				},
 			}, nil
