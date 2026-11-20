@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/duneanalytics/cli/dunemcp"
 	"github.com/duneanalytics/cli/output"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
@@ -93,18 +94,8 @@ func runSearch(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return fmt.Errorf("searching docs: %w", err)
 	}
-	if result.IsError {
-		// A failed search comes back as a result whose text says what went wrong.
-		var msgs []string
-		for _, c := range result.Content {
-			if tc, ok := c.(*mcp.TextContent); ok && tc.Text != "" {
-				msgs = append(msgs, tc.Text)
-			}
-		}
-		if len(msgs) == 0 {
-			msgs = append(msgs, "no details")
-		}
-		return fmt.Errorf("searching docs: %s", strings.Join(msgs, "; "))
+	if err := dunemcp.ToolError("search_dune_docs", result); err != nil {
+		return fmt.Errorf("searching docs: %w", err)
 	}
 
 	// Parse results from content blocks.

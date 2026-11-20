@@ -125,13 +125,13 @@ func TestSearchEmptyResults(t *testing.T) {
 func TestSearchToolError(t *testing.T) {
 	ts := startMCPServerResult(t, &mcp.CallToolResult{
 		IsError: true,
-		Content: []mcp.Content{&mcp.TextContent{Text: "search index unavailable"}},
+		Content: []mcp.Content{&mcp.TextContent{Text: "Search index unavailable."}},
 	})
 
 	root, buf := newTestRoot()
 	root.SetArgs([]string{"docs", "search", "--query", "decoded tables", "--mcp-endpoint", ts.URL})
 
-	assert.EqualError(t, root.Execute(), "searching docs: search index unavailable")
+	assert.EqualError(t, root.Execute(), "searching docs: Search index unavailable")
 	assert.NotContains(t, buf.String(), "result(s)")
 }
 
