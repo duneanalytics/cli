@@ -24,6 +24,16 @@ type searchArgs struct {
 
 func startMCPServer(t *testing.T, results []string) *httptest.Server {
 	t.Helper()
+	var content []mcp.Content
+	for _, r := range results {
+		content = append(content, &mcp.TextContent{Text: r})
+	}
+	return startMCPServerResult(t, &mcp.CallToolResult{Content: content})
+}
+
+// startMCPServerResult starts a docs server whose search tool returns result.
+func startMCPServerResult(t *testing.T, result *mcp.CallToolResult) *httptest.Server {
+	t.Helper()
 
 	server := mcp.NewServer(&mcp.Implementation{
 		Name:    "test-docs",
@@ -34,11 +44,7 @@ func startMCPServer(t *testing.T, results []string) *httptest.Server {
 		Name:        "search_dune_docs",
 		Description: "Search Dune docs",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args searchArgs) (*mcp.CallToolResult, any, error) {
-		var content []mcp.Content
-		for _, r := range results {
-			content = append(content, &mcp.TextContent{Text: r})
-		}
-		return &mcp.CallToolResult{Content: content}, nil, nil
+		return result, nil, nil
 	})
 
 	handler := mcp.NewStreamableHTTPHandler(func(_ *http.Request) *mcp.Server {
@@ -114,6 +120,19 @@ func TestSearchEmptyResults(t *testing.T) {
 
 	require.NoError(t, root.Execute())
 	assert.Contains(t, buf.String(), "No results found.")
+}
+
+func TestSearchToolError(t *testing.T) {
+	ts := startMCPServerResult(t, &mcp.CallToolResult{
+		IsError: true,
+		Content: []mcp.Content{&mcp.TextContent{Text: "search index unavailable"}},
+	})
+
+	root, buf := newTestRoot()
+	root.SetArgs([]string{"docs", "search", "--query", "decoded tables", "--mcp-endpoint", ts.URL})
+
+	assert.EqualError(t, root.Execute(), "searching docs: search index unavailable")
+	assert.NotContains(t, buf.String(), "result(s)")
 }
 
 func TestSearchRequiresQuery(t *testing.T) {
