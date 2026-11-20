@@ -2,6 +2,7 @@ package execution
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/duneanalytics/cli/cmdutil"
@@ -179,7 +180,8 @@ func waitForExecution(client dune.DuneClient, executionID string, timeout int) e
 			return nil
 		}
 		if !time.Now().Add(PollInterval).Before(deadline) {
-			return nil
+			return fmt.Errorf("execution %s is still %s after %ds; rerun with a longer --timeout or --no-wait",
+				executionID, strings.TrimPrefix(status.State, "QUERY_STATE_"), timeout)
 		}
 		time.Sleep(PollInterval)
 	}

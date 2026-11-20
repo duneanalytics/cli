@@ -47,6 +47,10 @@ func TestConfigMustBeAJSONObject(t *testing.T) {
 		_, err := run(fake, append(cmd, "--chart-type", "counter", "--config", "null")...)
 		assert.EqualError(t, err, "--config must be a JSON object")
 		assert.Empty(t, fake.Calls)
+
+		// --options null would send no options and still report success.
+		_, err = run(fake, append(cmd, "--options", "null")...)
+		assert.EqualError(t, err, "--options must be a JSON object")
 	}
 }
 

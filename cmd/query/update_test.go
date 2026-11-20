@@ -125,6 +125,19 @@ func TestUpdateNoFlags(t *testing.T) {
 	assert.Empty(t, fake.Calls)
 }
 
+// Each would print "Updated query" while not doing what was asked, so both are refused before any call.
+func TestUpdateRefusesChangesThatWouldNotApply(t *testing.T) {
+	mock, fake, _, err := runUpdate(t, "7", "--parameters", "null")
+	require.EqualError(t, err, "--parameters must be a JSON array; pass '[]' to clear the parameters")
+	assert.Empty(t, *mock.calls)
+	assert.Empty(t, fake.Calls)
+
+	mock, fake, _, err = runUpdate(t, "7", "--temp", "--archived")
+	require.ErrorContains(t, err, "--temp and --archived cannot both be true")
+	assert.Empty(t, *mock.calls)
+	assert.Empty(t, fake.Calls)
+}
+
 func TestUpdateNonIntegerID(t *testing.T) {
 	_, _, _, err := runUpdate(t, "abc", "--name", "X")
 	require.Error(t, err)

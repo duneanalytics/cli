@@ -1,7 +1,6 @@
 package visualization
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
 
@@ -67,6 +66,18 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 			"(--name, --type, --description, --options, or --chart-type with --config)")
 	}
 
+	// Parsed before any call, so bad options fail without touching the visualization.
+	var options map[string]any
+	if cmd.Flags().Changed("options") {
+		if err := cmdutil.JSONFlag(cmd, "options", &options); err != nil {
+			return err
+		}
+		// "null" decodes to a nil map, which would replace the current options with null.
+		if options == nil {
+			return fmt.Errorf("--options must be a JSON object")
+		}
+	}
+
 	client := cmdutil.ClientFromCmd(cmd)
 
 	// Fetch current visualization to preserve unchanged fields
@@ -92,12 +103,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 	if cmd.Flags().Changed("description") {
 		req.Description, _ = cmd.Flags().GetString("description")
 	}
-	if cmd.Flags().Changed("options") {
-		optionsStr, _ := cmd.Flags().GetString("options")
-		var options map[string]any
-		if err := json.Unmarshal([]byte(optionsStr), &options); err != nil {
-			return fmt.Errorf("invalid --options JSON: %w", err)
-		}
+	if options != nil {
 		req.Options = options
 	}
 

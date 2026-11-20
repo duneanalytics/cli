@@ -99,10 +99,13 @@ func addDestinationFlags(cmd *cobra.Command, what string) {
 }
 
 // destination returns the folder ID from --to, or nil for --to-root.
-func destination(cmd *cobra.Command) *string {
+func destination(cmd *cobra.Command) (*string, error) {
 	if root, _ := cmd.Flags().GetBool("to-root"); root {
-		return nil
+		return nil, nil
 	}
 	to, _ := cmd.Flags().GetString("to")
-	return &to
+	if to == "" {
+		return nil, fmt.Errorf("--to must not be empty; use --to-root to move to the top level")
+	}
+	return &to, nil
 }
