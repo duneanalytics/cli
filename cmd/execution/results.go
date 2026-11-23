@@ -109,7 +109,8 @@ func runResults(cmd *cobra.Command, args []string) error {
 
 	if !noWait {
 		timeout, _ := cmd.Flags().GetInt("timeout")
-		if err := waitForExecution(client, cmd.ErrOrStderr(), executionID, timeout); err != nil {
+		if err := WaitForExecution(func() (*models.StatusResponse, error) { return client.QueryStatus(executionID) },
+			cmd.ErrOrStderr(), executionID, timeout); err != nil {
 			return err
 		}
 	}
@@ -149,16 +150,18 @@ func handleResultsResponse(cmd *cobra.Command, executionID string, resp *models.
 	}
 }
 
-// waitForExecution polls the execution's status, without downloading rows, until
-// it stops running, and fails when it is still running at the timeout. It retries
-// a failed status call that may succeed later, with a note on stderr, until the
-// timeout; a client error such as an unknown execution ID or a bad API key fails
-// at once.
-func waitForExecution(client dune.DuneClient, stderr io.Writer, executionID string, timeout int) error {
+// WaitForExecution polls an execution's status with status, without downloading
+// rows, until it stops running, and fails when it is still running at the timeout.
+// It retries a failed status call that may succeed later, with a note on stderr,
+// until the timeout; a client error such as an unknown execution ID or a bad API
+// key fails at once.
+func WaitForExecution(
+	status func() (*models.StatusResponse, error), stderr io.Writer, executionID string, timeout int,
+) error {
 	deadline := time.Now().Add(time.Duration(timeout) * time.Second)
 	for {
-		status, err := client.QueryStatus(executionID)
-		if err == nil && status.State != "QUERY_STATE_PENDING" && status.State != "QUERY_STATE_EXECUTING" {
+		st, err := status()
+		if err == nil && st.State != "QUERY_STATE_PENDING" && st.State != "QUERY_STATE_EXECUTING" {
 			return nil
 		}
 		if err != nil && !retryable(err) {
@@ -169,7 +172,7 @@ func waitForExecution(client dune.DuneClient, stderr io.Writer, executionID stri
 				return fmt.Errorf("%w: %w", dune.ErrorRetriesExhausted, err)
 			}
 			return fmt.Errorf("execution %s is still %s after %ds; rerun with a longer --timeout or --no-wait",
-				executionID, strings.TrimPrefix(status.State, "QUERY_STATE_"), timeout)
+				executionID, strings.TrimPrefix(st.State, "QUERY_STATE_"), timeout)
 		}
 		if err != nil {
 			fmt.Fprintf(stderr, "checking the execution status failed, retrying: %v\n", err)
