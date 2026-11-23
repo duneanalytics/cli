@@ -294,11 +294,13 @@ func TestRunSQLStopsAtTheTimeout(t *testing.T) {
 	execution.PollInterval = 100 * time.Millisecond
 	t.Cleanup(func() { execution.PollInterval = original })
 
+	statusCalls := 0
 	mock := &mockClient{
 		runSQLFn: func(models.ExecuteSQLRequest) (dune.Execution, error) {
 			return &mockExecution{
 				id: "01ABC",
 				getStatusFn: func() (*models.StatusResponse, error) {
+					statusCalls++
 					return &models.StatusResponse{State: "QUERY_STATE_EXECUTING"}, nil
 				},
 			}, nil
@@ -307,6 +309,9 @@ func TestRunSQLStopsAtTheTimeout(t *testing.T) {
 
 	root, _ := newTestRoot(mock)
 	root.SetArgs([]string{"query", "run-sql", "--sql", "SELECT 1", "--timeout", "1"})
+	start := time.Now()
 	err := root.Execute()
 	assert.EqualError(t, err, "execution 01ABC is still EXECUTING after 1s; rerun with a longer --timeout or --no-wait")
+	assert.Less(t, time.Since(start), 3*time.Second)
+	assert.Greater(t, statusCalls, 1)
 }

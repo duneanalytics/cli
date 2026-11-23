@@ -154,7 +154,7 @@ func handleResultsResponse(cmd *cobra.Command, executionID string, resp *models.
 // rows, until it stops running, and fails when it is still running at the timeout.
 // It retries a failed status call that may succeed later, with a note on stderr,
 // until the timeout; a client error such as an unknown execution ID or a bad API
-// key fails at once. query run and run-sql wait with it too.
+// key fails at once.
 func WaitForExecution(
 	status func() (*models.StatusResponse, error), stderr io.Writer, executionID string, timeout int,
 ) error {

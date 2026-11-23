@@ -325,3 +325,14 @@ func TestRunStopsAtTheTimeout(t *testing.T) {
 	assert.Less(t, time.Since(start), 3*time.Second)
 	assert.Greater(t, statusCalls, 1)
 }
+
+// A failed results download after the query finished names the execution, so
+// the user can fetch the results later with dune execution results.
+func TestRunResultsErrorNamesTheExecution(t *testing.T) {
+	mock := newWaitMock(t, nil, errors.New("503 Service Unavailable"))
+
+	root, _ := newTestRoot(mock)
+	root.SetArgs([]string{"query", "run", "4125432"})
+	err := root.Execute()
+	assert.EqualError(t, err, "fetching results of execution 01ABC: 503 Service Unavailable")
+}

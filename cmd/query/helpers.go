@@ -43,7 +43,7 @@ func waitAndDisplay(cmd *cobra.Command, exec dune.Execution, timeout int) error 
 	}
 	resp, err := exec.GetResults()
 	if err != nil {
-		return err
+		return fmt.Errorf("fetching results of execution %s: %w", exec.GetID(), err)
 	}
 
 	if resp.State != "QUERY_STATE_COMPLETED" {
