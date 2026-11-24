@@ -44,7 +44,7 @@ func NewFolderCmd() *cobra.Command {
 func printFolder(cmd *cobra.Command, f *models.Folder, verb string) error {
 	w := cmd.OutOrStdout()
 	if output.FormatFromCmd(cmd) == output.FormatJSON {
-		return output.PrintJSON(w, f)
+		return output.PrintJSON(cmd, f)
 	}
 	fmt.Fprintf(w, "%s folder %s (%s)\n", verb, f.Path, f.FolderID)
 	return nil

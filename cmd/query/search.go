@@ -50,7 +50,7 @@ func runSearch(cmd *cobra.Command, _ []string) error {
 	}
 	w := cmd.OutOrStdout()
 	if output.FormatFromCmd(cmd) == output.FormatJSON {
-		return output.PrintRawJSON(w, raw)
+		return output.PrintRawJSON(cmd, raw)
 	}
 	if len(res.Results) == 0 {
 		fmt.Fprintln(w, "No queries found.")

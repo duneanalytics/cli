@@ -105,7 +105,7 @@ func runSearch(cmd *cobra.Command, _ []string) error {
 	w := cmd.OutOrStdout()
 	switch output.FormatFromCmd(cmd) {
 	case output.FormatJSON:
-		return output.PrintJSON(w, searchResponse{
+		return output.PrintJSON(cmd, searchResponse{
 			Query:   query,
 			Results: results,
 		})

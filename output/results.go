@@ -12,7 +12,7 @@ func DisplayResults(cmd *cobra.Command, resp *models.ResultsResponse) error {
 	w := cmd.OutOrStdout()
 
 	if FormatFromCmd(cmd) == FormatJSON {
-		return PrintJSON(w, resp)
+		return PrintJSON(cmd, resp)
 	}
 
 	limit, _ := cmd.Flags().GetInt("limit")

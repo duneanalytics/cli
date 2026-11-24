@@ -48,7 +48,7 @@ func runList(cmd *cobra.Command, _ []string) error {
 	w := cmd.OutOrStdout()
 	switch output.FormatFromCmd(cmd) {
 	case output.FormatJSON:
-		return output.PrintJSON(w, resp)
+		return output.PrintJSON(cmd, resp)
 	default:
 		rows := make([][]string, len(resp.Results))
 		for i, v := range resp.Results {

@@ -37,7 +37,7 @@ func runWhoAmI(cmd *cobra.Command, _ []string) error {
 	w := cmd.OutOrStdout()
 	switch output.FormatFromCmd(cmd) {
 	case output.FormatJSON:
-		return output.PrintJSON(w, resp)
+		return output.PrintJSON(cmd, resp)
 	default:
 		fmt.Fprintf(w, "Handle:        %s\n", resp.Handle)
 		fmt.Fprintf(w, "Customer ID:   %s\n", resp.CustomerID)

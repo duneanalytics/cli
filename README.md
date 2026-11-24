@@ -182,6 +182,9 @@ dune usage [--start-date YYYY-MM-DD] [--end-date YYYY-MM-DD]
 ## Output Format
 
 All commands (except `auth`) support `-o, --output <format>` with `text` (default) or `json`.
+Add `--compact` to print the JSON on one line without indentation, which cuts its size by about a third for agents and scripts.
+
+`dataset search` and `dataset search-by-contract` list each result's columns under `COLUMNS` in text output: the top 3 hits of `dataset search` always, and every result with `--include-schema`.
 
 ## How the CLI talks to Dune
 

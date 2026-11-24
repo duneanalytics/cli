@@ -52,7 +52,7 @@ func runBlockchains(cmd *cobra.Command, _ []string) error {
 	}
 	w := cmd.OutOrStdout()
 	if output.FormatFromCmd(cmd) == output.FormatJSON {
-		return output.PrintRawJSON(w, raw)
+		return output.PrintRawJSON(cmd, raw)
 	}
 	rows := make([][]string, len(res.Results))
 	for i, r := range res.Results {

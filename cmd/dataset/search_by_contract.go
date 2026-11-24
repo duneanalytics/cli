@@ -93,11 +93,14 @@ func runSearchByContract(cmd *cobra.Command, _ []string) error {
 	w := cmd.OutOrStdout()
 	switch output.FormatFromCmd(cmd) {
 	case output.FormatJSON:
-		return output.PrintJSON(w, resp)
+		return output.PrintJSON(cmd, resp)
 	default:
 		columns := []string{"FULL_NAME", "CATEGORY", "DATASET_TYPE", "BLOCKCHAINS"}
 		rows := make([][]string, len(resp.Results))
+		names := make([]string, len(resp.Results))
+		cols := make([][]string, len(resp.Results))
 		for i, r := range resp.Results {
+			names[i], cols[i] = r.FullName, tableColumns(nil, r.Schema)
 			dt := ""
 			if r.DatasetType != nil {
 				dt = *r.DatasetType
@@ -110,6 +113,7 @@ func runSearchByContract(cmd *cobra.Command, _ []string) error {
 			}
 		}
 		output.PrintTable(w, columns, rows)
+		printColumns(w, names, cols)
 		fmt.Fprintf(w, "\n%d of %d results\n", len(resp.Results), resp.Total)
 		return nil
 	}

@@ -24,8 +24,8 @@ func newSearchCmd() *cobra.Command {
 			"  - community: user-contributed tables and uploads\n\n" +
 			"Filter by category, blockchain, schema, dataset type, or ownership scope. Each\n" +
 			"result lists the columns the table is partitioned by: filter on them in SQL (e.g.\n" +
-			"WHERE block_month >= DATE '2026-01-01') to cut query cost. With -o json the top 3 hits also carry\n" +
-			"their columns and types; --include-schema adds the schema of every result.\n\n" +
+			"WHERE block_month >= DATE '2026-01-01') to cut query cost. The top 3 hits also list\n" +
+			"their columns and types; --include-schema lists them for every result.\n\n" +
 			"For contract-specific lookup, use 'dune dataset search-by-contract' instead.\n\n" +
 			"Examples:\n" +
 			"  dune dataset search --query \"uniswap swaps\"\n" +
@@ -119,11 +119,14 @@ func runSearch(cmd *cobra.Command, _ []string) error {
 	w := cmd.OutOrStdout()
 	switch output.FormatFromCmd(cmd) {
 	case output.FormatJSON:
-		return output.PrintJSON(w, resp)
+		return output.PrintJSON(cmd, resp)
 	default:
 		columns := []string{"FULL_NAME", "CATEGORY", "DATASET_TYPE", "PARTITIONED_BY", "BLOCKCHAINS"}
 		rows := make([][]string, len(resp.Results))
+		names := make([]string, len(resp.Results))
+		cols := make([][]string, len(resp.Results))
 		for i, r := range resp.Results {
+			names[i], cols[i] = r.FullName, tableColumns(r.Columns, r.Schema)
 			dt := ""
 			if r.DatasetType != nil {
 				dt = *r.DatasetType
@@ -137,6 +140,7 @@ func runSearch(cmd *cobra.Command, _ []string) error {
 			}
 		}
 		output.PrintTable(w, columns, rows)
+		printColumns(w, names, cols)
 		fmt.Fprintf(w, "\n%d of %d results\n", len(resp.Results), resp.Total)
 		return nil
 	}

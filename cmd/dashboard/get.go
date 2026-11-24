@@ -73,7 +73,7 @@ func runGet(cmd *cobra.Command, args []string) error {
 	w := cmd.OutOrStdout()
 	switch output.FormatFromCmd(cmd) {
 	case output.FormatJSON:
-		return output.PrintJSON(w, resp)
+		return output.PrintJSON(cmd, resp)
 	default:
 		tags := ""
 		if len(resp.Tags) > 0 {

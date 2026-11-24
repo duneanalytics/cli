@@ -95,7 +95,7 @@ func runSubmit(cmd *cobra.Command, _ []string) error {
 	}
 	w := cmd.OutOrStdout()
 	if output.FormatFromCmd(cmd) == output.FormatJSON {
-		if err := output.PrintJSON(w, res); err != nil {
+		if err := output.PrintJSON(cmd, res); err != nil {
 			return err
 		}
 	} else {

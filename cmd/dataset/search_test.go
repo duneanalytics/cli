@@ -67,13 +67,18 @@ func runSearch(t *testing.T, fake *dunemcptest.Fake, args ...string) (models.Sea
 	next := int32(2)
 	mock := &mockClient{searchDatasetsFn: func(req models.SearchDatasetsRequest) (*models.SearchDatasetsResponse, error) {
 		got = req
+		trades := models.SearchDatasetResult{FullName: "dex.trades", Category: "spell", DatasetType: strPtr("spell"),
+			Blockchains: []string{"ethereum", "arbitrum"}}
+		private := models.SearchDatasetResult{FullName: "my.private_table", Category: "community",
+			Visibility: strPtr("private")}
+		if req.IncludeSchema != nil && *req.IncludeSchema {
+			trades.Schema = []byte(`{"fields":[{"name":"rest_only","type":"bigint","nullable":true}]}`)
+			private.Schema = []byte(`{"fields":[{"name":"id","type":"bigint","nullable":false},` +
+				`{"name":"amount","type":"decimal(38,0)","nullable":true}]}`)
+		}
 		return &models.SearchDatasetsResponse{
-			Total: 144,
-			Results: []models.SearchDatasetResult{
-				{FullName: "dex.trades", Category: "spell", DatasetType: strPtr("spell"),
-					Blockchains: []string{"ethereum", "arbitrum"}},
-				{FullName: "my.private_table", Category: "community", Visibility: strPtr("private")},
-			},
+			Total:      144,
+			Results:    []models.SearchDatasetResult{trades, private},
 			Pagination: models.SearchDatasetsPagination{Limit: 2, NextOffset: &next, HasMore: true},
 		}, nil
 	}}
@@ -108,6 +113,22 @@ func TestSearchSendsEveryFlagToTheAPI(t *testing.T) {
 	assert.Regexp(t, `dex.trades\s+spell\s+spell\s+blockchain, block_month\s+ethereum, arbitrum`, out)
 	assert.Contains(t, out, "my.private_table")
 	assert.Contains(t, out, "2 of 144 results")
+}
+
+// Text output must carry columns: agents read it to write SQL. The MCP's
+// columns win over the API schema; --include-schema fills in the other hits.
+func TestSearchTextListsColumns(t *testing.T) {
+	fake := &dunemcptest.Fake{Results: map[string]string{"searchTables": searchTablesResult}}
+	_, out, _, err := runSearch(t, fake, "--query", "dex")
+	require.NoError(t, err)
+	assert.Contains(t, out, "\nCOLUMNS\ndex.trades: blockchain varchar\n")
+	assert.NotContains(t, out, "my.private_table:")
+
+	_, out, _, err = runSearch(t, fake, "--query", "dex", "--include-schema")
+	require.NoError(t, err)
+	assert.Contains(t, out, "\nCOLUMNS\ndex.trades: blockchain varchar\n"+
+		"my.private_table: id bigint, amount decimal(38,0)\n\n2 of 144 results\n")
+	assert.NotContains(t, out, "rest_only")
 }
 
 func TestSearchJSONIsTheAPIShapePlusColumns(t *testing.T) {

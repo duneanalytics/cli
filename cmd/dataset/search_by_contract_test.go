@@ -65,6 +65,24 @@ func TestSearchByContractSuccess(t *testing.T) {
 	assert.Contains(t, out, "2 of 2 results")
 }
 
+func TestSearchByContractTextListsSchema(t *testing.T) {
+	mock := &mockClient{
+		searchByContractAddressFn: func(req models.SearchDatasetsByContractAddressRequest) (*models.SearchDatasetsResponse, error) {
+			return &models.SearchDatasetsResponse{Total: 2, Results: []models.SearchDatasetResult{
+				{FullName: "pool.evt_Swap", Category: "decoded",
+					Schema: []byte(`{"fields":[{"name":"amount0","type":"int256"},{"name":"evt_block_time","type":"timestamp"}]}`)},
+				{FullName: "pool.call_swap", Category: "decoded"},
+			}}, nil
+		},
+	}
+	root, buf := newTestRoot(mock)
+	root.SetArgs([]string{"dataset", "search-by-contract", "--contract-address", "0xabc", "--include-schema"})
+	require.NoError(t, root.Execute())
+	assert.Contains(t, buf.String(),
+		"\nCOLUMNS\npool.evt_Swap: amount0 int256, evt_block_time timestamp\n\n2 of 2 results\n")
+	assert.NotContains(t, buf.String(), "pool.call_swap:")
+}
+
 func TestSearchByContractJSON(t *testing.T) {
 	mock := &mockClient{
 		searchByContractAddressFn: func(req models.SearchDatasetsByContractAddressRequest) (*models.SearchDatasetsResponse, error) {

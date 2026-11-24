@@ -36,7 +36,7 @@ func runGet(cmd *cobra.Command, posArgs []string) error {
 	}
 	w := cmd.OutOrStdout()
 	if output.FormatFromCmd(cmd) == output.FormatJSON {
-		return output.PrintJSON(w, res)
+		return output.PrintJSON(cmd, res)
 	}
 
 	f := res.Folder

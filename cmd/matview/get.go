@@ -56,7 +56,7 @@ func runGet(cmd *cobra.Command, args []string) error {
 	w := cmd.OutOrStdout()
 	switch output.FormatFromCmd(cmd) {
 	case output.FormatJSON:
-		return output.PrintJSON(w, resp)
+		return output.PrintJSON(cmd, resp)
 	default:
 		fmt.Fprintf(w, "Name:        %s\n", resp.SQLID)
 		fmt.Fprintf(w, "Query ID:    %d\n", resp.QueryID)
