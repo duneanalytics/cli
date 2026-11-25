@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -160,6 +161,13 @@ func Execute(version, commit, date, amplitudeKey string) {
 
 	if err := fang.Execute(rootCmd.Context(), rootCmd,
 		fang.WithVersion(versionStr),
+		fang.WithErrorHandler(func(w io.Writer, styles fang.Styles, err error) {
+			fang.DefaultErrorHandler(w, styles, err)
+			// A plan limit gets the links to get past it.
+			if hint := cmdutil.PlanHint(err); hint != "" {
+				fmt.Fprintln(w, hint)
+			}
+		}),
 	); err != nil {
 		// Build best-effort command path from os.Args (strip flags).
 		commandPath := commandPathFromArgs(os.Args)
