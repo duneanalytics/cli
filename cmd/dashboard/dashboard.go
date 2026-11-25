@@ -18,6 +18,8 @@ func NewDashboardCmd() *cobra.Command {
 	cmd.AddCommand(newCreateCmd())
 	cmd.AddCommand(newGetCmd())
 	cmd.AddCommand(newUpdateCmd())
+	cmd.AddCommand(newUpdateWidgetCmd())
+	cmd.AddCommand(newImageCmd())
 	cmd.AddCommand(newArchiveCmd())
 	cmd.AddCommand(newSearchCmd())
 

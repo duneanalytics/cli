@@ -117,7 +117,6 @@ Examples:
 	cmd.MarkFlagsOneRequired("options", "config")
 	cmd.MarkFlagsMutuallyExclusive("options", "config")
 	cmd.MarkFlagsMutuallyExclusive("type", "chart-type")
-	cmd.MarkFlagsMutuallyExclusive("description", "config")
 	output.AddFormatFlag(cmd, "text")
 
 	return cmd
@@ -134,6 +133,9 @@ func runCreate(cmd *cobra.Command, _ []string) error {
 	if chart != nil {
 		chart["queryId"] = queryID
 		chart["visualizationName"] = name
+		if cmd.Flags().Changed("description") {
+			chart["description"], _ = cmd.Flags().GetString("description")
+		}
 		return runChartTool(cmd, "generateVisualization", chart, "Created")
 	}
 	vizType, _ := cmd.Flags().GetString("type")

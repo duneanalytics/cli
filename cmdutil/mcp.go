@@ -105,3 +105,18 @@ func CallTool(cmd *cobra.Command, tool string, args map[string]any, view any) (j
 	}
 	return raw, nil
 }
+
+// CallToolWithImages calls a Dune MCP tool like CallTool and also returns the
+// images the tool sent.
+func CallToolWithImages(cmd *cobra.Command, tool string, args map[string]any, view any) (json.RawMessage, [][]byte, error) {
+	raw, images, err := MCPFromCmd(cmd).CallWithImages(cmd.Context(), tool, args)
+	if err != nil {
+		return nil, nil, err
+	}
+	if view != nil {
+		if err := json.Unmarshal(raw, view); err != nil {
+			return nil, nil, fmt.Errorf("%s: unexpected result: %w", tool, err)
+		}
+	}
+	return raw, images, nil
+}

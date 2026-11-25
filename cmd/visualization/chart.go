@@ -15,8 +15,9 @@ const ChartConfigHelp = `CHART CONFIG (--chart-type and --config)
 --chart-type is column, line, area, scatter, pie, counter, or table, and --config
 describes the chart in terms of the query's result columns; config.chart_type must
 equal --chart-type. Dune builds the full visualization options from it. Column names
-must match the query output exactly, and Dune does not check them, so look at the
-columns first with 'dune execution results'. --config takes inline JSON, @path, or @-.
+must match the query output exactly; when the query has completed results, Dune
+rejects a config that names other columns. Look at the columns first with
+'dune execution results'. --config takes inline JSON, @path, or @-.
 
   column/line/area/scatter:
     {"chart_type":"line","x_axis":{"column":"day","title":"Day"},
