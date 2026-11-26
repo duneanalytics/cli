@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/duneanalytics/cli/cmdutil"
 	"github.com/duneanalytics/cli/output"
@@ -34,6 +35,9 @@ Choose one channel:
   --discord-webhook <url>           Discord webhook
   --webhook <url>                   HTTPS URL that receives a JSON POST per fire
 
+A webhook URL is a secret. Pass it as @path or @- (standard input) to keep it
+out of the process list and shell history; the command never prints it.
+
 - A query has one alert per channel; this replaces that channel's alert.
 - Every scheduled run is charged credits at --performance, so use the smallest
   tier and the lowest frequency that catch the event in time.
@@ -41,7 +45,7 @@ Choose one channel:
   The owner's plan limits how many queries can have alerts and schedules.
 - Recipients receive the query name, a link to it and its charts.
 
-Supported cron expressions (5-part, UTC):
+Supported cron expressions (5-part, UTC; from the setQueryAlert tool's description):
   "*/15 * * * *", "*/20 * * * *", "*/30 * * * *"  every 15, 20 or 30 minutes
   "0 * * * *"                                    hourly
   "0 */N * * *" with N in 2, 3, 4, 6, 8, 12      every N hours
@@ -53,7 +57,7 @@ To stop the schedule, use 'dune schedule delete --query-id <id>'.
 
 Examples:
   dune query alert 12345 --cron "0 * * * *" --performance small --email me@example.com
-  dune query alert 12345 --cron "*/30 * * * *" --performance small --slack-webhook "$SLACK_URL"`,
+  printf %s "$SLACK_URL" | dune query alert 12345 --cron "*/30 * * * *" --performance small --slack-webhook @-`,
 		Args: cobra.ExactArgs(1),
 		RunE: runAlert,
 	}
@@ -61,9 +65,9 @@ Examples:
 	cmd.Flags().String("cron", "", "when to run, as a supported 5-part UTC cron expression (required)")
 	cmd.Flags().String("performance", "", `engine tier for each run: "small", "medium", or "large" (required)`)
 	cmd.Flags().StringArray("email", nil, "address to notify; repeat for up to 5")
-	cmd.Flags().String("slack-webhook", "", "Slack incoming webhook URL")
-	cmd.Flags().String("discord-webhook", "", "Discord webhook URL")
-	cmd.Flags().String("webhook", "", "HTTPS URL that receives a JSON POST for each fire")
+	cmd.Flags().String("slack-webhook", "", "Slack incoming webhook URL: inline, @path, or @-")
+	cmd.Flags().String("discord-webhook", "", "Discord webhook URL: inline, @path, or @-")
+	cmd.Flags().String("webhook", "", "HTTPS URL that receives a JSON POST for each fire: inline, @path, or @-")
 	_ = cmd.MarkFlagRequired("cron")
 	_ = cmd.MarkFlagRequired("performance")
 	cmd.MarkFlagsOneRequired("email", "slack-webhook", "discord-webhook", "webhook")
@@ -82,11 +86,25 @@ func runAlert(cmd *cobra.Command, args []string) error {
 	var channel map[string]any
 	if cmd.Flags().Changed("email") {
 		emails, _ := cmd.Flags().GetStringArray("email")
+		// An empty --email can reach here as no addresses at all.
+		if len(emails) == 0 {
+			return errors.New("--email must not be empty")
+		}
+		for _, e := range emails {
+			if strings.TrimSpace(e) == "" {
+				return errors.New("--email must not be empty")
+			}
+		}
 		channel = map[string]any{"type": "email", "emails": emails}
 	}
 	for flag, typ := range alertChannels {
 		if cmd.Flags().Changed(flag) {
-			url, _ := cmd.Flags().GetString(flag)
+			data, err := cmdutil.FileFlag(cmd, flag)
+			if err != nil {
+				return err
+			}
+			// A file or echo usually ends with a newline.
+			url := strings.TrimSpace(string(data))
 			if url == "" {
 				return fmt.Errorf("--%s must not be empty", flag)
 			}
@@ -101,20 +119,21 @@ func runAlert(cmd *cobra.Command, args []string) error {
 	toolArgs["query_id"] = queryID
 	toolArgs["channel"] = channel
 
-	// The result has no webhook URL, so it is safe to print as it is.
+	// Output is built from these fields only, so a webhook URL the tool might
+	// echo back in a later version never reaches it.
 	var res struct {
 		AlertID           string `json:"alert_id"`
+		QueryID           int    `json:"query_id"`
 		Channel           string `json:"channel"`
 		CronExpression    string `json:"cron_expression"`
 		NextExecutionTime string `json:"next_execution_time"`
 	}
-	raw, err := cmdutil.CallTool(cmd, "setQueryAlert", toolArgs, &res)
-	if err != nil {
+	if _, err := cmdutil.CallTool(cmd, "setQueryAlert", toolArgs, &res); err != nil {
 		return err
 	}
 	w := cmd.OutOrStdout()
 	if output.FormatFromCmd(cmd) == output.FormatJSON {
-		return output.PrintRawJSON(w, raw)
+		return output.PrintJSON(w, res)
 	}
 	fmt.Fprintf(w, "Set %s alert %s on query %d\n", res.Channel, res.AlertID, queryID)
 	fmt.Fprintf(w, "Schedule: %s (UTC), next run %s\n", res.CronExpression, res.NextExecutionTime)
