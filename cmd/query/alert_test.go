@@ -3,6 +3,7 @@ package query_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/duneanalytics/cli/dunemcp/dunemcptest"
@@ -48,6 +49,23 @@ func TestAlertReadsWebhookFromFile(t *testing.T) {
 	require.NoError(t, err)
 	// The trailing newline is trimmed.
 	assert.Contains(t, fake.Last().Args, `"url":"https://hooks.example/SECRET"}`)
+}
+
+func TestAlertReadsWebhookFromStdin(t *testing.T) {
+	fake := &dunemcptest.Fake{Results: map[string]string{"setQueryAlert": alertResult}}
+	root, _ := newMCPRoot(fake)
+	root.SetIn(strings.NewReader("https://hooks.example/SECRET\n"))
+	root.SetArgs([]string{"query", "alert", "42", "--cron", "0 * * * *", "--performance", "small", "--webhook", "@-"})
+	require.NoError(t, root.Execute())
+	assert.Contains(t, fake.Last().Args, `"url":"https://hooks.example/SECRET"}`)
+}
+
+// Fields the tool leaves out stay out of -o json, as they did when it printed the raw result.
+func TestAlertJSONOmitsMissingFields(t *testing.T) {
+	fake := &dunemcptest.Fake{Results: map[string]string{"setQueryAlert": `{"alert_id":"a-1","channel":"email"}`}}
+	out, err := runAlert(fake, "42", "--cron", "0 * * * *", "--performance", "small", "--email", "a@x.com", "-o", "json")
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"alert_id":"a-1","channel":"email"}`, out)
 }
 
 // A result that echoes the channel config must not leak the URL in either format.

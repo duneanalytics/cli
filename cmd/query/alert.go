@@ -86,7 +86,8 @@ func runAlert(cmd *cobra.Command, args []string) error {
 	var channel map[string]any
 	if cmd.Flags().Changed("email") {
 		emails, _ := cmd.Flags().GetStringArray("email")
-		// An empty --email can reach here as no addresses at all.
+		// --email "" arrives as no addresses: pflag stores [""], but GetStringArray
+		// rebuilds the slice from its CSV form, which is empty.
 		if len(emails) == 0 {
 			return errors.New("--email must not be empty")
 		}
@@ -122,11 +123,11 @@ func runAlert(cmd *cobra.Command, args []string) error {
 	// Output is built from these fields only, so a webhook URL the tool might
 	// echo back in a later version never reaches it.
 	var res struct {
-		AlertID           string `json:"alert_id"`
-		QueryID           int    `json:"query_id"`
-		Channel           string `json:"channel"`
-		CronExpression    string `json:"cron_expression"`
-		NextExecutionTime string `json:"next_execution_time"`
+		AlertID           string `json:"alert_id,omitempty"`
+		QueryID           int    `json:"query_id,omitempty"`
+		Channel           string `json:"channel,omitempty"`
+		CronExpression    string `json:"cron_expression,omitempty"`
+		NextExecutionTime string `json:"next_execution_time,omitempty"`
 	}
 	if _, err := cmdutil.CallTool(cmd, "setQueryAlert", toolArgs, &res); err != nil {
 		return err
