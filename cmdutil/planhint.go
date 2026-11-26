@@ -39,7 +39,8 @@ func PlanHint(err error) string {
 		}
 	}
 	switch {
-	case strings.Contains(msg, "unpaid"):
+	// Gated on the status: a SQL error can name a column such as unpaid_balance.
+	case status == http.StatusPaymentRequired && strings.Contains(msg, "unpaid"):
 		link("Update your payment details in your plan settings: ", planSettingsURL)
 	case status == http.StatusTooManyRequests || strings.Contains(msg, "too many requests"):
 		link("Plans with higher rate limits: ", pricingURL)
@@ -55,16 +56,17 @@ func PlanHint(err error) string {
 }
 
 // isCreditsLimit reports whether an error message from the Dune MCP server or
-// the query engine says a credit limit stopped the request.
+// the query engine says a credit limit stopped the request. The phrases are
+// the exact wording of those messages, so that query errors which merely
+// mention credits get no hint. REST refusals are caught by their 402 status.
 func isCreditsLimit(msg string) bool {
 	for _, s := range []string{
-		"not enough credits",
-		"enough credits left",
-		"used all the credits",
-		"extra credits limit",
-		"credits limit",
-		"per-query credit cap",
-		"user defined maximum amount of resources",
+		"not enough credits",                             // core's not_enough_credits error
+		"enough credits left",                            // MCP, unknown cause
+		"used all the credits",                           // MCP, free plan or extra credits off or at the limit
+		"used all its credits",                           // MCP, trial
+		"the credits and extra credits its limits allow", // MCP, team or organization limit
+		"user defined maximum amount of resources",       // query engine, per-query cap
 	} {
 		if strings.Contains(msg, s) {
 			return true

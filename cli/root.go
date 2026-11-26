@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 	"time"
@@ -159,16 +158,7 @@ func Execute(version, commit, date, amplitudeKey string) {
 	rootCmd.SetContext(context.Background())
 	cmdutil.SetTracker(rootCmd, tracker)
 
-	if err := fang.Execute(rootCmd.Context(), rootCmd,
-		fang.WithVersion(versionStr),
-		fang.WithErrorHandler(func(w io.Writer, styles fang.Styles, err error) {
-			fang.DefaultErrorHandler(w, styles, err)
-			// A plan limit gets the links to get past it.
-			if hint := cmdutil.PlanHint(err); hint != "" {
-				fmt.Fprintln(w, hint)
-			}
-		}),
-	); err != nil {
+	if err := fang.Execute(rootCmd.Context(), rootCmd, fang.WithVersion(versionStr)); err != nil {
 		// Build best-effort command path from os.Args (strip flags).
 		commandPath := commandPathFromArgs(os.Args)
 		tracker.Track(commandPath, tracking.StatusError, err.Error(), 0)
@@ -177,6 +167,10 @@ func Execute(version, commit, date, amplitudeKey string) {
 		tracker.Shutdown()
 
 		fmt.Fprintln(os.Stderr, err)
+		// A plan limit gets the links to get past it.
+		if hint := cmdutil.PlanHint(err); hint != "" {
+			fmt.Fprintln(os.Stderr, hint)
+		}
 		os.Exit(1)
 	}
 }
