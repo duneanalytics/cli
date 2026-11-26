@@ -59,7 +59,7 @@ func runSubmissions(cmd *cobra.Command, _ []string) error {
 	}
 	w := cmd.OutOrStdout()
 	if output.FormatFromCmd(cmd) == output.FormatJSON {
-		return output.PrintJSON(w, res)
+		return output.PrintJSON(cmd, res)
 	}
 	if len(res.Submissions) == 0 {
 		fmt.Fprintln(w, "No submissions found.")

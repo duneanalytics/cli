@@ -61,7 +61,7 @@ func runGet(cmd *cobra.Command, args []string) error {
 	w := cmd.OutOrStdout()
 	switch output.FormatFromCmd(cmd) {
 	case output.FormatJSON:
-		return output.PrintJSON(w, struct {
+		return output.PrintJSON(cmd, struct {
 			*models.GetVisualizationResponse
 			ChartType           *string `json:"chart_type"`
 			IsPrivate           *bool   `json:"is_private"`

@@ -45,7 +45,7 @@ func runSize(cmd *cobra.Command, args []string) error {
 	}
 	w := cmd.OutOrStdout()
 	if output.FormatFromCmd(cmd) == output.FormatJSON {
-		return output.PrintRawJSON(w, raw)
+		return output.PrintRawJSON(cmd, raw)
 	}
 	if res.TotalSizeBytes != nil {
 		fmt.Fprintf(w, "%s: %s\n", res.TableName, output.FormatBytes(*res.TotalSizeBytes))

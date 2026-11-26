@@ -41,7 +41,7 @@ func runDelete(cmd *cobra.Command, posArgs []string) error {
 	}
 	w := cmd.OutOrStdout()
 	if output.FormatFromCmd(cmd) == output.FormatJSON {
-		return output.PrintJSON(w, res)
+		return output.PrintJSON(cmd, res)
 	}
 	fmt.Fprintf(w, "Deleted folder %s: %d folders deleted, %d queries and %d dashboards archived\n",
 		res.Path, res.DeletedFolderCount, res.ArchivedQueryCount, res.ArchivedDashboardCount)

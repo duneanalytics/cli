@@ -114,7 +114,7 @@ func runCreateAndRun(cmd *cobra.Command, _ []string) error {
 
 	w := cmd.OutOrStdout()
 	if output.FormatFromCmd(cmd) == output.FormatJSON {
-		if err := output.PrintRawJSON(w, raw); err != nil {
+		if err := output.PrintRawJSON(cmd, raw); err != nil {
 			return err
 		}
 		return errors.Join(errs...)

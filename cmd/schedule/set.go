@@ -77,7 +77,7 @@ func runSet(cmd *cobra.Command, _ []string) error {
 	}
 	w := cmd.OutOrStdout()
 	if output.FormatFromCmd(cmd) == output.FormatJSON {
-		return output.PrintJSON(w, res)
+		return output.PrintJSON(cmd, res)
 	}
 	verb := "Replaced"
 	if res.Created {

@@ -43,7 +43,7 @@ func runDelete(cmd *cobra.Command, args []string) error {
 	w := cmd.OutOrStdout()
 	switch output.FormatFromCmd(cmd) {
 	case output.FormatJSON:
-		return output.PrintJSON(w, map[string]any{"ok": true})
+		return output.PrintJSON(cmd, map[string]any{"ok": true})
 	default:
 		fmt.Fprintf(w, "Deleted visualization %d\n", vizID)
 		return nil

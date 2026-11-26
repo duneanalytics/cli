@@ -62,7 +62,7 @@ func runList(cmd *cobra.Command, _ []string) error {
 	w := cmd.OutOrStdout()
 	switch output.FormatFromCmd(cmd) {
 	case output.FormatJSON:
-		return output.PrintJSON(w, result)
+		return output.PrintJSON(cmd, result)
 	default:
 		if len(result.MaterializedViews) == 0 {
 			fmt.Fprintln(w, "No materialized views found.")

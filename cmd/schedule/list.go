@@ -42,7 +42,7 @@ func runList(cmd *cobra.Command, _ []string) error {
 	}
 	w := cmd.OutOrStdout()
 	if output.FormatFromCmd(cmd) == output.FormatJSON {
-		return output.PrintJSON(w, res)
+		return output.PrintJSON(cmd, res)
 	}
 	rows := make([][]string, len(res.Schedules))
 	for i, s := range res.Schedules {

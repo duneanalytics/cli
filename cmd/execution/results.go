@@ -131,7 +131,7 @@ func handleResultsResponse(cmd *cobra.Command, executionID string, resp *models.
 		w := cmd.OutOrStdout()
 		switch output.FormatFromCmd(cmd) {
 		case output.FormatJSON:
-			return output.PrintJSON(w, resp)
+			return output.PrintJSON(cmd, resp)
 		default:
 			fmt.Fprintf(w, "Execution ID: %s\n", executionID)
 			fmt.Fprintf(w, "State:        %s\n", resp.State)

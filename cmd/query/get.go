@@ -56,9 +56,9 @@ func runGet(cmd *cobra.Command, args []string) error {
 	case output.FormatJSON:
 		if !latestKnown {
 			// Leave the keys out, so an unknown latest execution does not read as "never run" (null).
-			return output.PrintJSON(w, resp)
+			return output.PrintJSON(cmd, resp)
 		}
-		return output.PrintJSON(w, struct {
+		return output.PrintJSON(cmd, struct {
 			*models.GetQueryResponse
 			LatestExecutionID    *string `json:"latest_execution_id"`
 			LatestExecutionState *string `json:"latest_execution_state"`

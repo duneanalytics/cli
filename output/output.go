@@ -15,9 +15,12 @@ const (
 	FormatJSON = "json"
 )
 
-// AddFormatFlag registers the -o/--output flag on cmd with the given default.
+// AddFormatFlag registers the -o/--output and --compact flags on cmd, with the
+// given default format.
 func AddFormatFlag(cmd *cobra.Command, defaultFormat string) {
 	cmd.Flags().StringP("output", "o", defaultFormat, `output format: "text" or "json"`)
+	cmd.Flags().Bool("compact", false,
+		"with -o json, print the JSON on one line without indentation (fewer tokens for agents and scripts)")
 }
 
 // FormatFromCmd reads the output flag value from cmd.
@@ -26,24 +29,40 @@ func FormatFromCmd(cmd *cobra.Command) string {
 	return f
 }
 
-// PrintJSON encodes v as indented JSON and writes it to w.
-func PrintJSON(w io.Writer, v any) error {
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
+// jsonIndent is the indentation PrintJSON and PrintRawJSON use: none with
+// --compact, two spaces otherwise.
+func jsonIndent(cmd *cobra.Command) string {
+	if compact, _ := cmd.Flags().GetBool("compact"); compact {
+		return ""
+	}
+	return "  "
+}
+
+// PrintJSON encodes v as JSON, indented unless --compact is set, and writes it
+// to cmd's output.
+func PrintJSON(cmd *cobra.Command, v any) error {
+	enc := json.NewEncoder(cmd.OutOrStdout())
+	enc.SetIndent("", jsonIndent(cmd))
 	// Keep URLs and SQL readable: write & < > as they are, not as \u0026 \u003c \u003e.
 	enc.SetEscapeHTML(false)
 	return enc.Encode(v)
 }
 
 // PrintRawJSON writes JSON that is already encoded, such as a Dune MCP tool
-// result, indented the same way as PrintJSON.
-func PrintRawJSON(w io.Writer, raw json.RawMessage) error {
+// result, formatted the same way as PrintJSON.
+func PrintRawJSON(cmd *cobra.Command, raw json.RawMessage) error {
 	var buf bytes.Buffer
-	if err := json.Indent(&buf, raw, "", "  "); err != nil {
+	var err error
+	if indent := jsonIndent(cmd); indent == "" {
+		err = json.Compact(&buf, raw)
+	} else {
+		err = json.Indent(&buf, raw, "", indent)
+	}
+	if err != nil {
 		return err
 	}
 	buf.WriteByte('\n')
-	_, err := buf.WriteTo(w)
+	_, err = buf.WriteTo(cmd.OutOrStdout())
 	return err
 }
 

@@ -161,7 +161,7 @@ func runUpdate(cmd *cobra.Command, posArgs []string) error {
 	w := cmd.OutOrStdout()
 	switch output.FormatFromCmd(cmd) {
 	case output.FormatJSON:
-		return output.PrintJSON(w, resp)
+		return output.PrintJSON(cmd, resp)
 	default:
 		fmt.Fprintf(w, "Updated query %d\n", resp.QueryID)
 		return nil

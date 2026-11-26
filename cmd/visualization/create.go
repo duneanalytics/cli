@@ -165,7 +165,7 @@ func runCreate(cmd *cobra.Command, _ []string) error {
 	w := cmd.OutOrStdout()
 	switch output.FormatFromCmd(cmd) {
 	case output.FormatJSON:
-		return output.PrintJSON(w, map[string]any{
+		return output.PrintJSON(cmd, map[string]any{
 			"id":  resp.ID,
 			"url": url,
 		})
