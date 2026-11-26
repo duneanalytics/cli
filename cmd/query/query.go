@@ -16,7 +16,8 @@ func NewQueryCmd() *cobra.Command {
 			"  update   - Modify a query's SQL, title, description, privacy, tags, or parameters\n" +
 			"  archive  - Hide a query from the library (still retrievable by ID)\n" +
 			"  run      - Execute a saved query by ID and display results\n" +
-			"  run-sql  - Execute raw DuneSQL inline without saving a query",
+			"  run-sql  - Execute raw DuneSQL inline without saving a query\n" +
+			"  alert    - Schedule a query and get notified when a run returns rows",
 	}
 	cmd.AddCommand(newCreateCmd())
 	cmd.AddCommand(newCreateAndRunCmd())
@@ -26,5 +27,6 @@ func NewQueryCmd() *cobra.Command {
 	cmd.AddCommand(newArchiveCmd())
 	cmd.AddCommand(newRunCmd())
 	cmd.AddCommand(newRunSQLCmd())
+	cmd.AddCommand(newAlertCmd())
 	return cmd
 }

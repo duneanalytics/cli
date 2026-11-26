@@ -57,6 +57,7 @@ Manage and execute Dune queries.
 | `query archive <query-id>` | Archive a saved query |
 | `query run <query-id> [--param key=value] [--performance small\|medium\|large] [--limit] [--timeout] [--no-wait]` | Execute a saved query and display results |
 | `query run-sql --sql <sql> [--param key=value] [--performance small\|medium\|large] [--limit] [--timeout] [--no-wait]` | Execute raw SQL directly |
+| `query alert <query-id> --cron <expr> --performance small\|medium\|large --email <addr>... \| --slack-webhook <url> \| --discord-webhook <url> \| --webhook <url>` | Schedule a query and get notified each time a run returns rows |
 
 ### `dune matview` (alias: `mv`)
 
