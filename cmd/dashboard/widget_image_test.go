@@ -90,6 +90,7 @@ func TestImageSavesInlineJPEGAndHidesShareURL(t *testing.T) {
 
 func TestImageDownloadsWhenTooLargeToInline(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "image/jpeg")
 		_, _ = w.Write([]byte("big-jpeg"))
 	}))
 	t.Cleanup(srv.Close)
@@ -102,6 +103,36 @@ func TestImageDownloadsWhenTooLargeToInline(t *testing.T) {
 	got, _ := os.ReadFile(path)
 	assert.Equal(t, "big-jpeg", string(got))
 	assert.NotContains(t, out, "KEY")
+}
+
+func imageFake(url string) *dunemcptest.Fake {
+	return &dunemcptest.Fake{Results: map[string]string{"getDashboardImage": `{"dashboardId":5,
+		"dashboardUrl":"https://dune.com/alice/d","dashboardImageUrl":"` + url + `",
+		"imageIncluded":false,"withheldVisualizationIds":[]}`}}
+}
+
+func TestImageDownloadFailuresKeepTheShareKeyOut(t *testing.T) {
+	closed := httptest.NewServer(http.NotFoundHandler())
+	closed.Close()
+	html := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte("<html>login</html>"))
+	}))
+	t.Cleanup(html.Close)
+	forbidden := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	t.Cleanup(forbidden.Close)
+
+	for name, base := range map[string]string{"connection refused": closed.URL, "html page": html.URL, "403": forbidden.URL} {
+		t.Run(name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "d.jpg")
+			_, err := runDash(imageFake(base+"/SHAREKEY"), "image", "5", "--file", path)
+			require.Error(t, err)
+			assert.NotContains(t, err.Error(), "SHAREKEY")
+			assert.NoFileExists(t, path)
+		})
+	}
 }
 
 func TestImageWithheldForLicensedData(t *testing.T) {

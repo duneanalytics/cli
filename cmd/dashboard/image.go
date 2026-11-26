@@ -129,5 +129,9 @@ func download(cmd *cobra.Command, imageURL string) ([]byte, error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("downloading the dashboard image failed: %s", resp.Status)
 	}
+	// A 200 with an HTML error or login page must not be saved as the image.
+	if ct := resp.Header.Get("Content-Type"); !strings.HasPrefix(ct, "image/") {
+		return nil, fmt.Errorf("downloading the dashboard image failed: got %q instead of an image", ct)
+	}
 	return io.ReadAll(resp.Body)
 }
