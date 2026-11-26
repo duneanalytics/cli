@@ -94,14 +94,21 @@ func JSONFlag(cmd *cobra.Command, name string, v any) error {
 // CallTool calls a Dune MCP tool and, when view is not nil, decodes the result
 // into it. It returns the result as the tool sent it, for JSON output.
 func CallTool(cmd *cobra.Command, tool string, args map[string]any, view any) (json.RawMessage, error) {
-	raw, err := MCPFromCmd(cmd).Call(cmd.Context(), tool, args)
+	raw, _, err := CallToolWithImages(cmd, tool, args, view)
+	return raw, err
+}
+
+// CallToolWithImages calls a Dune MCP tool like CallTool and also returns the
+// images the tool sent.
+func CallToolWithImages(cmd *cobra.Command, tool string, args map[string]any, view any) (json.RawMessage, [][]byte, error) {
+	raw, images, err := MCPFromCmd(cmd).CallWithImages(cmd.Context(), tool, args)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if view != nil {
 		if err := json.Unmarshal(raw, view); err != nil {
-			return nil, fmt.Errorf("%s: unexpected result: %w", tool, err)
+			return nil, nil, fmt.Errorf("%s: unexpected result: %w", tool, err)
 		}
 	}
-	return raw, nil
+	return raw, images, nil
 }

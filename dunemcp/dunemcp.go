@@ -23,6 +23,9 @@ const Path = "/mcp/v1"
 type Caller interface {
 	// Call runs a tool and returns its structured result as JSON.
 	Call(ctx context.Context, tool string, args map[string]any) (json.RawMessage, error)
+	// CallWithImages runs a tool like Call and also returns the images in its
+	// result, decoded.
+	CallWithImages(ctx context.Context, tool string, args map[string]any) (json.RawMessage, [][]byte, error)
 }
 
 // Client is a Caller that opens one MCP session per call.
@@ -49,17 +52,28 @@ func New(host, apiKey string, headers map[string]string, version string) *Client
 // Call runs tool with args. A tool that reports an error returns it as a Go error
 // carrying the server's message.
 func (c *Client) Call(ctx context.Context, tool string, args map[string]any) (json.RawMessage, error) {
+	raw, _, err := c.CallWithImages(ctx, tool, args)
+	return raw, err
+}
+
+// CallWithImages runs tool with args like Call and also returns the images the
+// tool sent.
+func (c *Client) CallWithImages(ctx context.Context, tool string, args map[string]any) (json.RawMessage, [][]byte, error) {
 	session, err := c.connect(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer session.Close()
 
 	res, err := session.CallTool(ctx, &mcp.CallToolParams{Name: tool, Arguments: args})
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", tool, err)
+		return nil, nil, fmt.Errorf("%s: %w", tool, err)
 	}
-	return Result(tool, res)
+	raw, err := Result(tool, res)
+	if err != nil {
+		return nil, nil, err
+	}
+	return raw, Images(res), nil
 }
 
 func (c *Client) connect(ctx context.Context) (*mcp.ClientSession, error) {
@@ -109,6 +123,17 @@ func ToolError(tool string, res *mcp.CallToolResult) error {
 		msg = tool + " failed without a message"
 	}
 	return errors.New(msg)
+}
+
+// Images returns the decoded data of the image blocks in a tool result.
+func Images(res *mcp.CallToolResult) [][]byte {
+	var images [][]byte
+	for _, c := range res.Content {
+		if img, ok := c.(*mcp.ImageContent); ok {
+			images = append(images, img.Data)
+		}
+	}
+	return images
 }
 
 func text(res *mcp.CallToolResult) string {

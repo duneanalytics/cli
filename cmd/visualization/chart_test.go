@@ -71,3 +71,27 @@ func TestUpdateFromChartConfigKeepsName(t *testing.T) {
 	assert.JSONEq(t, `{"visualizationId":9,"chartType":"counter","config":{"chart_type":"counter","column":"n"}}`,
 		fake.Last().Args)
 }
+
+func TestCreateFromChartConfigSendsDescription(t *testing.T) {
+	fake := &dunemcptest.Fake{Results: map[string]string{"generateVisualization": chartResult}}
+	_, err := run(fake, "create", "--query-id", "7", "--name", "Total", "--chart-type", "counter",
+		"--config", `{"column":"n"}`, "--description", "All trades")
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"queryId":7,"visualizationName":"Total","description":"All trades","chartType":"counter",
+		"config":{"chart_type":"counter","column":"n"}}`, fake.Last().Args)
+}
+
+func TestUpdateCounterLabelAndDescriptionWithoutConfig(t *testing.T) {
+	fake := &dunemcptest.Fake{Results: map[string]string{"updateVisualization": chartResult}}
+	// An empty label removes it, so it must still be sent.
+	_, err := run(fake, "update", "9", "--counter-label", "", "--description", "Since 2020")
+	require.NoError(t, err)
+	assert.Equal(t, "updateVisualization", fake.Last().Tool)
+	assert.JSONEq(t, `{"visualizationId":9,"counterLabel":"","description":"Since 2020"}`, fake.Last().Args)
+}
+
+func TestUpdateCounterLabelExcludesRawOptions(t *testing.T) {
+	_, err := run(&dunemcptest.Fake{}, "update", "9", "--counter-label", "x", "--options", "{}")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "counter-label")
+}

@@ -35,6 +35,11 @@ func TestClientCallsTheDuneMCPServer(t *testing.T) {
 			res := &mcp.CallToolResult{IsError: true, Content: []mcp.Content{&mcp.TextContent{Text: "Folder not found"}}}
 			return res, nil, nil
 		})
+	mcp.AddTool(server, &mcp.Tool{Name: "getDashboardImage"},
+		func(context.Context, *mcp.CallToolRequest, struct{}) (*mcp.CallToolResult, queryOut, error) {
+			res := &mcp.CallToolResult{Content: []mcp.Content{&mcp.ImageContent{Data: []byte{0xff, 0xd8, 0x00}, MIMEType: "image/jpeg"}}}
+			return res, queryOut{Name: "dash"}, nil
+		})
 
 	var mu sync.Mutex
 	var paths, keys, origins []string
@@ -57,6 +62,12 @@ func TestClientCallsTheDuneMCPServer(t *testing.T) {
 
 	_, err = client.Call(context.Background(), "getDuneFolder", map[string]any{})
 	assert.EqualError(t, err, "Folder not found")
+
+	// Images arrive base64-encoded and come back as their raw bytes.
+	raw, images, err := client.CallWithImages(context.Background(), "getDashboardImage", map[string]any{})
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"query_id":0,"name":"dash"}`, string(raw))
+	assert.Equal(t, [][]byte{{0xff, 0xd8, 0x00}}, images)
 
 	mu.Lock()
 	defer mu.Unlock()

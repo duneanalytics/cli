@@ -104,16 +104,16 @@ Create and manage visualizations on saved queries.
 
 | Command | Description |
 |---------|-------------|
-| `viz create --query-id <id> --name <name> --chart-type <type> --config <json>` | Create a chart from a compact chart config |
+| `viz create --query-id <id> --name <name> --chart-type <type> --config <json> [--description]` | Create a chart from a compact chart config |
 | `viz create --query-id <id> --name <name> --options <json> [--type chart\|table\|counter\|...]` | Create a visualization from raw Dune options |
 | `viz get <visualization-id>` | Get a visualization's details, options, chart type, and chart and image links |
-| `viz update <visualization-id> [--name] [--chart-type <type> --config <json>] [--type] [--description] [--options]` | Update an existing visualization |
+| `viz update <visualization-id> [--name] [--description] [--counter-label] [--chart-type <type> --config <json>] [--type] [--options]` | Update an existing visualization |
 | `viz delete <visualization-id>` | Permanently delete a visualization |
 | `viz list --query-id <id> [--limit] [--offset]` | List all visualizations for a query |
 
 Supported types: `chart`, `table`, `counter`, `pivot`, `cohort`, `funnel`, `choropleth`, `sankey`, `sunburst_sequence`, `word_cloud`.
 
-`--chart-type` is one of `column`, `line`, `area`, `scatter`, `pie`, `counter`, or `table`, and `--config` describes the axes and series (run `dune viz create --help` for its format). Column names must match the query's result columns exactly. Dune does not check them, so look at the columns first with `dune execution results`. `--config` and `--options` accept inline JSON, `@path`, or `@-` for standard input.
+`--chart-type` is one of `column`, `line`, `area`, `scatter`, `pie`, `counter`, or `table`, and `--config` describes the axes and series (run `dune viz create --help` for its format). Column names must match the query's result columns exactly; when the query has completed results, Dune rejects a config that names other columns. Look at the columns first with `dune execution results`. `--config` and `--options` accept inline JSON, `@path`, or `@-` for standard input.
 
 ### `dune dashboard` (alias: `dash`)
 
@@ -124,6 +124,8 @@ Create and manage dashboards.
 | `dashboard create --name <name> [--visualization-ids 1,2,3] [--text-widgets <json>] [--columns-per-row 1\|2\|3] [--private]` | Create a new dashboard |
 | `dashboard get <dashboard-id>` or `dashboard get --owner <handle> --slug <slug>` | Get a dashboard's details and widgets |
 | `dashboard update <dashboard-id> [--name] [--slug] [--private] [--tags] [--visualization-widgets <json>] [--text-widgets <json>]` | Update an existing dashboard |
+| `dashboard update-widget <dashboard-id> --widget-type visualization\|text\|param --widget-id <id> [--row --col --size-x --size-y] [--text <md>]` | Move or resize one widget, or edit a text widget, keeping the others |
+| `dashboard image <dashboard-id> [--file <path>]` | Save a JPEG of the whole dashboard to check its layout |
 | `dashboard archive <dashboard-id>` | Archive a dashboard |
 | `dashboard search --query <text> [--owned-only] [--limit]` | Find dashboards by name |
 

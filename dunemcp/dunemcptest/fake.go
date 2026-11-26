@@ -15,6 +15,8 @@ import (
 type Fake struct {
 	// Results maps a tool name to the JSON result it returns.
 	Results map[string]string
+	// Images maps a tool name to the images it returns with its result.
+	Images map[string][][]byte
 	// Errors maps a tool name to the error it returns.
 	Errors map[string]error
 	Calls  []Call
@@ -41,6 +43,15 @@ func (f *Fake) Call(_ context.Context, tool string, args map[string]any) (json.R
 		return nil, fmt.Errorf("unexpected call to %s", tool)
 	}
 	return json.RawMessage(res), nil
+}
+
+// CallWithImages implements dunemcp.Caller.
+func (f *Fake) CallWithImages(ctx context.Context, tool string, args map[string]any) (json.RawMessage, [][]byte, error) {
+	raw, err := f.Call(ctx, tool, args)
+	if err != nil {
+		return nil, nil, err
+	}
+	return raw, f.Images[tool], nil
 }
 
 // Last returns the most recent call. It panics when there was none.

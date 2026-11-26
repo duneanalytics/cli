@@ -21,7 +21,10 @@ func newUpdateCmd() *cobra.Command {
 			"Examples:\n" +
 			"  dune viz update 12345 --name \"New Name\"\n" +
 			"  dune viz update 12345 --type counter --options '{\"counterColName\":\"count\"}'\n" +
-			"  dune viz update 12345 --chart-type counter --config @counter.json\n\n" +
+			"  dune viz update 12345 --chart-type counter --config @counter.json\n" +
+			"  dune viz update 12345 --counter-label \"Total volume\"\n\n" +
+			"--counter-label sets the caption shown with a counter's number; an empty\n" +
+			"string removes it. It only applies to counter visualizations.\n\n" +
 			"--chart-type and --config replace --type and --options with a compact chart\n" +
 			"description. When the chart type stays the same, options the config does not\n" +
 			"cover (such as custom colors) are kept.\n\n" + ChartConfigHelp,
@@ -33,10 +36,12 @@ func newUpdateCmd() *cobra.Command {
 	cmd.Flags().String("type", "", "new visualization type")
 	cmd.Flags().String("description", "", "new description for the visualization")
 	cmd.Flags().String("options", "", "new raw visualization options JSON")
+	cmd.Flags().String("counter-label", "", "new caption for a counter; an empty string removes it")
 	AddChartFlags(cmd)
 	cmd.MarkFlagsMutuallyExclusive("options", "config")
 	cmd.MarkFlagsMutuallyExclusive("type", "chart-type")
-	cmd.MarkFlagsMutuallyExclusive("description", "config")
+	cmd.MarkFlagsMutuallyExclusive("counter-label", "options")
+	cmd.MarkFlagsMutuallyExclusive("counter-label", "type")
 	output.AddFormatFlag(cmd, "text")
 
 	return cmd
@@ -52,10 +57,17 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if chart != nil {
+	if chart != nil || cmd.Flags().Changed("counter-label") {
+		if chart == nil {
+			chart = map[string]any{}
+		}
 		chart["visualizationId"] = vizID
-		if cmd.Flags().Changed("name") {
-			chart["visualizationName"], _ = cmd.Flags().GetString("name")
+		for flag, arg := range map[string]string{
+			"name": "visualizationName", "description": "description", "counter-label": "counterLabel",
+		} {
+			if cmd.Flags().Changed(flag) {
+				chart[arg], _ = cmd.Flags().GetString(flag)
+			}
 		}
 		return runChartTool(cmd, "updateVisualization", chart, "Updated")
 	}
@@ -63,7 +75,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 	if !cmd.Flags().Changed("name") && !cmd.Flags().Changed("type") &&
 		!cmd.Flags().Changed("description") && !cmd.Flags().Changed("options") {
 		return fmt.Errorf("at least one flag must be provided " +
-			"(--name, --type, --description, --options, or --chart-type with --config)")
+			"(--name, --type, --description, --options, --counter-label, or --chart-type with --config)")
 	}
 
 	// Parsed before any call, so bad options fail without touching the visualization.
