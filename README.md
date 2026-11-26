@@ -83,6 +83,8 @@ Manage query executions.
 | Command | Description |
 |---------|-------------|
 | `execution results <execution-id> [--limit] [--offset] [--timeout] [--no-wait] [--columns a,b] [--filter <expr>] [--sort-by <expr>] [--sample <n>]` | Fetch results of a query execution, optionally shaped on the server |
+| `execution list [--status active\|finished]` | List the team's queued and running runs, or the runs that finished in the last hour, with who started each, its source and its engine (team API key) |
+| `execution cancel <execution-id> [--yes]` | Stop one of the team's active runs; asks first, since the run also stops for anyone who shares it (team API key) |
 
 `--columns`, `--filter` (a WHERE-like expression such as `'"amount" > 0'`), `--sort-by` (an ORDER BY fragment such as `'"block_time" DESC'`), and `--sample` shape the results before they are sent, so you download only the rows and columns you need. `--sample` returns about that many rows, chosen at random, and cannot be combined with `--limit` or `--offset`.
 
