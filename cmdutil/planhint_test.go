@@ -62,6 +62,28 @@ func TestPlanHint(t *testing.T) {
 			want: "Update your payment details in your plan settings: https://dune.com/settings/plan",
 		},
 		{
+			name: "MCP tool error at a team's organization limit",
+			err: errors.New(
+				"This team, or the Dune organization it belongs to, has used the credits and extra credits its limits allow for this billing period, so Dune cannot run queries for this team.",
+			),
+			want: creditsHint,
+		},
+		{
+			name: "MCP tool error for a trial out of credits",
+			err:  errors.New("This Dune account's trial has used all its credits, so Dune cannot run queries for it."),
+			want: creditsHint,
+		},
+		{
+			name: "query error naming an unpaid column is not a billing problem",
+			err:  &dune.APIError{StatusCode: http.StatusBadRequest, Message: "Column 'unpaid_balance' cannot be resolved"},
+			want: "",
+		},
+		{
+			name: "query error mentioning a credits limit column is not a credit refusal",
+			err:  errors.New(`line 1:8: Column "extra credits limit" cannot be resolved`),
+			want: "",
+		},
+		{
 			name: "unrelated error",
 			err:  &dune.APIError{StatusCode: http.StatusNotFound, Message: "Query not found"},
 			want: "",
