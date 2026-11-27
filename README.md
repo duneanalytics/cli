@@ -184,10 +184,20 @@ Show credit and resource usage for your account.
 dune usage [--start-date YYYY-MM-DD] [--end-date YYYY-MM-DD]
 ```
 
+### Other commands
+
+| Command | Description |
+|---------|-------------|
+| `whoami` | Show the account of the current API key |
+| `config telemetry enable\|disable\|status` | Turn anonymous usage telemetry on or off, or show its status |
+| `completion bash\|zsh\|fish\|powershell` | Print a shell completion script |
+
+When a command fails because of the account's plan (credits used up, a rate limit, or an unpaid invoice), the CLI adds links to the pricing and plan settings pages after the error.
+
 ## Output Format
 
 All commands (except `auth`) support `-o, --output <format>` with `text` (default) or `json`.
 
 ## How the CLI talks to Dune
 
-Commands call the Dune REST API through [duneapi-client-go](https://github.com/duneanalytics/duneapi-client-go). Where the REST API has no equivalent yet (name search for queries and dashboards, `dataset blockchains`, `dataset size`, `query create`, `query create-and-run`, `dataset search`, chart configs, `query update --temp`, and a few fields of `query get`, `viz get`, and `matview get`), the CLI calls the [Dune MCP server](https://docs.dune.com/docs/agents/mcp) at `<api host>/mcp/v1` with the same API key. The MCP tools `renderVisualization` (an interactive view for MCP apps) and `submit_feedback` (feedback about the MCP tools themselves) have no CLI command.
+Commands call the Dune REST API through [duneapi-client-go](https://github.com/duneanalytics/duneapi-client-go). Where the REST API has no equivalent yet (name search for queries and dashboards, `dataset search`, `dataset blockchains`, `dataset size`, `query create`, `query create-and-run`, `query update --temp`, `query alert`, chart configs and `--counter-label` in `viz create` and `viz update`, `dashboard update-widget`, `dashboard image`, `execution list`, `execution cancel`, and a few fields of `query get`, `viz get`, and `matview get`), the CLI calls the [Dune MCP server](https://docs.dune.com/docs/agents/mcp) at `<api host>/mcp/v1` with the same API key. The MCP tools `renderVisualization` (an interactive view for MCP apps) and `submit_feedback` (feedback about the MCP tools themselves) have no CLI command. For the MCP's `getLatestQueryResult`, run `query get` for the latest execution ID and then `execution results`.
