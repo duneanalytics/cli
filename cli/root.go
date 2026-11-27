@@ -52,6 +52,9 @@ var rootCmd = &cobra.Command{
 		"  - Create and manage visualizations (charts, tables, counters) on query results\n" +
 		"  - Create and manage dashboards with visualizations and text widgets\n" +
 		"  - Organize queries and dashboards into folders, and schedule them to run\n" +
+		"  - Get notified by email, Slack, Discord, or webhook when a scheduled query returns rows\n" +
+		"  - Materialize query results into tables and refresh them on a schedule\n" +
+		"  - List the team's query runs and cancel active ones\n" +
 		"  - Submit smart contracts for decoding and track the submissions\n" +
 		"  - Browse Dune documentation for DuneSQL syntax, API references, and guides\n" +
 		"  - Monitor credit usage, storage consumption, and billing periods\n\n" +
