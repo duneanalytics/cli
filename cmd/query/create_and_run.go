@@ -24,7 +24,7 @@ func newCreateAndRunCmd() *cobra.Command {
 			"If the SQL targets tables with partition columns (shown by 'dune dataset search'),\n" +
 			"filter on them to reduce query cost.\n\n" +
 			"Examples:\n" +
-			"  dune query create-and-run --name \"Daily blocks\" --sql \"SELECT ...\" --performance small\n" +
+			"  dune query create-and-run --name \"Daily blocks\" --sql \"SELECT ...\" --performance medium\n" +
 			"  dune query create-and-run --name \"Daily volume\" --sql @volume.sql --chart-type line \\\n" +
 			"    --config @line.json --limit 5 -o json\n\n" + visualization.ChartConfigHelp,
 		Args: cobra.NoArgs,
