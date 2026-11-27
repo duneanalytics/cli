@@ -40,7 +40,8 @@ out of the process list and shell history; the command never prints it.
 
 - A query has one alert per channel; this replaces that channel's alert.
 - Every scheduled run is charged credits at --performance, so use the smallest
-  tier and the lowest frequency that catch the event in time.
+  tier your plan allows (most paid plans refuse small) and the lowest frequency
+  that catch the event in time.
 - You need to own the query or be an editor or admin of the team that owns it.
   The owner's plan limits how many queries can have alerts and schedules.
 - Recipients receive the query name, a link to it and its charts.
@@ -56,8 +57,8 @@ where M is 0 or 30 and H is 0-23.
 To stop the schedule, use 'dune schedule delete --query-id <id>'.
 
 Examples:
-  dune query alert 12345 --cron "0 * * * *" --performance small --email me@example.com
-  printf %s "$SLACK_URL" | dune query alert 12345 --cron "*/30 * * * *" --performance small --slack-webhook @-`,
+  dune query alert 12345 --cron "0 * * * *" --performance medium --email me@example.com
+  printf %s "$SLACK_URL" | dune query alert 12345 --cron "*/30 * * * *" --performance medium --slack-webhook @-`,
 		Args: cobra.ExactArgs(1),
 		RunE: runAlert,
 	}

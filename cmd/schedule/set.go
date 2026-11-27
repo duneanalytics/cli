@@ -18,10 +18,10 @@ func newSetCmd() *cobra.Command {
 			"refresh of all its queries). Creates the schedule when there is none and replaces\n" +
 			"every setting when there is one, so pass the settings you want to keep\n" +
 			"('dune schedule list' shows them).\n\n" +
-			"Every run is charged credits at --performance; prefer the smallest tier and the\n" +
-			"lowest frequency that meet the need. You must own the query or dashboard or be an\n" +
-			"editor or admin of the team that owns it. On the free plan a schedule expires\n" +
-			"after at most 3 months.\n\n" +
+			"Every run is charged credits at --performance; prefer the smallest tier your plan\n" +
+			"allows (most paid plans refuse small) and the lowest frequency that meet the\n" +
+			"need. You must own the query or dashboard or be an editor or admin of the team\n" +
+			"that owns it. On the free plan a schedule expires after at most 3 months.\n\n" +
 			"Supported cron expressions (5-part, UTC):\n" +
 			"  */15 * * * *, */20 * * * *, */30 * * * *   every 15, 20 or 30 minutes\n" +
 			"  0 * * * *                                  hourly\n" +
@@ -31,7 +31,7 @@ func newSetCmd() *cobra.Command {
 			"where M is 0 or 30 and H is 0-23.\n\n" +
 			"Examples:\n" +
 			"  dune schedule set --query-id 12345 --cron \"0 6 * * *\" --performance medium\n" +
-			"  dune schedule set --dashboard-id 678 --cron \"0 */6 * * *\" --performance small \\\n" +
+			"  dune schedule set --dashboard-id 678 --cron \"0 */6 * * *\" --performance medium \\\n" +
 			"    --expires-at 2027-01-01T00:00:00Z",
 		Args: cobra.NoArgs,
 		RunE: runSet,
